@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
@@ -313,5 +314,155 @@ fun MetaChip(text: String, modifier: Modifier = Modifier, color: Color = Color.U
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
         )
+    }
+}
+
+// ---------------- 按钮（胶囊 + tint 按压，FlClash common_button） ----------------
+
+/**
+ * Prism 按钮：胶囊形、minSize 64×40、tint 按压。
+ * @param filled true = FilledButton（primary 底）；false = OutlinedButton
+ */
+@Composable
+fun PrismButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    filled: Boolean = true,
+    enabled: Boolean = true,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+    content: @Composable RowScope.() -> Unit,
+) {
+    val density = LocalDensity.current
+    val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
+    val colors = if (filled) {
+        Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
+    } else {
+        Pair(Color.Transparent, MaterialTheme.colorScheme.primary)
+    }
+    WithPressLook(PressLook.Tint) {
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier
+                .clip(pill)
+                .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp),
+            shape = pill,
+            color = colors.first.takeIf { enabled }
+                ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            border = if (!filled) androidx.compose.foundation.BorderStroke(
+                1.dp,
+                MaterialTheme.colorScheme.outline.takeIf { enabled }
+                    ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            ) else null,
+        ) {
+            Row(
+                Modifier
+                    .padding(contentPadding),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ProvideContentColor(colors.second.takeIf { enabled }
+                    ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ProvideContentColor(color: Color, content: @Composable () -> Unit) {
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalContentColor provides color,
+        content = content,
+    )
+}
+
+/** 文字按钮。 */
+@Composable
+fun PrismTextButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit,
+) {
+    WithPressLook(PressLook.Tint) {
+        Surface(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = modifier.defaultMinSize(minHeight = 40.dp),
+            color = Color.Transparent,
+        ) {
+            Row(
+                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                ProvideContentColor(MaterialTheme.colorScheme.primary) { content() }
+            }
+        }
+    }
+}
+
+// ---------------- 对话框（iOS Alert：34dp 连续圆角、348dp、最后一个动作填充） ----------------
+
+@Composable
+fun PrismAlertDialog(
+    title: String,
+    body: String,
+    confirmText: String,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    dismissText: String? = "取消",
+    destructive: Boolean = false,
+) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        val density = LocalDensity.current
+        val shape = remember(density.density) { PrismShape(PrismCorner.Alert * density.density) }
+        Surface(
+            modifier = modifier.width(348.dp),
+            shape = shape,
+            color = surfaceColorOf(SurfaceLevel.Card),
+        ) {
+            Column(Modifier.padding(top = 24.dp, start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+                Text(
+                    title,
+                    style = headlineStyle(),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    body,
+                    style = subheadlineStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(20.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (dismissText != null) {
+                        Box(Modifier.weight(1f)) {
+                            PrismButton(filled = false, onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                                Text(dismissText)
+                            }
+                        }
+                    }
+                    Box(Modifier.weight(1f)) {
+                        PrismButton(
+                            onClick = { onDismiss(); onConfirm() },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(
+                                confirmText,
+                                color = if (destructive) Color.White else Color.Unspecified,
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }

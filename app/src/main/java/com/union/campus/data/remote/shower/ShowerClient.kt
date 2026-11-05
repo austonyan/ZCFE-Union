@@ -100,6 +100,11 @@ class ShowerClient {
         },
     ) ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "登录无返回")
 
+    suspend fun fastLogin(mobile: String, verifyCode: String): JsonObject = call(
+        "UserApi/fastLogin",
+        data = buildJsonObjectCompat { put("mobile", mobile); put("verifyCode", verifyCode) },
+    ) ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "验证码登录无返回")
+
     suspend fun sendSmsCode(mobile: String, codeType: String = "login") = call(
         "UserApi/sendSMSCode",
         data = buildJsonObjectCompat { put("code_type", codeType); put("mobile", mobile) },

@@ -82,6 +82,24 @@ class ShowerRepository constructor(
         _sessionState.value = SessionState.VALID
     }
 
+    /** 短信验证码登录。 */
+    suspend fun clientSendSms(mobile: String) {
+        client.sendSmsCode(mobile)
+    }
+
+    suspend fun clientFastLogin(mobile: String, code: String) {
+        val data = client.fastLogin(mobile, code)
+        val token = parse.str(data, "token", "TOKEN_ID")
+        val uid = parse.str(data, "id", "uid")
+        val serviceHost = parse.str(data, "service_host", "serviceHost")
+        if (token.isBlank()) throw AppError.BadCredentials(AppError.Module.SHOWER, "验证码登录响应缺少 token")
+        client.updateToken(token, serviceHost.takeIf { it.isNotBlank() })
+        credentials.save(
+            credentials.load().copy(showerMobile = mobile, showerToken = token, showerServiceHost = serviceHost, showerUid = uid),
+        )
+        _sessionState.value = SessionState.VALID
+    }
+
     suspend fun logout() {
         client.clear()
         val cred = credentials.load().copy(showerMobile = "", showerToken = "", showerServiceHost = "", showerUid = "")
