@@ -79,6 +79,7 @@ import com.union.campus.ui.prism.SurfaceLevel
 fun ShowerScreen(
     onBack: () -> Unit,
     onOpenWallet: () -> Unit,
+    onOpenBind: () -> Unit = {},
     onOpenDevice: (ShowerDevice, ShowerArea?) -> Unit,
     onOpenSession: () -> Unit,
     modifier: Modifier = Modifier,
@@ -197,7 +198,14 @@ fun ShowerScreen(
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { load(true) }) { Text("重试") }
                 }
-                !shower.isBound() -> NullStatus(Icons.Rounded.Shower, "洗浴未绑定", "到「我的 → 凭证中心」登录大白U帮")
+                !shower.isBound() -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NullStatus(Icons.Rounded.Shower, "洗浴未绑定", "登录大白U帮后查看设备空闲与排队")
+                    PrismButton(onClick = onOpenBind, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Rounded.Shower, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("去登录洗浴")
+                    }
+                }
                 devices.isEmpty() -> NullStatus(Icons.Rounded.Shower, "暂无设备数据", "该区域未返回设备信息")
                 else -> {
                     val idle = devices.count { it.state == 0 }

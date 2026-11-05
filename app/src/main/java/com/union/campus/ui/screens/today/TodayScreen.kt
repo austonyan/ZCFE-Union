@@ -170,6 +170,7 @@ fun TodayScreen(
         // 下一节课 / 正在上
         item {
             PrismCard(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenTimetable,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
@@ -255,6 +256,7 @@ fun TodayScreen(
         // 生活速览
         item {
             PrismCard(
+                modifier = Modifier.fillMaxWidth(),
                 onClick = onOpenLife,
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),

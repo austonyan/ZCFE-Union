@@ -189,6 +189,7 @@ fun ElectricScreen(
     onBack: () -> Unit,
     onOpenUsage: () -> Unit,
     onOpenTopUp: () -> Unit,
+    onOpenBind: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val electric = ServiceLocator.electricRepository
@@ -282,7 +283,14 @@ fun ElectricScreen(
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { load(true) }) { Text("重试") }
                 }
-                !electric.isBound() -> NullStatus(Icons.Rounded.Bolt, "电费未绑定", "绑定宿舍房间后可查看余额与用量")
+                !electric.isBound() -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    NullStatus(Icons.Rounded.Bolt, "电费未绑定", "绑定宿舍房间后可查看余额与用量")
+                    PrismButton(onClick = onOpenBind, modifier = Modifier.fillMaxWidth()) {
+                        Icon(Icons.Rounded.Link, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("去绑定房间")
+                    }
+                }
                 balance == null -> NullStatus(Icons.Rounded.Bolt, "暂无电量数据", "该房间未返回用电信息（可能未绑定）")
                 else -> {
                     val b = balance!!

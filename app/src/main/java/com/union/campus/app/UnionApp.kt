@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -20,6 +21,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
 import androidx.navigation.NavGraphBuilder
@@ -29,6 +31,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.union.campus.MainActivityHolder
+import kotlinx.coroutines.flow.first
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
 import com.union.campus.navigation.Screen
@@ -86,6 +89,11 @@ fun UnionApp(modifier: Modifier = Modifier) {
     val showerRepo = ServiceLocator.showerRepository
     val activeSession = showerRepo.activeSession.value
 
+    // 已完成引导/绑定的用户冷启动直接进今天页
+    val startRoute = produceState(initialValue = "", producer = {
+        value = if (ServiceLocator.settings.boundDone.first()) Screen.Today.route else Screen.Welcome.route
+    })
+
     Scaffold(
         modifier = modifier,
         containerColor = surfaceColorOf(SurfaceLevel.Page),
@@ -102,9 +110,13 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
         },
     ) { padding ->
+        if (startRoute.value.isEmpty()) {
+            Box(Modifier.fillMaxSize()) // 启动判定帧
+            return@Scaffold
+        }
         NavHost(
             navController = navController,
-            startDestination = Screen.Welcome.route,
+            startDestination = startRoute.value,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
@@ -316,6 +328,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 ShowerScreen(
                     onBack = { navController.popBackStack() },
                     onOpenWallet = { navController.navigate(Screen.Wallet.route) },
+                    onOpenBind = { navController.navigate(Screen.LoginShower.route) },
                     onOpenDevice = { d, area ->
                         AppState.selectedDevice = d
                         AppState.selectedAreaName = area?.name ?: ""
@@ -357,6 +370,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onBack = { navController.popBackStack() },
                     onOpenUsage = { navController.navigate(Screen.UsageDetail.route) },
                     onOpenTopUp = { navController.navigate(Screen.ElectricTopUp.route) },
+                    onOpenBind = { navController.navigate(Screen.BindElectric.route) },
                 )
             }
             composable(Screen.UsageDetail.route) {

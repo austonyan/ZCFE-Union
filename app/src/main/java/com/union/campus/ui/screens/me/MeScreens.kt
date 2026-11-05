@@ -124,7 +124,7 @@ fun ProfileScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            com.union.campus.ui.prism.PrismCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconBadge(Icons.Rounded.Person)
                     Spacer(Modifier.width(12.dp))
@@ -267,7 +267,7 @@ fun CredentialsCenterScreen(
         ) {
             Text("三套账号独立绑定，互不影响", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            com.union.campus.ui.prism.PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Text("教务", style = headlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -275,7 +275,7 @@ fun CredentialsCenterScreen(
                     style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
-            com.union.campus.ui.prism.PrismCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Text("洗浴", style = headlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -283,7 +283,7 @@ fun CredentialsCenterScreen(
                     style = subheadlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
             }
-            com.union.campus.ui.prism.PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.secondaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Text("电费", style = headlineStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text(

@@ -113,7 +113,7 @@ fun LifeScreen(
             Text(roomName, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             // 电费卡
-            PrismCard(onClick = onOpenElectric, containerColor = MaterialTheme.colorScheme.secondaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenElectric, containerColor = MaterialTheme.colorScheme.secondaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.WaterDrop, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
                     Spacer(Modifier.width(8.dp))
@@ -133,7 +133,7 @@ fun LifeScreen(
             }
 
             // 洗浴卡
-            PrismCard(onClick = onOpenShower, containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenShower, containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Text("洗浴", style = headlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
                 Spacer(Modifier.padding(4.dp))
                 if (area != null) {
@@ -148,7 +148,7 @@ fun LifeScreen(
             }
 
             // 空闲教室卡
-            PrismCard(onClick = onOpenFreeClassrooms, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(modifier = Modifier.fillMaxWidth(), onClick = onOpenFreeClassrooms, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Rounded.MeetingRoom, null, tint = MaterialTheme.colorScheme.primary)
                     Spacer(Modifier.width(8.dp))
@@ -160,7 +160,7 @@ fun LifeScreen(
             }
 
             // 低余额提醒开关
-            PrismCard(contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 4.dp)) {
+            PrismCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 4.dp)) {
                 Row(
                     Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
