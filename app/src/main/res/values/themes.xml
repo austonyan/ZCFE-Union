@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose 接管全部 UI；此主题仅用于启动瞬间，避免闪白 -->
+    <style name="Theme.UnionCampus" parent="android:Theme.Material.Light.NoActionBar" />
+</resources>

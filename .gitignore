@@ -1,0 +1,30 @@
+# Gradle
+.gradle/
+build/
+app/build/
+
+# IDE
+.idea/
+*.iml
+local.properties
+
+# Miscellaneous
+*.log
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# 参考项目（嵌套 git 仓库，不纳入本仓库）
+UI组件参考项目/
+UI新参考/
+.openchamber/
+
+# M3E Canvas 草图（历史设计稿）
+union-m3e*.json
+link.mjs
+
+# 嵌套研究仓库（各自独立 git，不纳入）
+教务/_kingo_src/
+电费/
+洗澡/.git* 2>/dev/null
