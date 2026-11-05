@@ -1,21 +1,22 @@
 package com.union.campus
 
 import com.union.campus.core.AppError
+import com.union.campus.data.remote.electric.ElectricClient
 import com.union.campus.data.remote.shower.ShowerClient
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 真实网络冒烟测试：lz.hydream.cn 可达时验证 DES 信封全程正确。
+ * 真实网络冒烟测试：lz.hydream.cn / xqh5.17wanxiao.com 可达时验证协议全程正确。
  * 空 token 调 getOrgs → 服务端应返回 code=90/未登录（auth=00001）。
  */
 class ShowerSmokeTest {
 
     @Test
-    fun getOrgsWithEmptyToken_mapsToAuthExpired() {
+    fun getOrgsWithEmptyToken_mapsToAuthExpired() = runBlocking {
         val client = ShowerClient()
         try {
             client.call(
@@ -30,12 +31,12 @@ class ShowerSmokeTest {
             // 网络不可达/上游异常也记录但不算协议错误
             println("smoke test non-auth error: ${e.userMessage}")
         }
+        Unit
     }
 
     @Test
-    fun electricGateway_responds() {
-        // 电费网关：参数不全时应返回业务错误而非连接失败
-        val client = com.union.campus.data.remote.electric.ElectricClient()
+    fun electricGateway_responds() = runBlocking {
+        val client = ElectricClient()
         client.account = "smoke"
         try {
             client.getBindRooms()
@@ -44,5 +45,6 @@ class ShowerSmokeTest {
         } catch (e: AppError.Upstream) {
             assertTrue(true) // 网关响应了 → 通道 OK
         }
+        Unit
     }
 }
