@@ -102,6 +102,10 @@ class JwRepository constructor(
         false
     }
 
+    /** 原始 H5 调用（选课/评教等未封装接口使用）。 */
+    suspend fun rawCall(action: String, params: Map<String, String> = emptyMap()): kotlinx.serialization.json.JsonElement =
+        client.h5Call(action, params)
+
     // ---------------- 基础字典 ----------------
 
     suspend fun semesterList(forceRefresh: Boolean = false): List<Semester> {

@@ -18,6 +18,7 @@ class UnionApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         ServiceLocator.init(this)
+        UnionApplicationHolder.init(this)
         createNotificationChannel()
         applicationScope.launch {
             ServiceLocator.jwRepository.restoreSession()
