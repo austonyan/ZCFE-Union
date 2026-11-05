@@ -1,9 +1,7 @@
 package com.union.campus.app
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.Spring
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -12,9 +10,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Home
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -33,12 +31,14 @@ import com.union.campus.navigation.Screen
 import com.union.campus.ui.screens.onboarding.WelcomeScreen
 import com.union.campus.ui.screens.placeholder.ScreenPlaceholder
 
-// 详情页：从右侧滑入并带回弹；返回时反向播放（predictive back 由系统手势触发同款效果）
-private val SlideSpec = spring<IntOffset>(
-    dampingRatio = 0.9f,
-    stiffness = Spring.StiffnessMediumLow,
-)
-private val Fade = tween<Float>(250, easing = FastOutSlowInEasing)
+/**
+ * 页面转场（FlClash page_transition 复刻）：iOS 27 push——
+ * 新页 300ms 临界阻尼弹簧从右滑入；被覆盖页回退 30% 并淡出。
+ */
+private val PushEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
+private val PushSpec = tween<Float>(300, easing = PushEasing)
+private val PushOffsetSpec = tween<IntOffset>(300, easing = PushEasing)
+private val TabFade = tween<Float>(220, easing = PushEasing)
 
 @Composable
 fun UnionApp(modifier: Modifier = Modifier) {
@@ -48,11 +48,12 @@ fun UnionApp(modifier: Modifier = Modifier) {
 
     Scaffold(
         modifier = modifier,
+        containerColor = com.union.campus.ui.prism.surfaceColorOf(com.union.campus.ui.prism.SurfaceLevel.Page),
         bottomBar = {
             AnimatedVisibility(
                 visible = currentScreen in Screen.Tabs,
-                enter = slideInVertically(SlideSpec) { it } + fadeIn(Fade),
-                exit = slideOutVertically(SlideSpec) { it } + fadeOut(Fade),
+                enter = slideInVertically(PushOffsetSpec) { it } + fadeIn(TabFade),
+                exit = slideOutVertically(PushOffsetSpec) { it } + fadeOut(TabFade),
             ) {
                 UnionNavigationBar(
                     current = currentScreen,
@@ -67,10 +68,11 @@ fun UnionApp(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            enterTransition = { slideInHorizontally(SlideSpec) { it } + fadeIn(Fade) },
-            exitTransition = { slideOutHorizontally(SlideSpec) { -it / 3 } + fadeOut(Fade) },
-            popEnterTransition = { slideInHorizontally(SlideSpec) { -it / 3 } + fadeIn(Fade) },
-            popExitTransition = { slideOutHorizontally(SlideSpec) { it } + fadeOut(Fade) },
+            // push：从右整幅滑入；被覆盖页向左回退 30%
+            enterTransition = { slideInHorizontally(PushOffsetSpec) { it } },
+            exitTransition = { slideOutHorizontally(PushOffsetSpec) { -it / 3 } + fadeOut(TabFade) },
+            popEnterTransition = { slideInHorizontally(PushOffsetSpec) { -it / 3 } + fadeIn(TabFade) },
+            popExitTransition = { slideOutHorizontally(PushOffsetSpec) { it } },
         ) {
             Screen.entries.forEach { screen ->
                 when (screen) {
@@ -85,12 +87,12 @@ fun UnionApp(modifier: Modifier = Modifier) {
                         )
                     }
 
-                    in Screen.Tabs -> composable( // when 分支的 in 使用 List.contains
+                    in Screen.Tabs -> composable(
                         route = screen.route,
-                        enterTransition = { fadeIn(Fade) },
-                        exitTransition = { fadeOut(Fade) },
-                        popEnterTransition = { fadeIn(Fade) },
-                        popExitTransition = { fadeOut(Fade) },
+                        enterTransition = { fadeIn(TabFade) },
+                        exitTransition = { fadeOut(TabFade) },
+                        popEnterTransition = { fadeIn(TabFade) },
+                        popExitTransition = { fadeOut(TabFade) },
                     ) {
                         ScreenPlaceholder(screen = screen, showBack = false)
                     }
@@ -118,7 +120,9 @@ private fun navigateToTab(navController: NavHostController, tab: Screen) {
 
 @Composable
 private fun UnionNavigationBar(current: Screen?, onSelect: (Screen) -> Unit) {
-    NavigationBar {
+    NavigationBar(
+        containerColor = com.union.campus.ui.prism.surfaceColorOf(com.union.campus.ui.prism.SurfaceLevel.Page),
+    ) {
         Screen.Tabs.forEach { tab ->
             NavigationBarItem(
                 selected = current == tab,
