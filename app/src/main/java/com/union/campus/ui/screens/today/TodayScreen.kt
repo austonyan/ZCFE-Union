@@ -80,6 +80,7 @@ fun TodayScreen(
     val shower = ServiceLocator.showerRepository
 
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
+    var sectionTimes by remember { mutableStateOf<List<com.union.campus.domain.SectionTime>?>(null) }
     var todos by remember { mutableStateOf<List<TodoItem>>(emptyList()) }
     var electricBalance by remember { mutableStateOf<ElectricBalance?>(null) }
     var showerArea by remember { mutableStateOf<ShowerArea?>(null) }
@@ -95,16 +96,16 @@ fun TodayScreen(
     }
 
     LaunchedEffect(Unit) {
-        val semesterDm = ServiceLocator.settings.currentSemesterDm.first()
-            .ifBlank { SemesterCalc.guessSemesterDm() }
-        val week = SemesterCalc.currentWeek(semesterDm, ServiceLocator.settings.firstWeekStart.first())
-        // 缓存优先
-        entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let {
+        val semesterDm = jw.currentSemesterDm()
+        // 缓存优先（按本地估算周次）
+        val cachedWeek = SemesterCalc.currentWeek(semesterDm, ServiceLocator.settings.firstWeekStart.first())
+        entities.read("jw.timetable.$semesterDm.w$cachedWeek", TimetableData.serializer())?.let {
             timetable = it.data
         }
-        // 静默刷新（失败不打断）
+        // 静默刷新（失败不打断）；不传 week，让教务返回当前周
         if (jw.isBound()) {
-            runCatching { timetable = jw.timetable(semesterDm, week) }
+            runCatching { timetable = jw.timetable(semesterDm, 0) }
+            sectionTimes = runCatching { jw.sectionTimes() }.getOrNull()
         }
         todos = runCatching { ServiceLocator.todoRepository.localTodos() }.getOrDefault(emptyList())
         runCatching {
@@ -123,10 +124,8 @@ fun TodayScreen(
         refreshing = true
         com.union.campus.ui.common.launchUi {
             try {
-                val semesterDm = ServiceLocator.settings.currentSemesterDm.first()
-                    .ifBlank { SemesterCalc.guessSemesterDm() }
-                val week = SemesterCalc.currentWeek(semesterDm, ServiceLocator.settings.firstWeekStart.first())
-                if (jw.isBound()) runCatching { timetable = jw.timetable(semesterDm, week, forceRefresh = true) }
+                val semesterDm = jw.currentSemesterDm()
+                if (jw.isBound()) runCatching { timetable = jw.timetable(semesterDm, 0, forceRefresh = true) }
                 todos = runCatching { ServiceLocator.todoRepository.localTodos() }.getOrDefault(emptyList())
                 runCatching {
                     electric.rooms(forceRefresh = true).firstOrNull()?.let {
@@ -146,7 +145,6 @@ fun TodayScreen(
     // 计算下一节课/正在上课
     val today = SemesterCalc.dayOfWeek(nowTick)
     val todayCells = timetable?.days?.firstOrNull { it.day == today }?.cells.orEmpty()
-    val sectionTimes = ServiceLocator.entities.read("jw.sectiontimes", ListSerializer(com.union.campus.domain.SectionTime.serializer()))?.data
     val (current, next) = remember(todayCells, sectionTimes, nowTick) {
         computeCurrentNext(todayCells, sectionTimes, nowTick)
     }

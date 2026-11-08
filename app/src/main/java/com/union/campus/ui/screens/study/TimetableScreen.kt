@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
+import com.union.campus.domain.Semester
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
 import com.union.campus.ui.common.UnionScreenScaffold
@@ -71,23 +72,45 @@ fun TimetableScreen(
     val entities = ServiceLocator.entities
     val settings = ServiceLocator.settings
 
+    var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
     var semesterDm by remember { mutableStateOf("") }
     var week by remember { mutableIntStateOf(1) }
+    var maxWeek by remember { mutableIntStateOf(25) }
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
     var selectedDay by remember { mutableIntStateOf(SemesterCalc.dayOfWeek()) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
-        semesterDm = settings.currentSemesterDm.first().ifBlank { SemesterCalc.guessSemesterDm() }
-        week = SemesterCalc.currentWeek(semesterDm, settings.firstWeekStart.first())
-        selectedDay = SemesterCalc.dayOfWeek()
-        entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let { timetable = it.data }
-        if (jw.isBound()) runCatching { timetable = jw.timetable(semesterDm, week) }
-        runCatching { notice = jw.notices().firstOrNull { it.kind == "change" }?.title }
+        semesterDm = jw.currentSemesterDm()
+        if (jw.isBound()) {
+            semesters = runCatching { jw.semesterList() }.getOrDefault(emptyList())
+            val data = runCatching { jw.timetable(semesterDm, 0) }.getOrNull()
+            if (data != null) {
+                timetable = data
+                week = data.week
+                maxWeek = data.maxWeek
+            } else {
+                week = SemesterCalc.currentWeek(semesterDm, settings.firstWeekStart.first())
+                entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let { timetable = it.data }
+            }
+            runCatching { notice = jw.notices().firstOrNull { it.kind == "change" }?.title }
+        }
+    }
+
+    fun openSemester(dm: String) {
+        if (dm == semesterDm) return
+        semesterDm = dm
+        launchUi {
+            runCatching { jw.timetable(dm, 0) }.getOrNull()?.let { data ->
+                timetable = data
+                week = data.week
+                maxWeek = data.maxWeek
+            }
+        }
     }
 
     fun changeWeek(delta: Int) {
-        val newWeek = (week + delta).coerceIn(1, 25)
+        val newWeek = (week + delta).coerceIn(1, maxWeek)
         week = newWeek
         entities.read("jw.timetable.$semesterDm.w$newWeek", TimetableData.serializer())?.let { timetable = it.data }
         if (jw.isBound()) {
@@ -96,6 +119,7 @@ fun TimetableScreen(
     }
 
     val cells = timetable?.days?.firstOrNull { it.day == selectedDay }?.cells.orEmpty()
+    val weekCourseCount = timetable?.days?.sumOf { it.cells.size } ?: 0
 
     UnionScreenScaffold(
         title = "课表",
@@ -112,7 +136,31 @@ fun TimetableScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("第 $week 周 · ${timetable?.semesterDm ?: semesterDm}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            val semesterLabel = timetable?.semesterName?.takeIf { it.isNotBlank() }
+                ?: semesters.firstOrNull { it.dm == semesterDm }?.name
+                ?: semesterDm
+            Text("第 $week / $maxWeek 周 · $semesterLabel", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (weekCourseCount > 0) {
+                Text("本周共 $weekCourseCount 节课，点星期查看", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            // 学期切换（教务返回的当前学期在最前）
+            if (semesters.size > 1) {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    semesters.take(8).forEach { s ->
+                        FilterChip(
+                            selected = semesterDm == s.dm,
+                            onClick = { openSemester(s.dm) },
+                            label = { Text(s.shortLabel) },
+                        )
+                    }
+                }
+            }
 
             // 周次横向切换
             Row(
@@ -128,9 +176,12 @@ fun TimetableScreen(
                     selected = false,
                     onClick = {
                         launchUi {
-                            val start = settings.firstWeekStart.first()
-                            week = SemesterCalc.currentWeek(semesterDm, start)
-                            runCatching { timetable = jw.timetable(semesterDm, week) }
+                            runCatching { jw.timetable(semesterDm, 0, forceRefresh = true) }
+                                .getOrNull()?.let { data ->
+                                    timetable = data
+                                    week = data.week
+                                    maxWeek = data.maxWeek
+                                }
                         }
                     },
                     label = { Text("回到本周") },
@@ -146,10 +197,11 @@ fun TimetableScreen(
             ) {
                 listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").forEachIndexed { i, label ->
                     val d = i + 1
+                    val count = timetable?.days?.firstOrNull { it.day == d }?.cells?.size ?: 0
                     FilterChip(
                         selected = selectedDay == d,
                         onClick = { selectedDay = d },
-                        label = { Text(label) },
+                        label = { Text(if (count > 0) "$label·$count" else label) },
                     )
                 }
             }
@@ -175,8 +227,8 @@ fun TimetableScreen(
                 )
                 cells.isEmpty() -> NullStatus(
                     icon = Icons.Rounded.MenuBook,
-                    title = "今天没有课",
-                    subtitle = "试试切换其他星期或周次",
+                    title = "这一天没有课",
+                    subtitle = if (weekCourseCount > 0) "本周共 $weekCourseCount 节课，点上方星期查看" else "试试切换其他星期或周次",
                 )
                 else -> {
                     cells.forEach { cell ->

@@ -43,7 +43,7 @@ class TodoRepository constructor(
 
         // 考试倒计时
         runCatching {
-            val sem = settings.currentSemesterDm.first()
+            val sem = jw.currentSemesterDm()
             if (sem.isNotBlank()) {
                 val exams = jw.exams(sem)
                 val upcoming = exams.exams.firstOrNull()

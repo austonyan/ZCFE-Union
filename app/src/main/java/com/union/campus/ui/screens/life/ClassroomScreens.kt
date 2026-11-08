@@ -40,6 +40,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
+import com.union.campus.domain.FreeClassroom
+import com.union.campus.domain.TeachingBuilding
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
@@ -64,10 +66,10 @@ fun FreeClassroomsScreen(
     modifier: Modifier = Modifier,
 ) {
     val jw = ServiceLocator.jwRepository
-    var buildings by remember { mutableStateOf<List<String>>(emptyList()) }
-    var building by remember { mutableStateOf<String?>(null) }
+    var buildings by remember { mutableStateOf<List<TeachingBuilding>>(emptyList()) }
+    var building by remember { mutableStateOf<TeachingBuilding?>(null) }
     var dateOffset by remember { mutableStateOf(0) } // 0 今天 / 1 明天 / 2 后天
-    var rooms by remember { mutableStateOf<List<String>>(emptyList()) }
+    var rooms by remember { mutableStateOf<List<FreeClassroom>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
 
@@ -75,17 +77,20 @@ fun FreeClassroomsScreen(
     val dateText = fmt.format(Date(System.currentTimeMillis() + dateOffset.toLong() * 24 * 3600_000))
 
     LaunchedEffect(Unit) {
-        runCatching { buildings = jw.teachingBuildings() }
-        if (buildings.isEmpty()) buildings = listOf("A 楼", "B 楼", "C 楼")
-        building = buildings.firstOrNull()
+        buildings = runCatching { jw.teachingBuildings() }.getOrDefault(emptyList())
+        building = buildings.firstOrNull { it.campus.startsWith("惠济") } ?: buildings.firstOrNull()
+        if (building == null) {
+            loading = false
+            if (jw.isBound()) error = "未获取到教学楼列表，请稍后重试"
+        }
     }
-    LaunchedEffect(building, dateOffset) {
+    LaunchedEffect(building?.dm, dateOffset) {
         val b = building ?: return@LaunchedEffect
         loading = true
         error = null
         rooms = emptyList()
         try {
-            rooms = if (jw.isBound()) jw.freeClassrooms(dateText, b) else emptyList()
+            rooms = if (jw.isBound()) jw.freeClassrooms(dateText, b.dm) else emptyList()
         } catch (e: AppError) {
             error = e.userMessage
         } catch (e: Exception) {
@@ -123,7 +128,11 @@ fun FreeClassroomsScreen(
             }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 buildings.forEach { b ->
-                    FilterChip(selected = building == b, onClick = { building = b }, label = { Text(b) })
+                    FilterChip(
+                        selected = building?.dm == b.dm,
+                        onClick = { building = b },
+                        label = { Text(b.name) },
+                    )
                 }
             }
 
@@ -131,7 +140,9 @@ fun FreeClassroomsScreen(
                 loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
                 error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("登录教务后可查询真实空闲教室", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!jw.isBound()) {
+                        Text("登录教务后可查询真实空闲教室", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
                 rooms.isEmpty() -> NullStatus(
                     Icons.Rounded.MeetingRoom,
@@ -140,9 +151,20 @@ fun FreeClassroomsScreen(
                 )
                 else -> PrismGroupedList {
                     rooms.forEachIndexed { i, room ->
+                        val detail = buildString {
+                            if (room.type.isNotBlank()) append(room.type)
+                            if (room.capacity.isNotBlank()) {
+                                if (isNotEmpty()) append(" · ")
+                                append("容量 ${room.capacity}")
+                            }
+                            if (room.sectionCount > 0) {
+                                if (isNotEmpty()) append(" · ")
+                                append("空闲 ${room.freeCount}/${room.sectionCount} 节")
+                            }
+                        }
                         PrismRow(
-                            title = room,
-                            subtitle = "今日空闲 · 点击查看详情",
+                            title = room.name,
+                            subtitle = detail.ifBlank { "空闲教室" },
                             index = i, count = rooms.size,
                             leading = { IconBadge(Icons.Rounded.MeetingRoom) },
                         )

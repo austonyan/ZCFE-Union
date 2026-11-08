@@ -241,8 +241,36 @@ class JwClient(
                 throw AppError.Network(e.message)
             }
             detectSessionInvalid(body)
-            json.parseToJsonElement(body)
+            parseResponse(action, body)
         }
+
+    /**
+     * 教务 H5 响应解析。
+     *
+     * 多数接口返回标准 JSON，但 `MyXjda` 服务器实际返回的是 JavaScript 对象字面量：
+     * `{'resultSet':[{...,dminfo:{'yxbdm':'02'}}]}`（单引号 + 未加引号的键）。
+     * 先按标准 JSON 解析，失败后再做宽松归一化；空响应/HTML 页面给出明确错误。
+     */
+    private fun parseResponse(action: String, body: String): JsonElement {
+        val text = body.trim().removePrefix("\uFEFF").trim()
+        if (text.isEmpty()) throw AppError.Upstream("$action: 教务返回空响应")
+        try {
+            return json.parseToJsonElement(text)
+        } catch (_: Exception) {
+            // 继续尝试宽松格式
+        }
+        val normalized = normalizeLooseJson(text)
+        try {
+            return json.parseToJsonElement(normalized)
+        } catch (_: Exception) {
+            val hint = if (text.startsWith("<")) {
+                "教务返回了网页而不是数据"
+            } else {
+                text.replace(Regex("\\s+"), " ").take(80)
+            }
+            throw AppError.Upstream("$action: 无法解析教务响应（$hint）")
+        }
+    }
 
     /** 会话失效的三种形态（HTTP 恒为 200）。 */
     private fun detectSessionInvalid(body: String) {
@@ -270,6 +298,110 @@ internal fun parseCheckNeedCaptcha(body: String): Boolean? = runCatching {
  */
 internal fun parseLegacyNeedCaptcha(body: String): Boolean =
     body.trim().lowercase().startsWith("true")
+
+/**
+ * 把 JavaScript 对象字面量归一化成严格 JSON。
+ *
+ * 教务 `MyXjda` 返回 `{'resultSet':[{'xh':'1',dminfo:{'a':'b'}}]}`：
+ * - 单引号字符串 → 双引号；
+ * - 未加引号的对象键 → 加双引号；
+ * - 去掉尾随逗号。
+ *
+ * 只处理语法层面的差异，不改变字段值。
+ */
+internal fun normalizeLooseJson(input: String): String {
+    val out = StringBuilder(input.length + 32)
+    var i = 0
+    var inString = false
+    var quote = '"'
+    while (i < input.length) {
+        val c = input[i]
+        if (inString) {
+            when {
+                c == '\\' -> {
+                    out.append(c)
+                    if (i + 1 < input.length) {
+                        out.append(input[i + 1])
+                        i += 2
+                        continue
+                    }
+                }
+                c == quote -> {
+                    out.append('"')
+                    inString = false
+                }
+                c == '"' -> out.append("\\\"")
+                c == '\n' -> out.append("\\n")
+                c == '\r' -> out.append("\\r")
+                c == '\t' -> out.append("\\t")
+                else -> out.append(c)
+            }
+        } else {
+            when (c) {
+                '\'' -> {
+                    inString = true
+                    quote = '\''
+                    out.append('"')
+                }
+                '"' -> {
+                    inString = true
+                    quote = '"'
+                    out.append('"')
+                }
+                else -> out.append(c)
+            }
+        }
+        i++
+    }
+    return quoteUnquotedKeys(out.toString())
+        .replace(Regex(",\\s*([}\\]])"), "$1")
+}
+
+/** 给 `{key:` / `,key:` 形式补双引号（字符串内部不处理）。 */
+private fun quoteUnquotedKeys(s: String): String {
+    val sb = StringBuilder(s.length + 16)
+    var i = 0
+    var inString = false
+    while (i < s.length) {
+        val c = s[i]
+        if (inString) {
+            sb.append(c)
+            when {
+                c == '\\' && i + 1 < s.length -> {
+                    sb.append(s[i + 1])
+                    i += 2
+                    continue
+                }
+                c == '"' -> inString = false
+            }
+            i++
+            continue
+        }
+        if (c == '"') {
+            inString = true
+            sb.append(c)
+            i++
+            continue
+        }
+        if (c.isLetter() || c == '_' || c == '$') {
+            val prev = sb.lastOrNull { !it.isWhitespace() }
+            if (prev == '{' || prev == ',') {
+                var j = i
+                while (j < s.length && (s[j].isLetterOrDigit() || s[j] == '_' || s[j] == '$')) j++
+                var k = j
+                while (k < s.length && s[k].isWhitespace()) k++
+                if (k < s.length && s[k] == ':') {
+                    sb.append('"').append(s, i, j).append('"')
+                    i = j
+                    continue
+                }
+            }
+        }
+        sb.append(c)
+        i++
+    }
+    return sb.toString()
+}
 
 /** 简单内存 CookieJar；JSESSIONID 由 CredentialStore 持久化恢复。 */
 class UnionCookieJar : CookieJar {

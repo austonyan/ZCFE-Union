@@ -10,7 +10,6 @@ import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.Exam
-import com.union.campus.domain.SemesterCalc
 import com.union.campus.ui.common.launchUi
 import kotlinx.coroutines.flow.first
 
@@ -35,7 +34,6 @@ fun ExamsRoute(
     onBack: () -> Unit,
 ) {
     val jw = ServiceLocator.jwRepository
-    val settings = ServiceLocator.settings
     var exams by remember { mutableStateOf<List<Exam>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -49,7 +47,7 @@ fun ExamsRoute(
                 if (!jw.isBound()) {
                     error = "登录教务后可查看考试安排"
                 } else {
-                    val sem = settings.currentSemesterDm.first().ifBlank { SemesterCalc.guessSemesterDm() }
+                    val sem = jw.currentSemesterDm()
                     exams = jw.exams(sem, force).exams
                     error = null
                 }

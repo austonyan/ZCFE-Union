@@ -17,13 +17,19 @@ object SemesterCalc {
         }
     }
 
-    /** 学期第一周的周一（估算：秋季学期 9 月 1 日、春季学期 3 月 1 日所在周）。 */
+    /** 学期第一周的周一（估算：秋季学期 9 月 1 日、春季学期次年 3 月 1 日、夏季学期 7 月 1 日所在周）。 */
     fun estimateStart(semesterDm: String): Long {
-        val (year, termRaw) = parseSemester(semesterDm)
-        val term = termRaw
+        val (year, term) = parseSemester(semesterDm)
+        // 教务学期代码：20260=2026-2027 秋，20261=2026-2027 春，20262=2026-2027 夏
+        val calYear = if (term == 0) year else year + 1
+        val month = when (term) {
+            0 -> Calendar.SEPTEMBER
+            1 -> Calendar.MARCH
+            else -> Calendar.JULY
+        }
         val cal = Calendar.getInstance()
-        cal.set(Calendar.YEAR, year)
-        cal.set(Calendar.MONTH, if (term == 1) Calendar.SEPTEMBER else Calendar.MARCH)
+        cal.set(Calendar.YEAR, calYear)
+        cal.set(Calendar.MONTH, month)
         cal.set(Calendar.DAY_OF_MONTH, 1)
         cal.set(Calendar.HOUR_OF_DAY, 0)
         // 回退到周一
@@ -41,13 +47,16 @@ object SemesterCalc {
         return (days / 7 + 1).coerceIn(1, 25)
     }
 
-    /** 当前学期代码（按月份估算：8-12 月为秋季，1-7 月为春季）。格式：学年(4位)+学期(1位)。 */
+    /**
+     * 当前学期代码（按月份估算）。
+     * 教务格式：学年开始年份 + 0(秋)/1(春)/2(夏)，例如 2026-2027 秋 = 20260。
+     */
     fun guessSemesterDm(now: Long = System.currentTimeMillis()): String {
         val cal = Calendar.getInstance()
         cal.timeInMillis = now
         val year = cal.get(Calendar.YEAR)
         val month = cal.get(Calendar.MONTH) + 1
-        return if (month >= 8) "${year}1" else "${year - 1}2"
+        return if (month >= 8) "${year}0" else "${year - 1}1"
     }
 
     /** 今天是星期几（1=周一 … 7=周日）。 */
