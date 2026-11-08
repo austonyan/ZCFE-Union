@@ -81,7 +81,8 @@ fun BindElectricScreen(
 
     LaunchedEffect(Unit) {
         if (account.isBlank()) {
-            account = jw.maskedStudentNo().removeSuffix("****")
+            // 带入完整学号；maskedStudentNo() 只用于展示（前 4 位 + ****）
+            account = jw.studentNo()
         }
     }
 
@@ -125,8 +126,8 @@ fun BindElectricScreen(
         launchUi {
             try {
                 electric.bindAccount(account.trim())
-                electric.bindRoom(z.id, b.id, f.id, r.id)
-                ServiceLocator.settings.setLastElectricRoom(parseRoomVerify(r.id))
+                val bound = electric.bindRoom(z.id, b.id, f.id, r.id)
+                ServiceLocator.settings.setLastElectricRoom(bound.roomVerify)
                 loading = false
                 onNext()
             } catch (e: AppError) {
@@ -235,8 +236,6 @@ fun BindElectricScreen(
         }
     }
 }
-
-private fun parseRoomVerify(roomId: String) = roomId
 
 /** 通用下拉选择：outline 输入框 + arrow_drop_down + DropdownMenu。 */
 @Composable

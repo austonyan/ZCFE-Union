@@ -20,7 +20,7 @@ import java.util.concurrent.TimeUnit
  */
 class ShowerClient {
 
-    private var baseUrl: String = "http://lz.hydream.cn/api/v1/"
+    private var baseUrl: String = DEFAULT_BASE
     var token: String = ""
         private set
 
@@ -34,13 +34,30 @@ class ShowerClient {
     fun updateToken(token: String, serviceHost: String? = null) {
         this.token = token
         if (!serviceHost.isNullOrBlank()) {
-            baseUrl = if (serviceHost.endsWith("/")) serviceHost else "$serviceHost/"
+            baseUrl = normalizeBase(serviceHost)
         }
     }
 
     fun clear() {
         token = ""
-        baseUrl = "http://lz.hydream.cn/api/v1/"
+        baseUrl = DEFAULT_BASE
+    }
+
+    /**
+     * service_host 可能是 `http://lz.hydream.cn`，也可能已带 `/api/v1/`；
+     * 统一补全 scheme、结尾斜杠与 `/api/v1/`，避免把请求打到站点根路径。
+     */
+    private fun normalizeBase(host: String): String {
+        var h = host.trim()
+        if (h.isEmpty()) return DEFAULT_BASE
+        if (!h.startsWith("http://") && !h.startsWith("https://")) h = "http://$h"
+        if (!h.endsWith("/")) h += "/"
+        if (!h.contains("/api/")) h += "api/v1/"
+        return h
+    }
+
+    private companion object {
+        const val DEFAULT_BASE = "http://lz.hydream.cn/api/v1/"
     }
 
     /**

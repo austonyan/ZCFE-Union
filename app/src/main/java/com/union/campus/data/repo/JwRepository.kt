@@ -52,6 +52,9 @@ class JwRepository constructor(
         return if (no.length > 4) no.take(4) + "****" else no.ifBlank { "未绑定" }
     }
 
+    /** 原始学号：仅用于绑定电费时带入，不展示。 */
+    fun studentNo(): String = credentials.load().jwStudentNo
+
     fun restoreSession() {
         val cred = credentials.load()
         if (cred.jwCookie.isNotBlank()) {
@@ -72,10 +75,16 @@ class JwRepository constructor(
         }
     }
 
+    /** 拉取 CAS 图形验证码（失败时由调用方提示）。 */
+    suspend fun captchaImage(studentNo: String): ByteArray = client.fetchCaptchaImage(studentNo)
+
     /** CAS 登录：成功后保存 Cookie + 学号。 */
     suspend fun login(studentNo: String, password: String, captcha: String = "") {
         client.login(studentNo, password, captcha)
-        val cookie = client.cookieJar.snapshot().firstOrNull { it.name == "JSESSIONID" }
+        // authserver 与 jw 都可能写 JSESSIONID；持久化教务域上的那个
+        val cookie = client.cookieJar.snapshot().firstOrNull {
+            it.name == "JSESSIONID" && it.domain.endsWith("jw.zzife.edu.cn")
+        } ?: client.cookieJar.snapshot().firstOrNull { it.name == "JSESSIONID" }
         val cred = credentials.load().copy(
             jwStudentNo = studentNo,
             jwCookie = cookie?.value ?: "",

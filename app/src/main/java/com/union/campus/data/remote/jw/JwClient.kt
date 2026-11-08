@@ -16,7 +16,6 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
 
 /**
@@ -72,25 +71,57 @@ class JwClient(
         }
     }
 
-    /** 步骤②：是否需要验证码。 */
-    suspend fun needCaptcha(username: String, salt: String): Boolean = withContext(Dispatchers.IO) {
-        val url = "$authUrl/needCaptcha.html".toHttpUrl().newBuilder()
+    /**
+     * 步骤②：是否需要验证码。
+     *
+     * 学校 CAS 定制主题使用 `checkNeedCaptcha.htl`，返回 JSON `{"isNeed":false}`；
+     * 旧版 Apereo 主题的 `needCaptcha.html` 返回纯文本 `true`/`false`。
+     * 注意不能对 HTML 页面做 contains("true") 判断：错误页里的 JS 也含 "true"。
+     */
+    suspend fun needCaptcha(username: String, salt: String = ""): Boolean = withContext(Dispatchers.IO) {
+        val jsonUrl = "$authUrl/checkNeedCaptcha.htl".toHttpUrl().newBuilder()
+            .addQueryParameter("username", username)
+            .addQueryParameter("_", System.currentTimeMillis().toString())
+            .build()
+        val jsonBody = runCatching {
+            val req = Request.Builder()
+                .url(jsonUrl)
+                .header("User-Agent", UA)
+                .header("X-Requested-With", "XMLHttpRequest")
+                .header("Accept", "application/json, text/plain, */*")
+                .get()
+                .build()
+            client.newCall(req).execute().use { it.body?.string() ?: "" }
+        }.getOrDefault("")
+        val isNeed = parseCheckNeedCaptcha(jsonBody)
+        if (isNeed != null) return@withContext isNeed
+
+        // 兼容旧版 CAS：纯文本 true/false（只看开头，不扫描整页）
+        val legacyUrl = "$authUrl/needCaptcha.html".toHttpUrl().newBuilder()
             .addQueryParameter("username", username)
             .addQueryParameter("pwdEncrypt2", salt)
             .addQueryParameter("_", System.currentTimeMillis().toString())
             .build()
-        val req = Request.Builder().url(url).header("User-Agent", UA).get().build()
-        runCatching { client.newCall(req).execute().body?.string() ?: "false" }
-            .getOrDefault("false").contains("true")
+        val legacyBody = runCatching {
+            val req = Request.Builder().url(legacyUrl).header("User-Agent", UA).get().build()
+            client.newCall(req).execute().use { it.body?.string() ?: "" }
+        }.getOrDefault("")
+        parseLegacyNeedCaptcha(legacyBody)
     }
 
     /** 拉取验证码图片（需与登录共用 CookieJar）。 */
     suspend fun fetchCaptchaImage(username: String): ByteArray = withContext(Dispatchers.IO) {
-        val url = "$authUrl/captcha.html".toHttpUrl().newBuilder()
-            .addQueryParameter("username", username)
+        val url = "$authUrl/getCaptcha.htl".toHttpUrl().newBuilder()
+            .addQueryParameter("_", System.currentTimeMillis().toString())
             .build()
-        val req = Request.Builder().url(url).header("User-Agent", UA).get().build()
+        val req = Request.Builder()
+            .url(url)
+            .header("User-Agent", UA)
+            .header("Referer", "$authUrl/login")
+            .get()
+            .build()
         client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) throw AppError.Network("验证码获取失败 HTTP ${resp.code}")
             resp.body?.bytes() ?: throw AppError.Network("验证码获取失败")
         }
     }
@@ -127,13 +158,16 @@ class JwClient(
             .add("rememberMe", "true")
             .add("rmShown", "1")
             .build()
+        // 必须带 service 参数：CAS 对不带 service 的 POST 直接返回 500
+        val postUrl = "$authUrl/login?service=${urlEncode(CAS_SERVICE)}"
         val req = Request.Builder()
-            .url("$authUrl/login")
+            .url(postUrl)
             .header("User-Agent", UA)
-            .header("Referer", "$authUrl/login?service=${urlEncode(CAS_SERVICE)}")
+            .header("Referer", postUrl)
             .post(form)
             .build()
         client.newCall(req).execute().use { resp ->
+            if (!resp.isSuccessful) throw AppError.Upstream("登录请求失败 HTTP ${resp.code}")
             val body = resp.body?.string() ?: ""
             // 密码错误：返回登录页含 errormessages
             val errMsg = Regex("id=\"(?:msg|errorMsg)\"[^>]*>([^<]{2,80})<")
@@ -219,31 +253,50 @@ class JwClient(
         java.net.URLEncoder.encode(v, "UTF-8")
 }
 
+/** 解析 `checkNeedCaptcha.htl` 的 JSON；不是 JSON 时返回 null（交给旧版文本判断）。 */
+internal fun parseCheckNeedCaptcha(body: String): Boolean? = runCatching {
+    val obj = kotlinx.serialization.json.Json.parseToJsonElement(body).jsonObject
+    obj["isNeed"]?.toString()?.removeSurrounding("\"")?.toBooleanStrictOrNull()
+}.getOrNull()
+
+/**
+ * 旧版 `needCaptcha.html` 返回纯文本 `true`/`false`。
+ * 只认开头：学校定制主题的 HTML 错误页里也含 `"true"`，不能 contains 判断。
+ */
+internal fun parseLegacyNeedCaptcha(body: String): Boolean =
+    body.trim().lowercase().startsWith("true")
+
 /** 简单内存 CookieJar；JSESSIONID 由 CredentialStore 持久化恢复。 */
 class UnionCookieJar : CookieJar {
-    private val cookies = ConcurrentHashMap<String, List<Cookie>>()
+    private val cookies = java.util.concurrent.CopyOnWriteArrayList<Cookie>()
 
     fun restore(loaded: List<Cookie>) {
-        loaded.forEach { cookie ->
-            val key = cookieKey(cookie.domain)
-            cookies[key] = (cookies[key] ?: emptyList()).filterNot { it.name == cookie.name } + cookie
-        }
+        loaded.forEach(::put)
     }
 
-    fun snapshot(): List<Cookie> = cookies.values.flatten()
+    fun snapshot(): List<Cookie> = cookies.toList()
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> =
-        cookies[cookieKey(url.host)]?.filter { it.matches(url) } ?: emptyList()
+        cookies.filter { it.matches(url) }
 
     override fun saveFromResponse(url: HttpUrl, cookies: List<Cookie>) {
-        val key = cookieKey(url.host)
-        this.cookies[key] = ((this.cookies[key] ?: emptyList()) + cookies)
-            .distinctBy { it.name }
+        cookies.forEach(::put)
     }
 
     fun clear() = cookies.clear()
 
-    private fun cookieKey(host: String) = if (host.contains("zzife")) "jw" else host
+    /**
+     * 按 (name, domain, path) 覆盖。
+     *
+     * 不能只按 name 去重：authserver 与 jw 会各写一个 JSESSIONID，
+     * 只按 name 去重会丢掉教务域上的会话，导致登录后一直提示“未能建立会话”。
+     */
+    private fun put(cookie: Cookie) {
+        cookies.removeAll {
+            it.name == cookie.name && it.domain == cookie.domain && it.path == cookie.path
+        }
+        cookies.add(cookie)
+    }
 }
 
 /** 便捷扩展：JsonObject 取字符串。 */
