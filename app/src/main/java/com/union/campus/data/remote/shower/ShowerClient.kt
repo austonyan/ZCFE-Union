@@ -104,6 +104,8 @@ class ShowerClient {
 
         if (auth == "00001" || code == 90) throw AppError.AuthExpired(AppError.Module.SHOWER, msg)
         if (code == 102) throw AppError.BadCredentials(AppError.Module.SHOWER, msg)
+        if (code == 139) throw AppError.Validation("设备区域不存在，请刷新后重试")
+        if (code == 298) throw AppError.Validation("校区不存在，请重新选择校区")
         if (code == 200 || code == 100) return dataObj?.get("data")
         throw AppError.Upstream("$path: $msg (code=$code)")
     }
@@ -153,6 +155,12 @@ class ShowerClient {
         data = buildJsonObjectCompat { put("orgAreaId", orgAreaId); put("deviceTypeKey", deviceTypeKey) },
     )
 
+    /** 校区下各区域排队人数。 */
+    suspend fun getQueueCounts(orgAreaId: String, deviceTypeKey: String = "faucet"): JsonElement? = call(
+        "DeviceAreaApi/selectQueueCountByOrgAreaId",
+        data = buildJsonObjectCompat { put("orgAreaId", orgAreaId); put("deviceTypeKey", deviceTypeKey) },
+    )
+
     suspend fun getDevices(deviceAreaId: String, deviceTypeKey: String = "faucet"): JsonElement? = call(
         "DeviceAreaApi/selectDevicesByAreaId",
         data = buildJsonObjectCompat { put("deviceAreaId", deviceAreaId); put("deviceTypeKey", deviceTypeKey) },
@@ -187,10 +195,10 @@ class ShowerClient {
         },
     )
 
-    suspend fun myQueueInfo(deviceTypeKey: String = "faucet"): JsonObject? = call(
+    suspend fun myQueueInfo(deviceTypeKey: String = "faucet"): JsonElement? = call(
         "DeviceAreaApi/getMyQueueInfo",
         data = buildJsonObjectCompat { put("deviceTypeKey", deviceTypeKey) },
-    ) as? JsonObject
+    )
 
     suspend fun reserve(uuid: String): JsonObject? = call(
         "DeviceApi/reserve",

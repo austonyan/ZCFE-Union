@@ -160,7 +160,11 @@ data class JwNotice(
 data class ShowerOrg(val id: String, val name: String)
 
 @Serializable
-data class ShowerBuilding(val id: String, val name: String)
+data class ShowerBuilding(
+    val id: String,
+    val name: String,
+    val orgAreaId: String = "",
+)
 
 @Serializable
 data class ShowerArea(
@@ -171,6 +175,19 @@ data class ShowerArea(
     val queueNum: Int,
     val serviceTime: String = "",
     val maintenance: String = "",
+    val buildingId: String = "",
+    val floor: String = "",
+    val genderLimit: String = "",
+)
+
+/** 我的排队信息；未排队时为空。 */
+@Serializable
+data class ShowerQueue(
+    val areaId: String,
+    val areaName: String,
+    val position: Int,
+    val queueNum: Int,
+    val waitMinutes: Int,
 )
 
 @Serializable

@@ -114,8 +114,10 @@ fun TodayScreen(
         }
         runCatching {
             val orgArea = ServiceLocator.settings.lastShowerOrgArea.first()
+            val areaId = ServiceLocator.settings.lastShowerAreaId.first()
             if (orgArea.isNotBlank()) {
-                showerArea = shower.areasWithState(orgArea).firstOrNull()
+                val list = shower.areasWithState(orgArea)
+                showerArea = list.firstOrNull { it.id == areaId } ?: list.firstOrNull()
             }
         }
     }
@@ -134,7 +136,11 @@ fun TodayScreen(
                 }
                 runCatching {
                     val orgArea = ServiceLocator.settings.lastShowerOrgArea.first()
-                    if (orgArea.isNotBlank()) showerArea = shower.areasWithState(orgArea, forceRefresh = true).firstOrNull()
+                    val areaId = ServiceLocator.settings.lastShowerAreaId.first()
+                    if (orgArea.isNotBlank()) {
+                        val list = shower.areasWithState(orgArea, forceRefresh = true)
+                        showerArea = list.firstOrNull { it.id == areaId } ?: list.firstOrNull()
+                    }
                 }
             } finally {
                 refreshing = false

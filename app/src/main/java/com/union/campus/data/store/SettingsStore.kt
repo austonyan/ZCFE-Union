@@ -48,6 +48,9 @@ class SettingsStore(private val context: Context) {
         val lastShowerArea = stringPreferencesKey("last_shower_area")
         val lastShowerBuilding = stringPreferencesKey("last_shower_building")
         val lastShowerOrgArea = stringPreferencesKey("last_shower_org_area")
+        val lastShowerOrgId = stringPreferencesKey("last_shower_org_id")
+        val lastShowerBuildingId = stringPreferencesKey("last_shower_building_id")
+        val lastShowerAreaId = stringPreferencesKey("last_shower_area_id")
         val lastElectricRoom = stringPreferencesKey("last_electric_room")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
     }
@@ -81,6 +84,9 @@ class SettingsStore(private val context: Context) {
     val lastShowerArea: Flow<String> = context.dataStore.data.map { it[K.lastShowerArea] ?: "" }
     val lastShowerBuilding: Flow<String> = context.dataStore.data.map { it[K.lastShowerBuilding] ?: "" }
     val lastShowerOrgArea: Flow<String> = context.dataStore.data.map { it[K.lastShowerOrgArea] ?: "" }
+    val lastShowerOrgId: Flow<String> = context.dataStore.data.map { it[K.lastShowerOrgId] ?: "" }
+    val lastShowerBuildingId: Flow<String> = context.dataStore.data.map { it[K.lastShowerBuildingId] ?: "" }
+    val lastShowerAreaId: Flow<String> = context.dataStore.data.map { it[K.lastShowerAreaId] ?: "" }
     val lastElectricRoom: Flow<String> = context.dataStore.data.map { it[K.lastElectricRoom] ?: "" }
     val keepScreenOn: Flow<Boolean> = context.dataStore.data.map { it[K.keepScreenOn] ?: true }
 
@@ -113,6 +119,23 @@ class SettingsStore(private val context: Context) {
     suspend fun setTimetableWeekMode(v: String) = context.dataStore.edit { it[K.timetableWeekMode] = v }
     suspend fun setLastShower(area: String, building: String, orgArea: String) = context.dataStore.edit {
         it[K.lastShowerArea] = area; it[K.lastShowerBuilding] = building; it[K.lastShowerOrgArea] = orgArea
+    }
+
+    /** 保存完整的洗浴选择：学校 / 校区 / 楼栋 / 区域。 */
+    suspend fun setShowerSelection(
+        orgId: String,
+        orgAreaId: String,
+        buildingId: String,
+        buildingName: String,
+        areaId: String,
+        areaName: String,
+    ) = context.dataStore.edit {
+        it[K.lastShowerOrgId] = orgId
+        it[K.lastShowerOrgArea] = orgAreaId
+        it[K.lastShowerBuildingId] = buildingId
+        it[K.lastShowerBuilding] = buildingName
+        it[K.lastShowerAreaId] = areaId
+        it[K.lastShowerArea] = areaName
     }
     suspend fun setLastElectricRoom(v: String) = context.dataStore.edit { it[K.lastElectricRoom] = v }
     suspend fun setKeepScreenOn(v: Boolean) = context.dataStore.edit { it[K.keepScreenOn] = v }
