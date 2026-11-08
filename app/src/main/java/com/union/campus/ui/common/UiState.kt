@@ -14,6 +14,8 @@ val UiScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 fun launchUi(block: suspend () -> Unit): Job = UiScope.launch {
     try {
         block()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
     } catch (e: Exception) {
         // 屏幕内自行 catch；这里兜底避免崩溃
         e.printStackTrace()

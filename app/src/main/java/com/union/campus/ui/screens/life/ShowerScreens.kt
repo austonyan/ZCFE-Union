@@ -137,6 +137,8 @@ fun ShowerScreen(
                 val saved = settings.lastShowerOrgId.first()
                 val target = list.firstOrNull { it.id == saved } ?: list.first()
                 orgId = target.id
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: AppError) {
                 if (e is AppError.AuthExpired || e is AppError.Network) {
                     error = e.userMessage
@@ -199,6 +201,8 @@ fun ShowerScreen(
             } else {
                 orgAreaId = target.id
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: AppError) {
             if (e is AppError.AuthExpired || e is AppError.Network) {
                 error = e.userMessage
@@ -248,6 +252,8 @@ fun ShowerScreen(
             } else {
                 buildingId = target.id
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: AppError) {
             if (e is AppError.AuthExpired || e is AppError.Network) {
                 error = e.userMessage
@@ -283,6 +289,8 @@ fun ShowerScreen(
             } else {
                 areaId = target.id
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: AppError) {
             error = e.userMessage
             loading = false
@@ -300,6 +308,7 @@ fun ShowerScreen(
             error = null
             deviceError = null
             devices = runCatching { shower.devices(areaId) }.getOrElse { ex ->
+                if (ex is kotlinx.coroutines.CancellationException) throw ex
                 if (ex is AppError.AuthExpired || ex is AppError.Network) throw ex
                 // 设备接口异常（常见 code=139）不要让整页变成“数据源异常”
                 deviceError = "该区域设备暂时无法加载，可切换其他区域或稍后重试"
@@ -320,6 +329,8 @@ fun ShowerScreen(
                     areaName = a.name,
                 )
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: AppError) {
             error = e.userMessage
         } catch (e: Exception) {
@@ -418,6 +429,8 @@ fun ShowerScreen(
                 queueInfo = runCatching { shower.myQueue() }.getOrNull()
                 queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(queueCounts)
                 result = "已加入排队，轮到时会通知"
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
@@ -437,6 +450,8 @@ fun ShowerScreen(
                 queueInfo = runCatching { shower.myQueue() }.getOrNull()
                 queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(queueCounts)
                 result = "已取消排队"
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
@@ -462,6 +477,8 @@ fun ShowerScreen(
                         shower.startShower(device, areaText, buildingText)
                         result = null
                         onOpenSession()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: AppError) {
                         result = e.userMessage
                     } catch (e: Exception) {
@@ -936,6 +953,8 @@ fun ShowerSessionScreen(
                         shower.endShower()
                         ending = false
                         onBack()
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
                     } catch (e: AppError) {
                         ending = false
                         result = "结束请求失败：${e.userMessage}。可能已结束，请刷新订单确认；请勿重复点击。"
