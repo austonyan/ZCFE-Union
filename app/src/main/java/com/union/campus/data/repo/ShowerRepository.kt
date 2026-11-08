@@ -108,9 +108,15 @@ class ShowerRepository constructor(
     /** 登录响应的默认校区/区域/楼栋：洗浴首页靠它决定首次加载的位置。 */
     private suspend fun rememberDefaultArea(data: JsonObject) {
         val orgId = parse.str(data, "default_org_id", "defaultOrgId", "org_id", "orgId")
-        val orgAreaId = parse.str(data, "default_org_area_id", "defaultOrgAreaId")
-        val buildingId = parse.str(data, "default_building_id", "defaultBuildingId")
-        val areaId = parse.str(data, "default_device_area_id", "defaultDeviceAreaId")
+        val orgAreaId = parse.str(
+            data, "default_org_area_id", "defaultOrgAreaId", "org_area_id", "orgAreaId",
+        )
+        val buildingId = parse.str(
+            data, "default_building_id", "defaultBuildingId", "building_id", "buildingId",
+        )
+        val areaId = parse.str(
+            data, "default_device_area_id", "defaultDeviceAreaId", "device_area_id", "deviceAreaId",
+        )
         val areaName = parse.str(data, "default_device_area_name", "defaultDeviceAreaName")
         if (orgAreaId.isBlank() || orgAreaId == "0" || orgAreaId.equals("null", true)) return
         settings.setShowerSelection(orgId, orgAreaId, buildingId, "", areaId, areaName)
@@ -206,21 +212,21 @@ class ShowerRepository constructor(
         buildingId: String,
         forceRefresh: Boolean = false,
     ): List<ShowerArea> {
-        // selectDeviceAreasWithDeviceState 是 v0.2.3 已验证可用的区域来源；
-        // getDeviceArea 只用来补充楼栋归属，失败时不能影响主流程。
+        // v0.2.3 已验证 selectDeviceAreasWithDeviceState 返回的区域 ID 可直接用于设备查询。
+        // getDeviceArea 仅作为兜底，且绝不能在主路径上抛错。
         val statesResult = runCatching { areasWithState(orgAreaId, forceRefresh) }
-        val defsResult = runCatching { deviceAreas(orgAreaId, buildingId) }
         val states = statesResult.getOrDefault(emptyList())
-        val defs = defsResult.getOrDefault(emptyList())
-
-        if (states.isEmpty()) {
-            val error = statesResult.exceptionOrNull() ?: defsResult.exceptionOrNull()
-            if (error is AppError.AuthExpired || error is AppError.Network) throw error
-            if (error is AppError.Validation && error.userMessage.contains("校区")) throw error
-            return defs
+        if (states.isNotEmpty()) {
+            return chooseBuildingAreas(states, emptyList(), buildingId)
         }
 
-        return chooseBuildingAreas(states, defs, buildingId)
+        val defs = runCatching { deviceAreas(orgAreaId, buildingId) }.getOrDefault(emptyList())
+        if (defs.isNotEmpty()) return defs
+
+        val error = statesResult.exceptionOrNull()
+        if (error is AppError.AuthExpired || error is AppError.Network) throw error
+        if (error is AppError.Validation && error.userMessage.contains("校区")) throw error
+        return emptyList()
     }
 
     /** 解析区域：id/name/空闲数/楼栋/楼层/性别限制。 */
@@ -399,13 +405,8 @@ internal fun chooseBuildingAreas(
     buildingId: String,
 ): List<ShowerArea> {
     if (states.isEmpty()) return defs
-    val defIds = defs.map { it.id }.toSet()
-    val byDef = states.filter { it.id in defIds }
-    return when {
-        byDef.isNotEmpty() -> byDef
-        states.any { it.buildingId == buildingId } -> states.filter { it.buildingId == buildingId }
-        else -> states
-    }
+    val byBuilding = states.filter { it.buildingId == buildingId }
+    return if (byBuilding.isNotEmpty()) byBuilding else states
 }
 
 /**

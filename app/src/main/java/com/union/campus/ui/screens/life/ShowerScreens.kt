@@ -108,6 +108,7 @@ fun ShowerScreen(
     var queueCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var deviceError by remember { mutableStateOf<String?>(null) }
     var startConfirm by remember { mutableStateOf<ShowerDevice?>(null) }
     var queueConfirm by remember { mutableStateOf(false) }
     var cancelQueueConfirm by remember { mutableStateOf(false) }
@@ -123,16 +124,33 @@ fun ShowerScreen(
                 val list = shower.orgs()
                 orgs = list
                 if (list.isEmpty()) {
-                    error = "未找到洗浴学校，请到「我的 → 凭证中心」重新登录大白U帮"
-                    loading = false
+                    val savedOrg = settings.lastShowerOrgId.first()
+                    if (savedOrg.isNotBlank() && savedOrg != "0") {
+                        orgId = savedOrg
+                        error = null
+                    } else {
+                        error = "未找到洗浴学校，请到「我的 → 凭证中心」重新登录大白U帮"
+                        loading = false
+                    }
                     return@launchUi
                 }
                 val saved = settings.lastShowerOrgId.first()
                 val target = list.firstOrNull { it.id == saved } ?: list.first()
                 orgId = target.id
             } catch (e: AppError) {
-                error = e.userMessage
-                loading = false
+                if (e is AppError.AuthExpired || e is AppError.Network) {
+                    error = e.userMessage
+                    loading = false
+                } else {
+                    val savedOrg = settings.lastShowerOrgId.first()
+                    if (savedOrg.isNotBlank() && savedOrg != "0") {
+                        orgId = savedOrg
+                        error = null
+                    } else {
+                        error = "洗浴信息获取失败：${e.debugDetail ?: e.userMessage}"
+                        loading = false
+                    }
+                }
             } catch (e: Exception) {
                 error = "洗浴信息获取失败：${e.message}"
                 loading = false
@@ -171,14 +189,32 @@ fun ShowerScreen(
             val saved = settings.lastShowerOrgArea.first()
             val target = list.firstOrNull { it.id == saved } ?: list.firstOrNull()
             if (target == null) {
-                error = "该学校暂无洗浴校区"
-                loading = false
+                if (saved.isNotBlank() && saved != "0") {
+                    orgAreaId = saved
+                    error = null
+                } else {
+                    error = "该学校暂无洗浴校区"
+                    loading = false
+                }
             } else {
                 orgAreaId = target.id
             }
         } catch (e: AppError) {
-            error = e.userMessage
-            loading = false
+            if (e is AppError.AuthExpired || e is AppError.Network) {
+                error = e.userMessage
+                loading = false
+            } else {
+                // 校区列表接口异常时，直接用登录返回/上次保存的 orgArea 继续加载
+                val fallback = settings.lastShowerOrgArea.first()
+                if (fallback.isNotBlank() && fallback != "0") {
+                    orgAreas = emptyList()
+                    orgAreaId = fallback
+                    error = null
+                } else {
+                    error = "校区加载失败：${e.debugDetail ?: e.userMessage}"
+                    loading = false
+                }
+            }
         } catch (e: Exception) {
             error = "校区加载失败：${e.message}"
             loading = false
@@ -205,23 +241,32 @@ fun ShowerScreen(
             }
             target = target ?: list.firstOrNull()
             if (target == null) {
-                error = "该校区暂无洗浴楼栋"
-                loading = false
+                // 楼栋接口不可用/为空时不阻塞区域加载，直接显示该校区全部区域
+                buildings = emptyList()
+                buildingId = ""
+                error = null
             } else {
                 buildingId = target.id
             }
         } catch (e: AppError) {
-            error = e.userMessage
-            loading = false
+            if (e is AppError.AuthExpired || e is AppError.Network) {
+                error = e.userMessage
+                loading = false
+            } else {
+                buildings = emptyList()
+                buildingId = ""
+                error = null
+            }
         } catch (e: Exception) {
-            error = "楼栋加载失败：${e.message}"
-            loading = false
+            buildings = emptyList()
+            buildingId = ""
+            error = null
         }
     }
 
     // 楼栋 -> 区域
     LaunchedEffect(orgAreaId, buildingId) {
-        if (orgAreaId.isBlank() || buildingId.isBlank()) return@LaunchedEffect
+        if (orgAreaId.isBlank()) return@LaunchedEffect
         try {
             loading = true
             error = null
@@ -233,7 +278,7 @@ fun ShowerScreen(
                 ?: list.firstOrNull { it.name == savedName }
                 ?: list.firstOrNull()
             if (target == null) {
-                error = "该楼栋暂无洗浴区域"
+                error = "该校区暂无洗浴区域"
                 loading = false
             } else {
                 areaId = target.id
@@ -253,7 +298,13 @@ fun ShowerScreen(
         try {
             loading = true
             error = null
-            devices = shower.devices(areaId)
+            deviceError = null
+            devices = runCatching { shower.devices(areaId) }.getOrElse { ex ->
+                if (ex is AppError.AuthExpired || ex is AppError.Network) throw ex
+                // 设备接口异常（常见 code=139）不要让整页变成“数据源异常”
+                deviceError = "该区域设备暂时无法加载，可切换其他区域或稍后重试"
+                emptyList()
+            }
             queueInfo = runCatching { shower.myQueue() }.getOrNull()
             queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(emptyMap())
             hasActiveSession = shower.activeSession.value != null
@@ -286,7 +337,10 @@ fun ShowerScreen(
             runCatching { queueInfo = shower.myQueue() }
             runCatching { queueCounts = shower.queueCounts(orgAreaId) }
             runCatching { devices = shower.devices(areaId, forceRefresh = true) }
-            runCatching { areas = shower.areasForBuilding(orgAreaId, buildingId, forceRefresh = true) }
+            runCatching { shower.areasForBuilding(orgAreaId, buildingId, forceRefresh = true) }
+                .getOrNull()
+                ?.takeIf { it.isNotEmpty() }
+                ?.let { areas = it }
         }
     }
 
@@ -507,6 +561,14 @@ fun ShowerScreen(
                 )
             }
 
+            if (buildings.isEmpty() && areas.isNotEmpty()) {
+                Text(
+                    "楼栋列表暂不可用，已显示该校区的全部洗浴区域",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             // 已在其他区域排队时给出提示，避免重复排队
             if (!loading && error == null && queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId) {
                 val q = queueInfo!!
@@ -590,7 +652,11 @@ fun ShowerScreen(
                         Text("去登录洗浴")
                     }
                 }
-                devices.isEmpty() -> NullStatus(Icons.Rounded.Shower, "暂无设备数据", "该区域未返回设备信息；如无空位可在上方加入排队")
+                devices.isEmpty() -> NullStatus(
+                    Icons.Rounded.Shower,
+                    if (deviceError != null) "设备暂时无法加载" else "暂无设备数据",
+                    deviceError ?: "该区域未返回设备信息；如无空位可在上方加入排队",
+                )
                 else -> {
                     val using = devices.count { it.state == 1 }
                     val reserved = devices.count { it.state == 2 }
