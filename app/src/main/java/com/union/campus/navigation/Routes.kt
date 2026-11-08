@@ -14,6 +14,7 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     LoginAcademic("login-academic", "登录教务"),
     LoginShower("login-shower", "登录洗浴"),
     BindElectric("bind-electric", "绑定电费"),
+    BindElectricAdd("bind-electric-add", "添加电费房间"),
     BindDone("bind-done", "绑定完成"),
 
     // 学习

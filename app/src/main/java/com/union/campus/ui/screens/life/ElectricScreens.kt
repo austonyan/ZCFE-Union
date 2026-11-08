@@ -2,6 +2,7 @@ package com.union.campus.ui.screens.life
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,6 +16,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Info
@@ -199,6 +201,7 @@ fun ElectricScreen(
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var menuOpen by remember { mutableStateOf(false) }
+    var roomMenu by remember { mutableStateOf(false) }
     var unbindConfirm by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
@@ -259,6 +262,7 @@ fun ElectricScreen(
                     IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "更多") }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; load(true) })
+                        DropdownMenuItem(text = { Text("添加房间") }, onClick = { menuOpen = false; onOpenBind() })
                         DropdownMenuItem(text = { Text("解绑房间") }, onClick = { menuOpen = false; unbindConfirm = true })
                     }
                 },
@@ -274,7 +278,46 @@ fun ElectricScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(currentRoom?.fullName ?: "11#宿舍 · 未指定", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Box {
+                TextButton(
+                    onClick = { if (rooms.size > 1) roomMenu = true },
+                    enabled = rooms.size > 1,
+                ) {
+                    Text(
+                        currentRoom?.fullName ?: "11#宿舍 · 未指定",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (rooms.size > 1) {
+                        Icon(Icons.Rounded.ArrowDropDown, contentDescription = "切换房间")
+                    }
+                }
+                DropdownMenu(expanded = roomMenu, onDismissRequest = { roomMenu = false }) {
+                    rooms.forEach { room ->
+                        DropdownMenuItem(
+                            text = { Text(room.fullName) },
+                            onClick = {
+                                roomMenu = false
+                                currentRoom = room
+                                loading = true
+                                error = null
+                                launchUi {
+                                    try {
+                                        settings.setLastElectricRoom(room.roomVerify)
+                                        balance = electric.balance(room.roomVerify, true)
+                                    } catch (e: AppError) {
+                                        error = e.userMessage
+                                    } catch (e: Exception) {
+                                        error = "电量信息获取失败：${e.message}"
+                                    } finally {
+                                        loading = false
+                                    }
+                                }
+                            },
+                        )
+                    }
+                }
+            }
 
             when {
                 loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))

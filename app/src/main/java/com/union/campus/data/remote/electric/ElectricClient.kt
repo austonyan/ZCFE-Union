@@ -96,25 +96,44 @@ class ElectricClient {
     private fun requireOk(body: JsonObject, cmd: String): JsonObject {
         val result = (body["result"] as? JsonPrimitive)?.content
         if (result == "0") return body
+        val message = (body["message"] as? JsonPrimitive)?.content
+            ?: (body["_message"] as? JsonPrimitive)?.content
         val _result = (body["_result"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
         if (_result == false) {
-            val msg = (body["_message"] as? JsonPrimitive)?.content ?: "业务失败"
-            throw AppError.Upstream("$cmd: $msg")
+            throw AppError.Upstream("$cmd: ${message ?: "业务失败"}")
         }
-        if (result == null && body["_message"] == null) {
+        if (result == null && message == null) {
             // 无 result 字段但有数据键，视为成功（不同命令返回结构差异）
             return body
         }
-        throw AppError.Upstream("$cmd: ${body.msg}")
+        when {
+            // bindroom 重复绑定：网关返回 result=-1, message=绑定失败,已有该绑定房间
+            result == "-1" && message?.contains("已有该绑定") == true ->
+                throw AppError.Validation("该房间已经绑定，无需重复绑定")
+            result == "-90004" -> throw AppError.Validation("未查询到该房间的绑定信息")
+            result == "-87" -> throw AppError.Validation("该学号查不到绑定信息")
+            result == "-20005" -> throw AppError.Validation("房间不存在")
+            result == "-90002" -> throw AppError.Validation("房间列表为空")
+            result == "-62001" -> throw AppError.Validation("缺少必要参数")
+            else -> throw AppError.Upstream("$cmd: ${message ?: "业务失败"}")
+        }
     }
-
-    private val JsonObject.msg: String
-        get() = (this["_message"] as? JsonPrimitive)?.content ?: "业务失败"
 
     // ---------------- 具体命令 ----------------
 
-    /** 查绑定房间：existflag=2 时含 roomlist[]。 */
+    /** 查绑定房间：existflag=1 单房间（顶层字段）/ existflag=2 多房间（roomlist[]）。 */
     suspend fun getBindRooms(): JsonObject = requireOk(call("getbindroom"), "getbindroom")
+
+    /** 以指定学号查询绑定房间，不改变客户端当前保存的账号。 */
+    suspend fun getBindRoomsFor(account: String): JsonObject {
+        val previous = this.account
+        this.account = account
+        return try {
+            getBindRooms()
+        } finally {
+            this.account = previous
+        }
+    }
 
     suspend fun getZoneList(): JsonObject = requireOk(call("getzonelist"), "getzonelist")
 

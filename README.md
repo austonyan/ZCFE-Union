@@ -4,7 +4,7 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.1.apk`** — 已签名 release APK（v2/v3 签名，CN=Zhengcai Union，有效期 10000 天）
+- **`郑财校园-release-v0.2.2.apk`** — 已签名 release APK（v2/v3 签名，CN=Zhengcai Union，有效期 10000 天）
 - 签名密钥：`app/union-release.keystore`（store/key 密码 `***REMOVED***`，alias `union`）
 
 ## 构建

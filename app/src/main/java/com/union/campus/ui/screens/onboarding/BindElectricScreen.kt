@@ -3,6 +3,7 @@ package com.union.campus.ui.screens.onboarding
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -43,12 +44,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BindWizardNode
+import com.union.campus.domain.ElectricRoom
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.headlineStyle
@@ -74,6 +77,9 @@ fun BindElectricScreen(
     var floors by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
     var rooms by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
 
+    var boundRooms by remember { mutableStateOf<List<ElectricRoom>>(emptyList()) }
+    var boundLoading by remember { mutableStateOf(false) }
+
     var zone by remember { mutableStateOf<BindWizardNode?>(null) }
     var build by remember { mutableStateOf<BindWizardNode?>(null) }
     var floor by remember { mutableStateOf<BindWizardNode?>(null) }
@@ -81,19 +87,48 @@ fun BindElectricScreen(
 
     LaunchedEffect(Unit) {
         if (account.isBlank()) {
-            // 带入完整学号；maskedStudentNo() 只用于展示（前 4 位 + ****）
-            account = jw.studentNo()
+            // 优先用教务学号；纯电费用户则用已保存的电费账号
+            account = jw.studentNo().ifBlank { ServiceLocator.credentials.load().electricAccount }
         }
     }
 
-    // 学号有效后自动加载园区列表（打字过程中 LaunchedEffect 会被取消，天然防抖）
+    // 学号有效后：先查该账号已绑定房间，再加载园区列表（打字过程中 LaunchedEffect 会被取消，天然防抖）
     LaunchedEffect(account) {
-        if (account.trim().length >= 6 && zones.isEmpty()) {
-            runCatching { electric.zones() }
-                .onSuccess { zones = it; error = null }
-                .onFailure { e ->
-                    error = "园区加载失败：${(e as? AppError)?.userMessage ?: e.message}"
-                }
+        val a = account.trim()
+        if (a.length < 6) {
+            boundRooms = emptyList()
+            boundLoading = false
+            return@LaunchedEffect
+        }
+        // 打字防抖：每次输入都会取消上一个协程，避免逐位请求网关
+        kotlinx.coroutines.delay(400)
+
+        boundLoading = true
+        try {
+            boundRooms = electric.boundRooms(a)
+            error = null
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: AppError) {
+            boundRooms = emptyList()
+            error = "已绑定房间查询失败：${e.userMessage}"
+        } catch (e: Exception) {
+            boundRooms = emptyList()
+            error = "已绑定房间查询失败：${e.message}"
+        } finally {
+            boundLoading = false
+        }
+
+        if (zones.isEmpty()) {
+            try {
+                zones = electric.zones()
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: AppError) {
+                error = "园区加载失败：${e.userMessage}"
+            } catch (e: Exception) {
+                error = "园区加载失败：${e.message}"
+            }
         }
     }
 
@@ -119,19 +154,50 @@ fun BindElectricScreen(
         }.onFailure { error = "房间加载失败，请重试" }
     }
 
-    fun doBind() {
-        val z = zone ?: run { error = "请选择园区"; return }
-        val b = build ?: run { error = "请选择楼栋"; return }
-        val f = floor ?: run { error = "请选择楼层"; return }
-        val r = room ?: run { error = "请选择房间"; return }
+    fun chooseBoundRoom(room: ElectricRoom) {
         if (account.isBlank()) { error = "请输入学号"; return }
         loading = true
         error = null
         launchUi {
             try {
                 electric.bindAccount(account.trim())
+                ServiceLocator.settings.setLastElectricRoom(room.roomVerify)
+                loading = false
+                onNext()
+            } catch (e: Exception) {
+                loading = false
+                error = "选择房间失败：${e.message}"
+            }
+        }
+    }
+
+    fun doBind() {
+        val z = zone ?: run { error = "请选择园区"; return }
+        val b = build ?: run { error = "请选择楼栋"; return }
+        val f = floor ?: run { error = "请选择楼层"; return }
+        val r = room ?: run { error = "请选择房间"; return }
+        if (account.isBlank()) { error = "请输入学号"; return }
+        // 已在绑定列表中：不重复写上游，直接引导用户选择
+        val duplicate = boundRooms.any { bound ->
+            bound.fullName.contains(r.name) || (r.id.isNotBlank() && bound.roomVerify.contains(r.id))
+        }
+        if (duplicate) {
+            error = "该房间已经绑定，直接点上方「使用」即可"
+            return
+        }
+        loading = true
+        error = null
+        launchUi {
+            try {
+                electric.bindAccount(account.trim())
                 val bound = electric.bindRoom(z.id, b.id, f.id, r.id)
-                ServiceLocator.settings.setLastElectricRoom(bound.roomVerify)
+                val verify = bound.roomVerify.ifBlank {
+                    electric.rooms(forceRefresh = true)
+                        .firstOrNull { it.fullName.contains(r.name) || (r.id.isNotBlank() && it.roomVerify.contains(r.id)) }
+                        ?.roomVerify
+                        .orEmpty()
+                }
+                ServiceLocator.settings.setLastElectricRoom(verify)
                 loading = false
                 onNext()
             } catch (e: AppError) {
@@ -178,6 +244,60 @@ fun BindElectricScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (boundLoading) {
+                Text(
+                    "正在查询已绑定房间…",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else if (boundRooms.isNotEmpty()) {
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Column(
+                        Modifier.fillMaxWidth().padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            "已绑定房间（${boundRooms.size}）",
+                            style = headlineStyle(),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                        boundRooms.forEach { bound ->
+                            Row(
+                                Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(
+                                        bound.fullName,
+                                        style = subheadlineStyle(),
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    )
+                                    Text(
+                                        bound.roomVerify,
+                                        style = footnoteStyle(),
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    )
+                                }
+                                TextButton(
+                                    onClick = { chooseBoundRoom(bound) },
+                                    enabled = !loading,
+                                ) {
+                                    Text("使用")
+                                }
+                            }
+                        }
+                        Text(
+                            "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                        )
+                    }
+                }
+                Text("绑定新房间", style = headlineStyle())
+            }
             DropdownField(
                 label = "园区", icon = Icons.Rounded.LocationOn,
                 options = zones.map { it.name }, selected = zone?.name,
