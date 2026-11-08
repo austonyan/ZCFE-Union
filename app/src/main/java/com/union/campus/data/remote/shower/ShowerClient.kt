@@ -94,7 +94,7 @@ class ShowerClient {
             mapShowerError(path, inner)
         }
 
-    /** 错误映射：auth=00001/code=90 → 失效；102 → 账密错误；其余按 code+msg。 */
+    /** 错误映射：auth=00001/code=90 → 失效；102 → 账密错误；业务文案优先友好展示。 */
     private fun mapShowerError(path: String, inner: JsonObject): JsonElement? {
         val header = inner["header"]?.jsonObject
         val dataObj = inner["data"]?.jsonObject
@@ -106,7 +106,17 @@ class ShowerClient {
         if (code == 102) throw AppError.BadCredentials(AppError.Module.SHOWER, msg)
         if (code == 139) throw AppError.Validation("设备区域不存在，请刷新后重试")
         if (code == 298) throw AppError.Validation("校区不存在，请重新选择校区")
+
+        // 非服务时间等业务限制：直接把可读文案返回给用户，不要落入“数据源返回异常”
+        showerServiceClosedMessage(msg)?.let { throw AppError.Validation(it) }
         if (code == 200 || code == 100) return dataObj?.get("data")
+        if (msg.isNotBlank() &&
+            !msg.contains("Undefined", true) &&
+            !msg.contains("Exception", true) &&
+            !msg.contains("error", true)
+        ) {
+            throw AppError.Validation(msg)
+        }
         throw AppError.Upstream("$path: $msg (code=$code)")
     }
 
@@ -228,4 +238,19 @@ class ShowerClient {
     /** 写一个小助手避免每处 import buildJsonObject。 */
     private inline fun buildJsonObjectCompat(block: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =
         kotlinx.serialization.json.buildJsonObject(block)
+}
+
+/** 非服务时间 / 浴室未开放的文案识别；返回给用户的友好提示。 */
+internal fun showerServiceClosedMessage(msg: String): String? {
+    if (msg.isBlank()) return null
+    val keywords = listOf(
+        "非服务时间", "不在服务时间", "服务时间外", "未到服务时间",
+        "不在开放时间", "未到开放时间", "开放时间外", "营业时间外",
+        "暂停服务", "停止服务", "浴室未开放", "暂未开放", "未开放",
+    )
+    return if (keywords.any { msg.contains(it) }) {
+        "当前不在洗浴服务时间，请按浴室开放时间使用"
+    } else {
+        null
+    }
 }

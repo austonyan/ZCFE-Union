@@ -291,7 +291,16 @@ class ShowerRepository constructor(
 
     /** 开始洗浴（写，不重试）。成功后写入活跃会话。 */
     suspend fun startShower(device: ShowerDevice, areaName: String, buildingName: String) {
-        val result = client.turnOn(device.uuid) ?: throw AppError.Upstream("开始洗浴无响应，请刷新确认设备状态")
+        val result = try {
+            client.turnOn(device.uuid)
+        } catch (e: AppError.Upstream) {
+            // 上游仅给错误码/技术文案时，开始洗浴仍给出可执行提示，避免“数据源返回异常”
+            throw AppError.Validation(
+                "暂时无法开始洗浴：可能不在浴室开放时间，或设备暂时不可用。请确认开放时间后重试",
+            )
+        } ?: throw AppError.Validation(
+            "设备没有返回开始结果，可能不在服务时间或设备暂时不可用，请稍后重试",
+        )
         val orderSn = parse.str(result, "order_sn", "orderSn")
         val session = ShowerSessionState(
             deviceUuid = device.uuid,

@@ -4,7 +4,7 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.6.apk`** — 已签名 release APK（v2/v3 签名，CN=Zhengcai Union，有效期 10000 天）
+- **`郑财校园-release-v0.2.7.apk`** — 已签名 release APK（v2/v3 签名，CN=Zhengcai Union，有效期 10000 天）
 - 签名密钥：`app/union-release.keystore`（store/key 密码 `***REMOVED***`，alias `union`）
 
 ## 构建
@@ -62,6 +62,7 @@ work/          低电费每日 20:00 检查 Worker
 - 洗浴支持学校 / 校区 / 楼栋 / 区域四级选择，并记住上次位置；无空闲设备时可加入排队、查看排队进度与取消排队
 - 电费首页兼容 `bussnesstype` 拼写与 `monthuse` 字段，余额/近 7 天/本月用量可正常显示
 - 待办会过滤早于今天的考试与截止日期；课表改为按周网格（节次时间、课程块、午休/晚休、周末切换）
+- 洗浴非服务时间/未开放等业务限制会显示“当前不在洗浴服务时间，请按浴室开放时间使用”，不再统一“数据源返回异常”
 - 洗浴区域加载以 `selectDeviceAreasWithDeviceState` 为主；`getBuildings` / `getDeviceArea` / 设备接口失败时自动降级到登录默认校区和全部区域，不再整页“数据源异常”
 - 洗浴/电费上游从本机可达，协议冒烟测试通过（未登录探测返回预期错误码）
 - MUMU 模拟器（Android 15）走查 16+ 屏，无崩溃；修复：竖屏锁定、学期代码解析、卡片满宽、冷启动跳过引导、未绑定态引导入口
