@@ -1,7 +1,9 @@
 package com.union.campus
 
+import com.union.campus.data.repo.chooseBuildingAreas
 import com.union.campus.data.repo.parseMyQueue
 import com.union.campus.data.repo.parseQueueCounts
+import com.union.campus.domain.ShowerArea
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -49,5 +51,28 @@ class ShowerQueueTest {
         val queue = parseMyQueue(raw)
         assertEquals("875", queue?.areaId)
         assertEquals(2, queue?.position)
+    }
+
+    @Test
+    fun areaSelectionFallsBackWhenDefinitionsDiffer() {
+        val states = listOf(
+            ShowerArea("875", "3层男浴室", 2, 5, 0, buildingId = "1"),
+            ShowerArea("876", "4层男浴室", 1, 5, 0, buildingId = "1"),
+            ShowerArea("900", "1层女浴室", 0, 5, 0, buildingId = "2"),
+        )
+        // getDeviceArea 返回的 ID 和实时区域完全对不上时，不能返回空
+        val defs = listOf(ShowerArea("x", "未知", 0, 0, 0, buildingId = "1"))
+        val result = chooseBuildingAreas(states, defs, "1")
+        assertEquals(listOf("875", "876"), result.map { it.id })
+    }
+
+    @Test
+    fun areaSelectionDoesNotDropAreasWithoutBuildingId() {
+        val states = listOf(
+            ShowerArea("875", "3层男浴室", 2, 5, 0),
+            ShowerArea("876", "4层男浴室", 1, 5, 0),
+        )
+        val result = chooseBuildingAreas(states, emptyList(), "1")
+        assertEquals(2, result.size)
     }
 }

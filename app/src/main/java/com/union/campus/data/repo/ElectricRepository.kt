@@ -116,31 +116,48 @@ class ElectricRepository constructor(
     suspend fun balance(roomVerify: String, forceRefresh: Boolean = false): ElectricBalance? {
         val cacheKey = "electric.balance.$roomVerify"
         if (!forceRefresh) {
-            store.read(cacheKey, ElectricBalance.serializer())?.let { return it.data }
+            store.read(cacheKey, ElectricBalance.serializer())?.let {
+                if (fresh(it.updatedAt, CacheTtl.ELECTRIC_BALANCE)) return it.data
+            }
         }
         val body = client.getIndexPage(roomVerify)
-        val mods = parse.objects(body["modlist"] as? kotlinx.serialization.json.JsonArray ?: parse.array(body))
-            .filter { parse.str(it, "businesstype") == "0" }
-        val mod = mods.firstOrNull() ?: return null
+        val mod = selectElectricMod(body) ?: return null
         val weekList = parse.objects(mod["weekuselist"] as? kotlinx.serialization.json.JsonArray).map {
             ElectricDayUse(
-                date = parse.str(it, "date"),
-                use = parse.str(it, "use"),
+                date = parse.str(it, "date", "daydate"),
+                use = parse.str(it, "use", "dayuse"),
                 weekday = parse.int(it, "weekday"),
             )
         }
         val monthList = parse.objects(mod["monthuselist"] as? kotlinx.serialization.json.JsonArray).map {
             ElectricMonthUse(
                 yearMonth = parse.str(it, "yearmonth").replace('.', '-'),
-                use = parse.str(it, "use"),
+                use = parse.str(it, "monthuse", "use"),
             )
+        }
+        val todayShort = SimpleDateFormat("MM-dd", Locale.CHINA).format(Date())
+        val todayFull = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+        var todayUse = parse.str(mod, "todayuse", "todayUse").ifBlank {
+            weekList.firstOrNull { it.date == todayShort || it.date == todayFull }?.use ?: ""
+        }
+        if (todayUse.isBlank()) {
+            // 首页接口今天还没出数时，用本月明细补一次“今日用量”
+            todayUse = runCatching {
+                val monthBody = client.getUsageMonth(roomVerify, todayFull.take(7))
+                parse.objects(monthBody["dayuselist"] as? kotlinx.serialization.json.JsonArray)
+                    .firstOrNull { parse.str(it, "date") == todayFull }
+                    ?.let { parse.str(it, "use", "dayuse") }
+                    .orEmpty()
+            }.getOrDefault("")
         }
         val data = ElectricBalance(
             roomVerify = roomVerify,
-            fullName = parse.str(mod, "roomfullname", "room_full_name", "name").ifBlank { roomVerify },
-            kwh = parse.str(mod, "odd", "balance"),
+            fullName = parse.str(
+                mod, "roomfullname", "room_full_name", "name",
+            ).ifBlank { parse.str(body, "roomfullname", "room_full_name") }.ifBlank { roomVerify },
+            kwh = parse.str(mod, "odd", "balance").ifBlank { parse.str(body, "odd", "balance") },
             price = parse.str(mod, "price"),
-            todayUse = parse.str(mod, "todayuse"),
+            todayUse = todayUse,
             weekUseList = weekList,
             monthUseList = monthList,
             lineStatus = parse.objects(mod["linestatus"] as? kotlinx.serialization.json.JsonArray)
@@ -256,6 +273,21 @@ class ElectricRepository constructor(
     suspend fun clearModuleCache() {
         store.removeByPrefix("electric.")
     }
+
+    private fun fresh(updatedAt: Long, ttl: Long) = System.currentTimeMillis() - updatedAt < ttl
+}
+
+/**
+ * 从 `h5_getstuindexpage` 的 `modlist` 里选电费模块。
+ * 上游拼写不稳定：`businesstype` / `bussnesstype` 都出现过；没有类型字段时取第一条。
+ */
+internal fun selectElectricMod(body: JsonObject): JsonObject? {
+    val mods = Parse.objects(
+        body["modlist"] as? kotlinx.serialization.json.JsonArray ?: Parse.array(body),
+    )
+    return mods.firstOrNull {
+        Parse.str(it, "businesstype", "bussnesstype", "businessType") in listOf("", "0")
+    } ?: mods.firstOrNull()
 }
 
 /**

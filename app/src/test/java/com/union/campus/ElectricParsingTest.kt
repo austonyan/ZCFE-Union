@@ -1,12 +1,14 @@
 package com.union.campus
 
 import com.union.campus.data.remote.electric.swaeInnerBody
+import com.union.campus.data.repo.selectElectricMod
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 /**
@@ -39,5 +41,21 @@ class ElectricParsingTest {
 
         val list = swaeInnerBody(outer)["data"]!!.jsonArray
         assertEquals("学生公寓D09", list[0].jsonObject["name"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun selectsElectricModuleDespiteMisspelledType() {
+        // 实测 h5_getstuindexpage 中字段是 bussnesstype（少一个 i），
+        // 旧代码只认 businesstype，导致 modlist 被过滤空、整页显示“暂无电量数据”。
+        val body = Json.parseToJsonElement(
+            """{"result":"0","modlist":[{"bussnesstype":0,"odd":239.51,"price":"0.56","devicename":"DDH1351多用户电表","weekuselist":[{"date":"11-07","use":4}],"monthuselist":[{"yearmonth":"2026.11","monthuse":49.6}]}]}""",
+        ).jsonObject
+
+        val mod = selectElectricMod(body)
+
+        assertNotNull(mod)
+        assertEquals("239.51", (mod!!["odd"] as? JsonPrimitive)?.content)
+        assertEquals("0.56", (mod["price"] as? JsonPrimitive)?.content)
+        assertEquals("49.6", (mod["monthuselist"]!!.jsonArray[0].jsonObject["monthuse"] as? JsonPrimitive)?.content)
     }
 }

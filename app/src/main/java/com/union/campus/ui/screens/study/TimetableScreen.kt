@@ -3,21 +3,28 @@ package com.union.campus.ui.screens.study
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CalendarToday
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Grade
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.MenuBook
@@ -30,6 +37,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,12 +47,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
+import com.union.campus.domain.SectionTime
 import com.union.campus.domain.Semester
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
@@ -55,9 +67,14 @@ import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismCorner
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.footnoteStyle
+import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.builtins.ListSerializer
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.abs
 
 /** 课表：学期/周次切换、日视图课程列表、调课提醒、找空教室。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,7 +94,8 @@ fun TimetableScreen(
     var week by remember { mutableIntStateOf(1) }
     var maxWeek by remember { mutableIntStateOf(25) }
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
-    var selectedDay by remember { mutableIntStateOf(SemesterCalc.dayOfWeek()) }
+    var sectionTimes by remember { mutableStateOf<List<SectionTime>>(emptyList()) }
+    var showWeekend by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
@@ -94,6 +112,7 @@ fun TimetableScreen(
                 entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let { timetable = it.data }
             }
             runCatching { notice = jw.notices().firstOrNull { it.kind == "change" }?.title }
+            sectionTimes = runCatching { jw.sectionTimes() }.getOrDefault(emptyList())
         }
     }
 
@@ -114,17 +133,42 @@ fun TimetableScreen(
         week = newWeek
         entities.read("jw.timetable.$semesterDm.w$newWeek", TimetableData.serializer())?.let { timetable = it.data }
         if (jw.isBound()) {
-            launchUi { runCatching { timetable = jw.timetable(semesterDm, newWeek) } }
+            launchUi { runCatching { timetable = jw.timetable(semesterDm, newWeek, forceRefresh = true) } }
         }
     }
 
-    val cells = timetable?.days?.firstOrNull { it.day == selectedDay }?.cells.orEmpty()
     val weekCourseCount = timetable?.days?.sumOf { it.cells.size } ?: 0
+    val weekendCount = timetable?.days?.filter { it.day >= 6 }?.sumOf { it.cells.size } ?: 0
+    val semesterLabel = timetable?.semesterName?.takeIf { it.isNotBlank() }
+        ?: semesters.firstOrNull { it.dm == semesterDm }?.name
+        ?: semesterDm
+    val weekStartDate = runCatching { LocalDate.parse(timetable?.weekStart.orEmpty()) }.getOrNull()
+    val weekRange = weekStartDate?.let {
+        val fmt = DateTimeFormatter.ofPattern("MM/dd", Locale.CHINA)
+        "${it.format(fmt)} - ${it.plusDays(4).format(fmt)}"
+    }.orEmpty()
+
+    fun goThisWeek() {
+        launchUi {
+            runCatching { jw.timetable(semesterDm, 0, forceRefresh = true) }
+                .getOrNull()?.let { data ->
+                    timetable = data
+                    week = data.week
+                    maxWeek = data.maxWeek
+                }
+        }
+    }
 
     UnionScreenScaffold(
-        title = "课表",
+        title = "课程表",
         onBack = null,
         actions = {
+            IconButton(onClick = { changeWeek(-1) }, enabled = week > 1) {
+                Icon(Icons.Rounded.ChevronLeft, contentDescription = "上一周")
+            }
+            IconButton(onClick = { changeWeek(1) }, enabled = week < maxWeek) {
+                Icon(Icons.Rounded.ChevronRight, contentDescription = "下一周")
+            }
             IconButton(onClick = onOpenGrades) { Icon(Icons.Rounded.Grade, contentDescription = "成绩") }
         },
     ) { padding ->
@@ -133,18 +177,25 @@ fun TimetableScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(horizontal = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            val semesterLabel = timetable?.semesterName?.takeIf { it.isNotBlank() }
-                ?: semesters.firstOrNull { it.dm == semesterDm }?.name
-                ?: semesterDm
-            Text("第 $week / $maxWeek 周 · $semesterLabel", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            if (weekCourseCount > 0) {
-                Text("本周共 $weekCourseCount 节课，点星期查看", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("第 $week 周", style = pageTitleStyle(), fontWeight = FontWeight(700))
+                    Text(
+                        listOfNotNull(semesterLabel, weekRange.ifBlank { null }).joinToString(" · "),
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                TextButton(onClick = { goThisWeek() }) {
+                    Icon(Icons.Rounded.CalendarToday, null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("本周")
+                }
             }
 
-            // 学期切换（教务返回的当前学期在最前）
             if (semesters.size > 1) {
                 Row(
                     Modifier
@@ -162,46 +213,18 @@ fun TimetableScreen(
                 }
             }
 
-            // 周次横向切换
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                FilterChip(selected = false, onClick = { changeWeek(-1) }, label = { Text("上一周") })
-                FilterChip(selected = true, onClick = {}, label = { Text("第 $week 周") })
-                FilterChip(selected = false, onClick = { changeWeek(1) }, label = { Text("下一周") })
-                FilterChip(
-                    selected = false,
-                    onClick = {
-                        launchUi {
-                            runCatching { jw.timetable(semesterDm, 0, forceRefresh = true) }
-                                .getOrNull()?.let { data ->
-                                    timetable = data
-                                    week = data.week
-                                    maxWeek = data.maxWeek
-                                }
-                        }
-                    },
-                    label = { Text("回到本周") },
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (weekCourseCount > 0) "本周 $weekCourseCount 节课" else "本周暂无课程",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-            }
-
-            // 星期选择
-            Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").forEachIndexed { i, label ->
-                    val d = i + 1
-                    val count = timetable?.days?.firstOrNull { it.day == d }?.cells?.size ?: 0
-                    FilterChip(
-                        selected = selectedDay == d,
-                        onClick = { selectedDay = d },
-                        label = { Text(if (count > 0) "$label·$count" else label) },
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = { showWeekend = !showWeekend }) {
+                    Text(
+                        if (showWeekend) "隐藏周末"
+                        else if (weekendCount > 0) "显示周末 · $weekendCount"
+                        else "显示周末",
                     )
                 }
             }
@@ -210,31 +233,28 @@ fun TimetableScreen(
                 PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.SwapHoriz, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                        Spacer(Modifier.width(12.dp))
+                        Spacer(Modifier.width(10.dp))
                         Column {
-                            Text("调课提醒", style = subheadlineStyle(), fontWeight = FontWeight(600), color = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Text(notice ?: "", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Text("调课提醒", style = footnoteStyle(), fontWeight = FontWeight(600), color = MaterialTheme.colorScheme.onSecondaryContainer)
+                            Text(notice ?: "", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
                 }
             }
 
-            when {
-                !jw.isBound() && timetable == null -> NullStatus(
+            if (!jw.isBound() && timetable == null) {
+                NullStatus(
                     icon = Icons.Rounded.MenuBook,
                     title = "登录后查看课表",
                     subtitle = "教务账号未绑定：到「我的 → 凭证中心」登录后即可同步",
                 )
-                cells.isEmpty() -> NullStatus(
-                    icon = Icons.Rounded.MenuBook,
-                    title = "这一天没有课",
-                    subtitle = if (weekCourseCount > 0) "本周共 $weekCourseCount 节课，点上方星期查看" else "试试切换其他星期或周次",
+            } else {
+                TimetableGrid(
+                    timetable = timetable,
+                    dayCount = if (showWeekend) 7 else 5,
+                    sectionTimes = sectionTimes,
+                    onOpenCourse = onOpenCourse,
                 )
-                else -> {
-                    cells.forEach { cell ->
-                        CourseCellCard(cell) { onOpenCourse(cell) }
-                    }
-                }
             }
 
             androidx.compose.material3.Button(
@@ -250,32 +270,207 @@ fun TimetableScreen(
     }
 }
 
-/** 课程块卡片（按课程名稳定着色）。 */
 @Composable
-fun CourseCellCard(cell: CourseCell, onClick: () -> Unit) {
-    val colors = listOf(
-        MaterialTheme.colorScheme.primaryContainer,
-        MaterialTheme.colorScheme.secondaryContainer,
-        MaterialTheme.colorScheme.tertiaryContainer,
-    )
-    val idx = (cell.name.hashCode().let { if (it < 0) -it else it }) % colors.size
-    val bg = colors[idx]
-    val onBg = when (idx) {
-        0 -> MaterialTheme.colorScheme.onPrimaryContainer
-        1 -> MaterialTheme.colorScheme.onSecondaryContainer
-        else -> MaterialTheme.colorScheme.onTertiaryContainer
+private fun TimetableGrid(
+    timetable: TimetableData?,
+    dayCount: Int,
+    sectionTimes: List<SectionTime>,
+    onOpenCourse: (CourseCell) -> Unit,
+) {
+    if (timetable == null) {
+        Box(Modifier.fillMaxWidth().height(220.dp))
+        return
     }
-    PrismCard(
-        onClick = onClick,
-        containerColor = bg,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-    ) {
-        Text(cell.name, style = subheadlineStyle(), fontWeight = FontWeight(600), color = onBg, fontSize = 16.sp)
-        Spacer(Modifier.height(2.dp))
-        Text("${cell.sections} · ${cell.location}", style = footnoteStyle(), color = onBg)
-        Text(cell.teacher, style = footnoteStyle(), color = onBg)
-        if (cell.weeks.isNotBlank()) {
-            Text(cell.weeks, style = footnoteStyle(), color = onBg.copy(alpha = 0.8f))
+    val maxSection = maxOf(12, timetable.days.flatMap { it.cells }.maxOfOrNull { it.endSection } ?: 0)
+    val rowHeight = 56.dp
+    val separatorHeight = 24.dp
+    val timeWidth = 42.dp
+    val times = sectionTimes.associateBy { it.section }
+    val weekStart = runCatching { LocalDate.parse(timetable.weekStart) }.getOrNull()
+    val today = SemesterCalc.dayOfWeek()
+
+    fun sectionY(section: Int): Dp {
+        var y = 0.dp
+        for (i in 1 until section) {
+            y += rowHeight
+            if (i == 5 || i == 9) y += separatorHeight
+        }
+        return y
+    }
+
+    fun sectionHeight(start: Int, end: Int): Dp {
+        var h = 0.dp
+        for (i in start..end) {
+            h += rowHeight
+            if ((i == 5 || i == 9) && i < end) h += separatorHeight
+        }
+        return maxOf(h - 2.dp, 1.dp)
+    }
+
+    val totalHeight = sectionY(maxSection + 1)
+    val dateFmt = DateTimeFormatter.ofPattern("MM/dd", Locale.CHINA)
+
+    Column(Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth()) {
+            Spacer(Modifier.width(timeWidth))
+            (1..dayCount).forEach { day ->
+                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        dayName(day),
+                        style = footnoteStyle(),
+                        fontWeight = if (day == today) FontWeight(700) else FontWeight(500),
+                        color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                    )
+                    val date = weekStart?.plusDays((day - 1).toLong())
+                    if (date != null) {
+                        Text(
+                            date.format(dateFmt),
+                            style = footnoteStyle(),
+                            color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+
+        Box(Modifier.fillMaxWidth().height(totalHeight)) {
+            Row(Modifier.fillMaxSize()) {
+                Column(Modifier.width(timeWidth)) {
+                    for (section in 1..maxSection) {
+                        Column(
+                            Modifier.height(rowHeight).padding(start = 2.dp),
+                            verticalArrangement = Arrangement.Center,
+                        ) {
+                            Text("$section", fontSize = 12.sp, fontWeight = FontWeight(600), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            times[section]?.let { st ->
+                                Text(st.start, fontSize = 8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
+                                Text(st.end, fontSize = 8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+                            }
+                        }
+                    }
+                }
+                Row(Modifier.weight(1f).fillMaxHeight()) {
+                    (1..dayCount).forEach { day ->
+                        val cells = timetable.days.firstOrNull { it.day == day }?.cells.orEmpty()
+                        Box(
+                            Modifier
+                                .weight(1f)
+                                .fillMaxHeight()
+                                .background(
+                                    if (day % 2 == 0) MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.45f)
+                                    else Color.Transparent,
+                                ),
+                        ) {
+                            for (section in 1..maxSection) {
+                                Box(
+                                    Modifier
+                                        .offset(y = sectionY(section))
+                                        .fillMaxWidth()
+                                        .height(1.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                                )
+                            }
+                            Box(
+                                Modifier
+                                    .align(Alignment.CenterEnd)
+                                    .width(1.dp)
+                                    .fillMaxHeight()
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+                            )
+                            cells.forEach { cell ->
+                                val (bg, onBg) = coursePalette(cell.name)
+                                Box(
+                                    Modifier
+                                        .offset(y = sectionY(cell.startSection))
+                                        .height(sectionHeight(cell.startSection, cell.endSection))
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 2.dp, vertical = 1.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(bg)
+                                        .clickable { onOpenCourse(cell) }
+                                        .padding(horizontal = 5.dp, vertical = 4.dp),
+                                ) {
+                                    Column {
+                                        Text(
+                                            cell.name,
+                                            fontSize = 12.sp,
+                                            lineHeight = 14.sp,
+                                            fontWeight = FontWeight(600),
+                                            color = onBg,
+                                            maxLines = 3,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                        if (cell.location.isNotBlank()) {
+                                            Text(
+                                                "@${cell.location}",
+                                                fontSize = 9.sp,
+                                                lineHeight = 11.sp,
+                                                color = onBg.copy(alpha = 0.82f),
+                                                maxLines = 2,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                        if (cell.teacher.isNotBlank()) {
+                                            Text(
+                                                cell.teacher,
+                                                fontSize = 9.sp,
+                                                lineHeight = 11.sp,
+                                                color = onBg.copy(alpha = 0.82f),
+                                                maxLines = 1,
+                                                overflow = TextOverflow.Ellipsis,
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            SeparatorBand("午休", sectionY(6) - separatorHeight, separatorHeight, totalHeight)
+            SeparatorBand("晚休", sectionY(10) - separatorHeight, separatorHeight, totalHeight)
         }
     }
+}
+
+@Composable
+private fun SeparatorBand(label: String, y: Dp, height: Dp, totalHeight: Dp) {
+    if (y < 0.dp || y + height > totalHeight) return
+    Box(
+        Modifier
+            .offset(y = y)
+            .fillMaxWidth()
+            .height(height)
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(label, style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private fun dayName(day: Int): String =
+    listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").getOrElse(day - 1) { "" }
+
+@Composable
+private fun coursePalette(name: String): Pair<Color, Color> {
+    val light = listOf(
+        Color(0xFFDDF3E4) to Color(0xFF145C3A),
+        Color(0xFFE7E2FA) to Color(0xFF3F347F),
+        Color(0xFFFCE7D6) to Color(0xFF7A431D),
+        Color(0xFFF9DEE8) to Color(0xFF7D2C4E),
+        Color(0xFFDDF1FA) to Color(0xFF15546E),
+        Color(0xFFF3EAD6) to Color(0xFF5E4A20),
+    )
+    val dark = listOf(
+        Color(0xFF1F3A2B) to Color(0xFFC9F2DC),
+        Color(0xFF2E2A4A) to Color(0xFFDCD6FF),
+        Color(0xFF3A2A1C) to Color(0xFFF7D9BD),
+        Color(0xFF3A2330) to Color(0xFFF7CBDD),
+        Color(0xFF1B3440) to Color(0xFFC9ECFA),
+        Color(0xFF33301F) to Color(0xFFEFE2BE),
+    )
+    val palette = if (isSystemInDarkTheme()) dark else light
+    return palette[abs(name.hashCode()) % palette.size]
 }

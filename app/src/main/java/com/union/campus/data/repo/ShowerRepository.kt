@@ -206,22 +206,21 @@ class ShowerRepository constructor(
         buildingId: String,
         forceRefresh: Boolean = false,
     ): List<ShowerArea> {
-        val states = areasWithState(orgAreaId, forceRefresh)
-        val defs = deviceAreas(orgAreaId, buildingId)
-        if (defs.isEmpty()) {
-            return states.filter { it.buildingId.isBlank() || it.buildingId == buildingId }
+        // selectDeviceAreasWithDeviceState 是 v0.2.3 已验证可用的区域来源；
+        // getDeviceArea 只用来补充楼栋归属，失败时不能影响主流程。
+        val statesResult = runCatching { areasWithState(orgAreaId, forceRefresh) }
+        val defsResult = runCatching { deviceAreas(orgAreaId, buildingId) }
+        val states = statesResult.getOrDefault(emptyList())
+        val defs = defsResult.getOrDefault(emptyList())
+
+        if (states.isEmpty()) {
+            val error = statesResult.exceptionOrNull() ?: defsResult.exceptionOrNull()
+            if (error is AppError.AuthExpired || error is AppError.Network) throw error
+            if (error is AppError.Validation && error.userMessage.contains("校区")) throw error
+            return defs
         }
-        val byId = states.associateBy { it.id }
-        return defs.map { d ->
-            val s = byId[d.id] ?: return@map d
-            d.copy(
-                idleNum = s.idleNum,
-                totalNum = s.totalNum,
-                queueNum = s.queueNum,
-                serviceTime = s.serviceTime.ifBlank { d.serviceTime },
-                maintenance = s.maintenance.ifBlank { d.maintenance },
-            )
-        }
+
+        return chooseBuildingAreas(states, defs, buildingId)
     }
 
     /** 解析区域：id/name/空闲数/楼栋/楼层/性别限制。 */
@@ -385,6 +384,27 @@ class ShowerRepository constructor(
     suspend fun clearModuleCache() {
         store.removeByPrefix("shower.areas")
         store.removeByPrefix("shower.devices")
+    }
+}
+
+/**
+ * 选择某楼栋下的区域：
+ * 1) 有 getDeviceArea 定义时，用定义 ID 过滤实时区域；
+ * 2) 定义缺失/ID 不匹配时，退回 buildingId；
+ * 3) 区域没有 buildingId 字段时，保留全部（兼容旧校区）。
+ */
+internal fun chooseBuildingAreas(
+    states: List<ShowerArea>,
+    defs: List<ShowerArea>,
+    buildingId: String,
+): List<ShowerArea> {
+    if (states.isEmpty()) return defs
+    val defIds = defs.map { it.id }.toSet()
+    val byDef = states.filter { it.id in defIds }
+    return when {
+        byDef.isNotEmpty() -> byDef
+        states.any { it.buildingId == buildingId } -> states.filter { it.buildingId == buildingId }
+        else -> states
     }
 }
 
