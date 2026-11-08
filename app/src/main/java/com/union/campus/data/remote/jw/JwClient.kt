@@ -135,9 +135,13 @@ class JwClient(
      */
     suspend fun login(username: String, password: String, captcha: String = "") = withContext(Dispatchers.IO) {
         studentNo = username
-        // 重新登录：先丢弃旧会话，避免旧 SSO / JSESSIONID 干扰新的 CAS 流程
-        cookieJar.clear()
-        val (salt, execution) = fetchLoginPage()
+        val (salt, execution) = try {
+            fetchLoginPage()
+        } catch (e: AppError.Upstream) {
+            // 旧 SSO / 旧会话可能把登录页重定向走；清一次 Cookie 再试
+            cookieJar.clear()
+            fetchLoginPage()
+        }
 
         val captchaNeeded = captcha.isBlank() && needCaptcha(username, salt)
         if (captchaNeeded) {

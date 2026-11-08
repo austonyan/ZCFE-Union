@@ -220,7 +220,7 @@ class ShowerRepository constructor(
     }
 
     private fun parseState(d: JsonObject): Int {
-        val raw = parse.str(d, "state", "status", "device_state", "device_status", "running_status").lowercase()
+        val raw = parse.str(d, "running_status", "state", "status", "device_state", "device_status").lowercase()
         return when {
             raw.contains("idle") || raw.contains("ready") || raw.contains("free") ||
                 raw == "0" || raw.contains("空闲") -> 0
