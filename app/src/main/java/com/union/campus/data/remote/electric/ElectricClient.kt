@@ -80,8 +80,7 @@ class ElectricClient {
                         val code_ = (outer["code_"] as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
                         if (code_ == 8099) throw AppError.Upstream("学校编码无效（8099），请检查绑定设置")
                         if (code_ != 0) throw AppError.Upstream("网关异常 code_=$code_")
-                        val bodyStr = outer["body"]?.toString()?.removeSurrounding("\"") ?: ""
-                        return@withContext json.parseToJsonElement(bodyStr).jsonObject
+                        return@withContext swaeInnerBody(outer)
                     }
                 } catch (e: AppError) {
                     throw e
@@ -95,11 +94,11 @@ class ElectricClient {
 
     /** 内层业务错误映射。 */
     private fun requireOk(body: JsonObject, cmd: String): JsonObject {
-        val result = body["result"]?.toString()?.removeSurrounding("\"")
+        val result = (body["result"] as? JsonPrimitive)?.content
         if (result == "0") return body
-        val _result = body["_result"]?.toString()?.toBooleanStrictOrNull()
+        val _result = (body["_result"] as? JsonPrimitive)?.content?.toBooleanStrictOrNull()
         if (_result == false) {
-            val msg = body["_message"]?.toString()?.removeSurrounding("\"") ?: "业务失败"
+            val msg = (body["_message"] as? JsonPrimitive)?.content ?: "业务失败"
             throw AppError.Upstream("$cmd: $msg")
         }
         if (result == null && body["_message"] == null) {
@@ -110,7 +109,7 @@ class ElectricClient {
     }
 
     private val JsonObject.msg: String
-        get() = this["_message"]?.toString()?.removeSurrounding("\"") ?: "业务失败"
+        get() = (this["_message"] as? JsonPrimitive)?.content ?: "业务失败"
 
     // ---------------- 具体命令 ----------------
 
@@ -205,7 +204,7 @@ class ElectricClient {
             client.newCall(req).execute().use { resp ->
                 val body = resp.body?.string() ?: ""
                 val outer = json.parseToJsonElement(body).jsonObject
-                val resultData = outer["resultdata"]?.toString()?.removeSurrounding("\"")
+                val resultData = (outer["resultdata"] as? JsonPrimitive)?.content
                     ?: throw AppError.Upstream("loginCheck 无 resultdata")
                 val plain = ElectricCrypto.decryptLoginCheck(resultData)
                 json.parseToJsonElement(plain).jsonObject
@@ -219,5 +218,18 @@ class ElectricClient {
 
     /** 未绑定房间探测：roomverify 查询返回 -90004。 */
     fun isRoomNotBound(body: JsonObject): Boolean =
-        body["result"]?.toString()?.removeSurrounding("\"") == "-90004"
+        (body["result"] as? JsonPrimitive)?.content == "-90004"
+}
+
+private val SWAE_JSON = Json { ignoreUnknownKeys = true }
+
+/**
+ * 网关外层是 `{"code_":0,"body":"{\"result\":\"0\",...}"}`，
+ * `body` 是**转义后的 JSON 字符串**。必须用 `JsonPrimitive.content` 取出，
+ * 不能用 `toString().removeSurrounding("\"")`，否则内层引号仍是 `\"`，解析必失败。
+ */
+internal fun swaeInnerBody(outer: JsonObject): JsonObject {
+    val bodyStr = (outer["body"] as? JsonPrimitive)?.content
+        ?: throw AppError.Upstream("网关响应缺少 body")
+    return SWAE_JSON.parseToJsonElement(bodyStr).jsonObject
 }

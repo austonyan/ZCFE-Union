@@ -105,7 +105,8 @@ fun LoginAcademicScreen(
                 onNext()
             } catch (e: AppError) {
                 loading = false
-                error = e.userMessage
+                val detail = e.debugDetail?.takeIf { it.isNotBlank() }?.take(140)
+                error = if (detail != null) "${e.userMessage}（$detail）" else e.userMessage
                 if (e is AppError.Validation && e.reason.contains("验证码")) {
                     needCaptcha = true
                     captcha = ""

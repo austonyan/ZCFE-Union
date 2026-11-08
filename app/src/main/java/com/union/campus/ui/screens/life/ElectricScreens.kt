@@ -98,8 +98,7 @@ fun WalletScreen(
     LaunchedEffect(Unit) {
         try {
             wallet = shower.wallet()
-            val cred = ServiceLocator.credentials.load()
-            orders = shower.orders(cred.showerMobile, cred.showerUid)
+            orders = shower.orders()
             error = null
         } catch (e: AppError) {
             error = e.userMessage

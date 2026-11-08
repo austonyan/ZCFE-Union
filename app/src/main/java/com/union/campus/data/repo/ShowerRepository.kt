@@ -15,11 +15,10 @@ import com.union.campus.domain.ShowerSessionState
 import com.union.campus.domain.ShowerWallet
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.builtins.serializer
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.jsonArray
 
 /**
  * 洗浴仓库：登录/组织/区域/设备/开关/订单/钱包 + 会话恢复。
@@ -65,7 +64,7 @@ class ShowerRepository constructor(
 
     suspend fun login(mobile: String, password: String) {
         val data = client.login(mobile, password)
-        // LoginEntity：token/id/mobile/service_host...
+        // LoginEntity：token/id/mobile/service_host/default_org_area_id...
         val token = parse.str(data, "token", "TOKEN_ID")
         val uid = parse.str(data, "id", "uid")
         val serviceHost = parse.str(data, "service_host", "serviceHost")
@@ -79,6 +78,7 @@ class ShowerRepository constructor(
             showerPassword = password,
         )
         credentials.save(cred)
+        rememberDefaultArea(data)
         _sessionState.value = SessionState.VALID
     }
 
@@ -97,13 +97,24 @@ class ShowerRepository constructor(
         credentials.save(
             credentials.load().copy(showerMobile = mobile, showerToken = token, showerServiceHost = serviceHost, showerUid = uid),
         )
+        rememberDefaultArea(data)
         _sessionState.value = SessionState.VALID
+    }
+
+    /** 登录响应的默认校区/区域：洗浴首页靠它决定加载哪个 orgArea。 */
+    private suspend fun rememberDefaultArea(data: JsonObject) {
+        val orgAreaId = parse.str(data, "default_org_area_id", "defaultOrgAreaId")
+        if (orgAreaId.isBlank() || orgAreaId == "0" || orgAreaId.equals("null", true)) return
+        val deviceAreaName = parse.str(data, "default_device_area_name", "defaultDeviceAreaName")
+        val buildingId = parse.str(data, "default_building_id", "defaultBuildingId")
+        settings.setLastShower(deviceAreaName, buildingId, orgAreaId)
     }
 
     suspend fun logout() {
         client.clear()
         val cred = credentials.load().copy(showerMobile = "", showerToken = "", showerServiceHost = "", showerUid = "")
         credentials.save(cred)
+        settings.setLastShower("", "", "")
         _sessionState.value = SessionState.NOT_BOUND
         _activeSession.value = null
         store.remove(sessionFileKey)
@@ -126,6 +137,31 @@ class ShowerRepository constructor(
         }
     }
 
+    /** 校区区域（orgArea）：登录响应没带 default_org_area_id 时用来兜底。 */
+    suspend fun orgAreas(orgId: String): List<ShowerOrg> {
+        val data = client.getOrgAreas(orgId) ?: return emptyList()
+        return parse.objects(parse.array(data)).map {
+            ShowerOrg(
+                id = parse.str(it, "org_area_id", "orgAreaId", "id"),
+                name = parse.str(it, "org_area_name", "orgAreaName", "name").ifBlank { "校区" },
+            )
+        }
+    }
+
+    /**
+     * 洗浴首页需要的 orgAreaId。优先用登录响应保存的默认值；
+     * 旧版本登录没保存时，自动取第一个校区/区域并落盘。
+     */
+    suspend fun ensureDefaultOrgArea(): String {
+        settings.lastShowerOrgArea.first()
+            .takeIf { it.isNotBlank() && it != "0" && !it.equals("null", true) }
+            ?.let { return it }
+        val org = orgs().firstOrNull() ?: return ""
+        val area = orgAreas(org.id).firstOrNull() ?: return ""
+        if (area.id.isNotBlank() && area.id != "0") settings.setLastShower("", "", area.id)
+        return area.id
+    }
+
     suspend fun buildings(orgAreaId: String): List<ShowerBuilding> {
         val data = client.getBuildings(orgAreaId) ?: return emptyList()
         return parse.objects(parse.array(data, "data", "list")).map {
@@ -143,7 +179,7 @@ class ShowerRepository constructor(
             store.read(cacheKey, ListSerializer(ShowerArea.serializer()))?.let { return it.data }
         }
         val data = client.getAreasWithState(orgAreaId) ?: return emptyList()
-        val list = parse.objects(data["data"] as? JsonArray ?: parse.array(data)).map { a ->
+        val list = parse.objects(parse.array(data)).map { a ->
             ShowerArea(
                 id = parse.str(a, "id", "device_area_id", "deviceAreaId", "area_id"),
                 name = parse.str(a, "name", "device_area_name", "deviceAreaName", "area_name").ifBlank { "区域" },
@@ -166,12 +202,15 @@ class ShowerRepository constructor(
             store.read(cacheKey, ListSerializer(ShowerDevice.serializer()))?.let { return it.data }
         }
         val data = client.getDevices(deviceAreaId) ?: return emptyList()
-        val list = parse.objects(data["data"] as? JsonArray ?: parse.array(data)).map { d ->
+        val list = parse.objects(parse.array(data)).map { d ->
             ShowerDevice(
-                uuid = parse.str(d, "uuid", "device_uuid", "id", "deviceUuid"),
-                name = parse.str(d, "device_num", "num", "name", "deviceNo").ifBlank { "设备" },
+                uuid = parse.str(d, "device_key", "controller_key", "uuid", "device_uuid", "id", "deviceUuid"),
+                name = parse.str(d, "device_name", "device_number", "device_num", "num", "name", "deviceNo")
+                    .ifBlank { "设备" },
                 state = parseState(d),
-                remainingText = parse.str(d, "remain_time", "remaining", "reserve_time", "left_time"),
+                remainingText = parse.str(
+                    d, "remain_time", "remaining", "reserve_time", "left_time", "max_running_time",
+                ),
             )
         }
         if (list.isNotEmpty()) {
@@ -181,12 +220,15 @@ class ShowerRepository constructor(
     }
 
     private fun parseState(d: JsonObject): Int {
-        val raw = parse.str(d, "state", "status", "device_state").lowercase()
+        val raw = parse.str(d, "state", "status", "device_state", "device_status", "running_status").lowercase()
         return when {
-            raw.contains("idle") || raw == "0" || raw.contains("空闲") -> 0
-            raw.contains("using") || raw == "1" || raw.contains("使用") -> 1
+            raw.contains("idle") || raw.contains("ready") || raw.contains("free") ||
+                raw == "0" || raw.contains("空闲") -> 0
+            raw.contains("using") || raw.contains("running") || raw.contains("busy") ||
+                raw == "1" || raw.contains("使用") -> 1
             raw.contains("reserve") || raw == "2" || raw.contains("预约") -> 2
-            raw.contains("fault") || raw == "3" || raw.contains("故障") -> 3
+            raw.contains("fault") || raw.contains("error") || raw.contains("offline") ||
+                raw == "3" || raw.contains("故障") -> 3
             else -> raw.toIntOrNull() ?: 0
         }
     }
@@ -218,8 +260,7 @@ class ShowerRepository constructor(
     /** 会话恢复：查未完成订单。 */
     suspend fun hasOutstandingOrder(): Boolean = try {
         val data = client.outstandingOrder()
-        val v = data?.get("data")?.toString()?.lowercase()
-        v?.contains("true") == true
+        data?.toString()?.lowercase()?.contains("true") == true
     } catch (_: AppError) {
         false
     }
@@ -235,17 +276,40 @@ class ShowerRepository constructor(
         )
     }
 
-    suspend fun orders(mobile: String, uid: String, page: Int = 1): List<ShowerOrder> {
-        val data = client.consumptionLog(mobile, uid, page) ?: return emptyList()
-        return parse.objects(data["data"] as? JsonArray ?: parse.array(data)).map { o ->
+    /** 消费明细：原生接口返回 { consumptionList[], ifLast, totalAmount }。 */
+    suspend fun orders(page: Int = 1): List<ShowerOrder> {
+        val data = client.consumptionLog(page) ?: return emptyList()
+        return parse.objects(parse.array(data)).map { o ->
             ShowerOrder(
                 orderSn = parse.str(o, "order_sn", "orderSn", "id"),
-                deviceName = parse.str(o, "device_num", "device_name", "name").ifBlank { "设备" },
-                durationText = parse.str(o, "duration", "use_time", "consume_time"),
-                amount = parse.str(o, "money", "amount", "price"),
-                time = parse.str(o, "create_time", "time", "created_at"),
+                deviceName = parse.str(o, "device_name", "device_number", "device_num", "name")
+                    .ifBlank { "洗浴设备" },
+                durationText = formatDuration(parse.str(o, "total_used_time", "duration", "use_time")),
+                amount = parse.str(o, "cash_amount", "order_amount", "amount", "money"),
+                time = formatEpoch(parse.str(o, "start_time", "create_time", "time", "created_at")),
             )
         }
+    }
+
+    private fun formatDuration(raw: String): String {
+        val sec = raw.toLongOrNull() ?: return raw
+        if (sec <= 0) return ""
+        val h = sec / 3600
+        val m = (sec % 3600) / 60
+        val s = sec % 60
+        return when {
+            h > 0 -> "${h}小时${m}分"
+            m > 0 -> "${m}分${s}秒"
+            else -> "${s}秒"
+        }
+    }
+
+    private fun formatEpoch(raw: String): String {
+        val value = raw.toLongOrNull() ?: return raw
+        if (value <= 0) return ""
+        val ms = if (value > 10_000_000_000L) value else value * 1000
+        return java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CHINA)
+            .format(java.util.Date(ms))
     }
 
     suspend fun myQueueInfo(): JsonObject? = client.myQueueInfo()

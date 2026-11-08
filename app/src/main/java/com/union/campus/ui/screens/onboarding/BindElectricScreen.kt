@@ -89,7 +89,11 @@ fun BindElectricScreen(
     // 学号有效后自动加载园区列表（打字过程中 LaunchedEffect 会被取消，天然防抖）
     LaunchedEffect(account) {
         if (account.trim().length >= 6 && zones.isEmpty()) {
-            runCatching { zones = electric.zones() }
+            runCatching { electric.zones() }
+                .onSuccess { zones = it; error = null }
+                .onFailure { e ->
+                    error = "园区加载失败：${(e as? AppError)?.userMessage ?: e.message}"
+                }
         }
     }
 

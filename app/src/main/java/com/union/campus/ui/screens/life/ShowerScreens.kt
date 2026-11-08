@@ -104,7 +104,7 @@ fun ShowerScreen(
                 if (!shower.isBound()) {
                     error = "洗浴账号未绑定，请到「我的 → 凭证中心」登录大白U帮"
                 } else {
-                    val orgArea = settings.lastShowerOrgArea.first()
+                    val orgArea = shower.ensureDefaultOrgArea()
                     if (orgArea.isNotBlank()) {
                         areas = shower.areasWithState(orgArea, force)
                         val lastArea = settings.lastShowerArea.first()
@@ -115,6 +115,8 @@ fun ShowerScreen(
                             // 记住默认区域
                             settings.setLastShower(it.name, settings.lastShowerBuilding.first(), orgArea)
                         }
+                    } else {
+                        error = "未找到可用洗浴校区，请到「我的 → 凭证中心」重新登录大白U帮"
                     }
                     hasActiveSession = shower.activeSession.value != null
                 }

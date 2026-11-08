@@ -5,6 +5,7 @@ import com.union.campus.core.crypto.ShowerCrypto
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
@@ -62,9 +63,9 @@ class ShowerClient {
 
     /**
      * 统一调用：构建信封 → POST ztechMsg → 解密 → 错误映射。
-     * @return 内层 data.code == 200/100 时的 data 字段（可为空）
+     * @return `data.data`（列表接口是数组，详情接口是对象；可能为空）
      */
-    suspend fun call(path: String, data: JsonObject? = null, act: String? = null): JsonObject? =
+    suspend fun call(path: String, data: JsonObject? = null, act: String? = null): JsonElement? =
         withContext(Dispatchers.IO) {
             val action = act ?: path.substringAfterLast("/")
             val envelope = ShowerCrypto.buildEnvelope(action, data, token)
@@ -94,16 +95,16 @@ class ShowerClient {
         }
 
     /** 错误映射：auth=00001/code=90 → 失效；102 → 账密错误；其余按 code+msg。 */
-    private fun mapShowerError(path: String, inner: JsonObject): JsonObject? {
+    private fun mapShowerError(path: String, inner: JsonObject): JsonElement? {
         val header = inner["header"]?.jsonObject
         val dataObj = inner["data"]?.jsonObject
-        val auth = header?.get("auth")?.toString()?.removeSurrounding("\"") ?: ""
-        val code = dataObj?.get("code")?.let { (it as? JsonPrimitive)?.content?.toIntOrNull() } ?: 0
-        val msg = dataObj?.get("msg")?.toString()?.removeSurrounding("\"") ?: ""
+        val auth = (header?.get("auth") as? JsonPrimitive)?.content ?: ""
+        val code = (dataObj?.get("code") as? JsonPrimitive)?.content?.toIntOrNull() ?: 0
+        val msg = (dataObj?.get("msg") as? JsonPrimitive)?.content ?: ""
 
         if (auth == "00001" || code == 90) throw AppError.AuthExpired(AppError.Module.SHOWER, msg)
         if (code == 102) throw AppError.BadCredentials(AppError.Module.SHOWER, msg)
-        if (code == 200 || code == 100) return dataObj?.get("data")?.jsonObject
+        if (code == 200 || code == 100) return dataObj?.get("data")
         throw AppError.Upstream("$path: $msg (code=$code)")
     }
 
@@ -115,44 +116,44 @@ class ShowerClient {
             put("mobile", mobile)
             put("pwd", pwd)
         },
-    ) ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "登录无返回")
+    )?.jsonObject ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "登录无返回")
 
     suspend fun fastLogin(mobile: String, verifyCode: String): JsonObject = call(
         "UserApi/fastLogin",
         data = buildJsonObjectCompat { put("mobile", mobile); put("verifyCode", verifyCode) },
-    ) ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "验证码登录无返回")
+    )?.jsonObject ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "验证码登录无返回")
 
     suspend fun sendSmsCode(mobile: String, codeType: String = "login") = call(
         "UserApi/sendSMSCode",
         data = buildJsonObjectCompat { put("code_type", codeType); put("mobile", mobile) },
     )
 
-    suspend fun getOrgs(): JsonObject? = call(
+    suspend fun getOrgs(): JsonElement? = call(
         "DeviceAreaApi/getOrgs",
         data = buildJsonObjectCompat { put("org_type", "school"); put("org_name", "") },
     )
 
-    suspend fun getOrgAreas(orgId: String): JsonObject? = call(
+    suspend fun getOrgAreas(orgId: String): JsonElement? = call(
         "DeviceAreaApi/getOrgAreas",
         data = buildJsonObjectCompat { put("orgId", orgId) },
     )
 
-    suspend fun getBuildings(orgAreaId: String): JsonObject? = call(
+    suspend fun getBuildings(orgAreaId: String): JsonElement? = call(
         "DeviceAreaApi/getBuildings",
         data = buildJsonObjectCompat { put("orgAreaId", orgAreaId) },
     )
 
-    suspend fun getDeviceAreas(orgAreaId: String, buildingId: String): JsonObject? = call(
+    suspend fun getDeviceAreas(orgAreaId: String, buildingId: String): JsonElement? = call(
         "DeviceAreaApi/getDeviceArea",
         data = buildJsonObjectCompat { put("orgAreaId", orgAreaId); put("buildingId", buildingId) },
     )
 
-    suspend fun getAreasWithState(orgAreaId: String, deviceTypeKey: String = "faucet"): JsonObject? = call(
+    suspend fun getAreasWithState(orgAreaId: String, deviceTypeKey: String = "faucet"): JsonElement? = call(
         "DeviceAreaApi/selectDeviceAreasWithDeviceState",
         data = buildJsonObjectCompat { put("orgAreaId", orgAreaId); put("deviceTypeKey", deviceTypeKey) },
     )
 
-    suspend fun getDevices(deviceAreaId: String, deviceTypeKey: String = "faucet"): JsonObject? = call(
+    suspend fun getDevices(deviceAreaId: String, deviceTypeKey: String = "faucet"): JsonElement? = call(
         "DeviceAreaApi/selectDevicesByAreaId",
         data = buildJsonObjectCompat { put("deviceAreaId", deviceAreaId); put("deviceTypeKey", deviceTypeKey) },
     )
@@ -160,14 +161,14 @@ class ShowerClient {
     suspend fun turnOn(uuid: String, deviceType: String = "faucet"): JsonObject? = call(
         "DeviceApi/turnOn",
         data = buildJsonObjectCompat { put("uuid", uuid); put("deviceType", deviceType) },
-    )
+    )?.jsonObject
 
     suspend fun turnOff(uuid: String, deviceType: String = "faucet"): JsonObject? = call(
         "DeviceApi/turnOff",
         data = buildJsonObjectCompat { put("uuid", uuid); put("deviceType", deviceType) },
-    )
+    )?.jsonObject
 
-    suspend fun outstandingOrder(): JsonObject? = call(
+    suspend fun outstandingOrder(): JsonElement? = call(
         "OrderApi/getOutstandingOrder",
         data = buildJsonObjectCompat { },
     )
@@ -175,48 +176,46 @@ class ShowerClient {
     suspend fun walletInfo(): JsonObject? = call(
         "UserApi/getWalletInfo",
         data = buildJsonObjectCompat { },
-    )
+    )?.jsonObject
 
-    suspend fun consumptionLog(mobile: String, uid: String, page: Int = 1, limit: Int = 10): JsonObject? = call(
+    /** 消费明细：只接受 page / pageSize（原生接口实测参数）。 */
+    suspend fun consumptionLog(page: Int = 1, pageSize: Int = 10): JsonElement? = call(
         "ConsumptionApi/consumptionLog",
         data = buildJsonObjectCompat {
-            put("mobile", mobile)
-            put("uid", uid)
-            put("device_type_key", "faucet")
             put("page", page)
-            put("limit", limit)
+            put("pageSize", pageSize)
         },
     )
 
     suspend fun myQueueInfo(deviceTypeKey: String = "faucet"): JsonObject? = call(
         "DeviceAreaApi/getMyQueueInfo",
         data = buildJsonObjectCompat { put("deviceTypeKey", deviceTypeKey) },
-    )
+    )?.jsonObject
 
     suspend fun reserve(uuid: String): JsonObject? = call(
         "DeviceApi/reserve",
         data = buildJsonObjectCompat { put("uuid", uuid); put("version", "55") },
-    )
+    )?.jsonObject
 
     suspend fun cancelReserve(uuid: String, deviceType: String = "faucet"): JsonObject? = call(
         "DeviceApi/cancelReserve",
         data = buildJsonObjectCompat { put("uuid", uuid); put("deviceType", deviceType) },
-    )
+    )?.jsonObject
 
     suspend fun queueUp(deviceAreaId: String, deviceTypeKey: String = "faucet"): JsonObject? = call(
         "DeviceAreaApi/queueUp",
         data = buildJsonObjectCompat { put("deviceAreaId", deviceAreaId); put("deviceTypeKey", deviceTypeKey) },
-    )
+    )?.jsonObject
 
     suspend fun cancelQueue(deviceAreaId: String, deviceTypeKey: String = "faucet"): JsonObject? = call(
         "DeviceAreaApi/cancelQueue",
         data = buildJsonObjectCompat { put("deviceAreaId", deviceAreaId); put("deviceTypeKey", deviceTypeKey) },
-    )
+    )?.jsonObject
 
     suspend fun getUserBaseInfo(mobile: String): JsonObject? = call(
         "MemberApi/getUserBaseInfo",
         data = buildJsonObjectCompat { put("mobile", mobile) },
-    )
+    )?.jsonObject
 
     /** 写一个小助手避免每处 import buildJsonObject。 */
     private inline fun buildJsonObjectCompat(block: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): JsonObject =

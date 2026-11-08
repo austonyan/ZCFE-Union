@@ -65,7 +65,9 @@ class JwClient(
                 ?: Regex("name=\"execution\"\\s+value=\"([^\"]+)\"").find(body)?.groupValues?.get(1)
             if (salt == null || execution == null) {
                 // 已登录（带着有效会话访问）时登录页可能被跳转，视为成功
-                throw AppError.Upstream("未能在登录页中找到加密参数，可能已处于登录状态")
+                val hint = Regex("<title>([^<]{0,60})</title>").find(body)?.groupValues?.get(1)
+                    ?: body.replace(Regex("\\s+"), " ").take(80)
+                throw AppError.Upstream("未能在登录页中找到加密参数：$hint")
             }
             salt to execution
         }
@@ -133,13 +135,9 @@ class JwClient(
      */
     suspend fun login(username: String, password: String, captcha: String = "") = withContext(Dispatchers.IO) {
         studentNo = username
-        val (salt, execution) = try {
-            fetchLoginPage()
-        } catch (e: AppError.Upstream) {
-            // 可能已登录：直接探测 homes
-            if (verifySession()) return@withContext
-            throw e
-        }
+        // 重新登录：先丢弃旧会话，避免旧 SSO / JSESSIONID 干扰新的 CAS 流程
+        cookieJar.clear()
+        val (salt, execution) = fetchLoginPage()
 
         val captchaNeeded = captcha.isBlank() && needCaptcha(username, salt)
         if (captchaNeeded) {
@@ -167,7 +165,10 @@ class JwClient(
             .post(form)
             .build()
         client.newCall(req).execute().use { resp ->
-            if (!resp.isSuccessful) throw AppError.Upstream("登录请求失败 HTTP ${resp.code}")
+            if (!resp.isSuccessful) {
+                val snippet = runCatching { resp.body?.string()?.take(120) }.getOrNull().orEmpty()
+                throw AppError.Upstream("登录请求失败 HTTP ${resp.code}${if (snippet.isBlank()) "" else "：$snippet"}")
+            }
             val body = resp.body?.string() ?: ""
             // 密码错误：返回登录页含 errormessages
             val errMsg = Regex("id=\"(?:msg|errorMsg)\"[^>]*>([^<]{2,80})<")
