@@ -1,19 +1,36 @@
-# Gradle
+# Gradle / Kotlin
 .gradle/
 build/
 app/build/
+.kotlin/
 
 # IDE
 .idea/
 *.iml
 local.properties
 
-# Miscellaneous
+# 构建产物
+*.apk
+*.aab
+*.ap_
+*.dex
+
+# 签名密钥（切勿入库）
+*.keystore
+*.jks
+keystore.properties
+signing.properties
+
+# 杂项
 *.log
 .DS_Store
 captures/
 .externalNativeBuild/
 .cxx/
+
+# Python
+__pycache__/
+*.py[cod]
 
 # 参考项目（嵌套 git 仓库，不纳入本仓库）
 UI组件参考项目/
@@ -27,4 +44,7 @@ link.mjs
 # 嵌套研究仓库（各自独立 git，不纳入）
 教务/_kingo_src/
 电费/
-洗澡/.git* 2>/dev/null
+
+# 教务抓取产物（含会话凭证、压缩 JS，不入库）
+教务/results/
+教务/downloads/
