@@ -72,9 +72,7 @@ import kotlinx.coroutines.flow.first
 @Composable
 fun ProfileScreen(
     onOpenCredentials: () -> Unit,
-    onOpenAcademicAffairs: () -> Unit,
     onOpenReminders: () -> Unit,
-    onOpenPrivacy: () -> Unit,
     onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -113,7 +111,7 @@ fun ProfileScreen(
         title = "我的",
         modifier = modifier,
         actions = {
-            IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "隐私与安全") }
+            IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "设置") }
         },
     ) { padding ->
         Column(
@@ -176,9 +174,9 @@ fun ProfileScreen(
             }
 
             PrismGroupedList {
-                PrismRow(title = "教务事务", subtitle = "学籍、异动、免修、预约与通知", index = 0, count = 3, leading = { IconBadge(Icons.Rounded.ListAlt) }, onClick = onOpenAcademicAffairs)
+                PrismRow(title = "凭证中心", subtitle = "教务、洗浴与电费账号", index = 0, count = 3, leading = { IconBadge(Icons.Rounded.School) }, onClick = onOpenCredentials)
                 PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", index = 1, count = 3, leading = { IconBadge(Icons.Rounded.Notifications) }, onClick = onOpenReminders)
-                PrismRow(title = "隐私与安全", subtitle = "凭证、数据与保护设置", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Lock) }, onClick = onOpenPrivacy)
+                PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Settings) }, onClick = onOpenSettings)
             }
             Spacer(Modifier.height(12.dp))
         }

@@ -27,6 +27,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -42,9 +43,11 @@ import com.union.campus.data.store.EntityStore
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.ElectricBalance
+import com.union.campus.domain.MorningGroup
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.ShowerArea
 import com.union.campus.domain.TimetableData
+import com.union.campus.domain.TimetableSchedule
 import com.union.campus.domain.TodoItem
 import com.union.campus.ui.common.formatUpdatedAt
 import com.union.campus.ui.prism.IconBadge
@@ -78,9 +81,9 @@ fun TodayScreen(
     val jw = ServiceLocator.jwRepository
     val electric = ServiceLocator.electricRepository
     val shower = ServiceLocator.showerRepository
+    val settings = ServiceLocator.settings
 
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
-    var sectionTimes by remember { mutableStateOf<List<com.union.campus.domain.SectionTime>?>(null) }
     var todos by remember { mutableStateOf<List<TodoItem>>(emptyList()) }
     var electricBalance by remember { mutableStateOf<ElectricBalance?>(null) }
     var showerArea by remember { mutableStateOf<ShowerArea?>(null) }
@@ -105,7 +108,6 @@ fun TodayScreen(
         // 静默刷新（失败不打断）；不传 week，让教务返回当前周
         if (jw.isBound()) {
             runCatching { timetable = jw.timetable(semesterDm, 0) }
-            sectionTimes = runCatching { jw.sectionTimes() }.getOrNull()
         }
         todos = runCatching { ServiceLocator.todoRepository.localTodos() }.getOrDefault(emptyList())
         runCatching {
@@ -149,6 +151,11 @@ fun TodayScreen(
     }
 
     // 计算下一节课/正在上课
+    val morningGroupValue by settings.timetableMorningGroup
+        .collectAsState(initial = MorningGroup.GroupOne.storedValue)
+    val sectionTimes = remember(morningGroupValue) {
+        TimetableSchedule.sectionTimes(MorningGroup.fromStored(morningGroupValue))
+    }
     val today = SemesterCalc.dayOfWeek(nowTick)
     val todayCells = timetable?.days?.firstOrNull { it.day == today }?.cells.orEmpty()
     val (current, next) = remember(todayCells, sectionTimes, nowTick) {

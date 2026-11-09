@@ -41,6 +41,7 @@ import com.union.campus.data.repo.ElectricRepository
 import com.union.campus.data.repo.ShowerRepository
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ElectricBalance
+import com.union.campus.domain.ElectricStats
 import com.union.campus.domain.ShowerArea
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismCard
@@ -59,7 +60,7 @@ fun LifeScreen(
     onOpenElectric: () -> Unit,
     onOpenShower: () -> Unit,
     onOpenFreeClassrooms: () -> Unit,
-    onOpenPrivacy: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val electric = ServiceLocator.electricRepository
@@ -97,7 +98,7 @@ fun LifeScreen(
                         Icon(Icons.Rounded.MoreVert, contentDescription = "更多")
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(text = { Text("隐私与安全") }, onClick = { menuOpen = false; onOpenPrivacy() })
+                        DropdownMenuItem(text = { Text("设置") }, onClick = { menuOpen = false; onOpenSettings() })
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
@@ -125,9 +126,16 @@ fun LifeScreen(
                 }
                 Spacer(Modifier.padding(4.dp))
                 if (balance != null) {
-                    val days = estimateDays(balance!!)
+                    val b = balance!!
+                    val days = estimateDays(b)
+                    val price = ElectricStats.unitPrice(b)
+                    val todayCost = ElectricStats.cost(ElectricStats.useValue(b.todayUse), price)
                     Text(
-                        "剩余 ${balance?.kwh} 度 · 预计 $days 天\n今日 ${balance?.todayUse ?: "—"} 度 · 单价 ${balance?.price ?: "—"} 元/度",
+                        buildString {
+                            append("剩余 ${b.kwh} 度 · 预计 $days 天\n今日 ${b.todayUse.ifBlank { "—" }} 度")
+                            if (todayCost != null) append(" · 约 ¥${ElectricStats.formatMoney(todayCost)}")
+                            append("\n单价 ${b.price.ifBlank { "—" }} 元/度")
+                        },
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )

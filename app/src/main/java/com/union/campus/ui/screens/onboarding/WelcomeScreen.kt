@@ -26,6 +26,7 @@ import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -36,6 +37,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
+import com.union.campus.domain.MorningGroup
+import com.union.campus.ui.common.MorningGroupPicker
+import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
@@ -53,6 +57,10 @@ fun WelcomeScreen(
 ) {
     var selectedPlatform by rememberSaveable { mutableIntStateOf(0) }
     val platforms = listOf("教务", "洗浴", "电费")
+    val settings = ServiceLocator.settings
+    val savedGroup by settings.timetableMorningGroup
+        .collectAsState(initial = MorningGroup.GroupOne.storedValue)
+    val selectedGroup = MorningGroup.fromStored(savedGroup)
 
     Column(
         modifier = modifier
@@ -115,6 +123,23 @@ fun WelcomeScreen(
                 )
             }
         }
+
+        Text(
+            text = "选择上午作息",
+            style = headlineStyle(),
+            modifier = Modifier.padding(top = 4.dp),
+        )
+        Text(
+            text = "课表第 3、4 节时间因分组不同，先选好可少走弯路；之后也可在「课表设置」中修改。",
+            style = footnoteStyle(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        MorningGroupPicker(
+            selected = selectedGroup,
+            onSelect = { group ->
+                launchUi { settings.setTimetableMorningGroup(group.storedValue) }
+            },
+        )
 
         Button(
             onClick = onStartBinding,

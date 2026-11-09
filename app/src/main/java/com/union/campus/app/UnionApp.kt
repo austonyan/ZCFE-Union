@@ -51,12 +51,14 @@ import com.union.campus.ui.screens.me.CredentialsCenterScreen
 import com.union.campus.ui.screens.me.PrivacyScreen
 import com.union.campus.ui.screens.me.ProfileScreen
 import com.union.campus.ui.screens.me.RemindersCenterScreen
+import com.union.campus.ui.screens.me.SettingsScreen
 import com.union.campus.ui.screens.onboarding.BindDoneScreen
 import com.union.campus.ui.screens.onboarding.BindElectricScreen
 import com.union.campus.ui.screens.onboarding.LoginAcademicScreen
 import com.union.campus.ui.screens.onboarding.LoginShowerScreen
 import com.union.campus.ui.screens.onboarding.WelcomeScreen
 import com.union.campus.ui.screens.study.AcademicAffairsScreen
+import com.union.campus.ui.screens.study.AcademicsScreen
 import com.union.campus.ui.screens.study.ConfirmSelectionScreen
 import com.union.campus.ui.screens.study.CourseDetailScreen
 import com.union.campus.ui.screens.study.CourseSelectScreen
@@ -70,6 +72,7 @@ import com.union.campus.ui.screens.study.NoticesScreen
 import com.union.campus.ui.screens.study.StudentRecordScreen
 import com.union.campus.ui.screens.study.TextbooksScreen
 import com.union.campus.ui.screens.study.TimetableRoute
+import com.union.campus.ui.screens.study.TimetableSettingsScreen
 import com.union.campus.ui.screens.today.TodayScreen
 
 /**
@@ -198,6 +201,31 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     },
                     onOpenGrades = { navController.navigate(Screen.Grades.route) },
                     onOpenFreeClassrooms = { navController.navigate(Screen.FreeClassrooms.route) },
+                    onOpenTimetableSettings = { navController.navigate(Screen.TimetableSettings.route) },
+                )
+            }
+
+            // ---------- 教务（tab） ----------
+            tabRoute(Screen.Academics.route) {
+                AcademicsScreen(
+                    onOpen = { link ->
+                        when (link) {
+                            "timetable" -> navigateToTab(navController, Screen.Timetable)
+                            "grades" -> navController.navigate(Screen.Grades.route)
+                            "exams" -> navController.navigate(Screen.Exams.route)
+                            "select" -> navController.navigate(Screen.CourseSelect.route)
+                            "evaluation" -> navController.navigate(Screen.Evaluation.route)
+                            "textbooks" -> navController.navigate(Screen.Textbooks.route)
+                            "record" -> navController.navigate(Screen.StudentRecord.route)
+                            "freeClassrooms" -> navController.navigate(Screen.FreeClassrooms.route)
+                            "notices" -> navController.navigate(Screen.Notices.route)
+                            "affairs" -> navController.navigate(Screen.AcademicAffairs.route)
+                        }
+                    },
+                    onOpenNotice = { n ->
+                        AppState.selectedNotice = n
+                        navController.navigate(Screen.NoticeDetail.route)
+                    },
                 )
             }
 
@@ -207,7 +235,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenElectric = { navController.navigate(Screen.Electric.route) },
                     onOpenShower = { navController.navigate(Screen.Shower.route) },
                     onOpenFreeClassrooms = { navController.navigate(Screen.FreeClassrooms.route) },
-                    onOpenPrivacy = { navController.navigate(Screen.Privacy.route) },
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
                 )
             }
 
@@ -215,14 +243,15 @@ fun UnionApp(modifier: Modifier = Modifier) {
             tabRoute(Screen.Profile.route) {
                 ProfileScreen(
                     onOpenCredentials = { navController.navigate(Screen.Credentials.route) },
-                    onOpenAcademicAffairs = { navController.navigate(Screen.AcademicAffairs.route) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
-                    onOpenPrivacy = { navController.navigate(Screen.Privacy.route) },
-                    onOpenSettings = { navController.navigate(Screen.Privacy.route) },
+                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
                 )
             }
 
             // ---------- 学习详情 ----------
+            composable(Screen.TimetableSettings.route) {
+                TimetableSettingsScreen(onBack = { navController.popBackStack() })
+            }
             composable(Screen.CourseDetail.route) {
                 val cell = AppState.selectedCourse
                     ?: CourseCell("0", "未选择课程", "", "", 1, "1-2节", 1, 2, "")
@@ -416,6 +445,14 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
             composable(Screen.Reminders.route) {
                 RemindersCenterScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenTimetableSettings = { navController.navigate(Screen.TimetableSettings.route) },
+                    onOpenReminders = { navController.navigate(Screen.Reminders.route) },
+                    onOpenPrivacy = { navController.navigate(Screen.Privacy.route) },
+                )
             }
             composable(Screen.Privacy.route) {
                 PrivacyScreen(

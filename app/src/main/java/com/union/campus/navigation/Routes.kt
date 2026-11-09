@@ -4,6 +4,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 
@@ -20,6 +21,8 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     // 学习
     Today("today", "今天", Icons.Rounded.Home),
     Timetable("timetable", "课表", Icons.AutoMirrored.Rounded.MenuBook),
+    Academics("academics", "教务", Icons.Rounded.School),
+    TimetableSettings("timetable-settings", "课表设置"),
     CourseDetail("course-detail", "课程详情"),
     Grades("grades", "成绩"),
     GradeDetail("grade-detail", "成绩详情"),
@@ -50,11 +53,12 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     Profile("profile", "我的", Icons.Rounded.Person),
     Credentials("credentials", "凭证中心"),
     Reminders("reminders", "提醒中心"),
+    Settings("settings", "设置"),
     Privacy("privacy", "隐私与安全"),
     ;
 
     companion object {
-        val Tabs = listOf(Today, Timetable, Life, Profile)
+        val Tabs = listOf(Today, Timetable, Academics, Life, Profile)
 
         fun fromRoute(route: String?): Screen? = entries.firstOrNull { it.route == route }
     }

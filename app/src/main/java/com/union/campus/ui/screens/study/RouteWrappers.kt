@@ -19,11 +19,13 @@ fun TimetableRoute(
     onOpenCourse: (CourseCell) -> Unit,
     onOpenGrades: () -> Unit,
     onOpenFreeClassrooms: () -> Unit,
+    onOpenTimetableSettings: () -> Unit,
 ) {
     TimetableScreen(
         onOpenCourse = onOpenCourse,
         onOpenGrades = onOpenGrades,
         onOpenFreeClassrooms = onOpenFreeClassrooms,
+        onOpenTimetableSettings = onOpenTimetableSettings,
     )
 }
 
