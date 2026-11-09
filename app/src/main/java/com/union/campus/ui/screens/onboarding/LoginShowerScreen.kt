@@ -18,34 +18,37 @@ import androidx.compose.material.icons.rounded.Login
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Sms
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismAlertDialog
-import com.union.campus.ui.prism.headlineStyle
-import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismProgressRail
+import com.union.campus.ui.prism.PrismTextField
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
+import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.rememberPrismHaptics
+import com.union.campus.ui.prism.subheadlineStyle
 
 /** 登录洗浴：大白U帮手机号 + 密码，支持验证码登录。 */
 @Composable
@@ -53,8 +56,11 @@ fun LoginShowerScreen(
     onBack: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    showProgress: Boolean = true,
+    skipLabel: String = "稍后绑定",
 ) {
     val shower = ServiceLocator.showerRepository
+    val haptics = rememberPrismHaptics()
     var mobile by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var smsCode by rememberSaveable { mutableStateOf("") }
@@ -63,6 +69,7 @@ fun LoginShowerScreen(
     var smsSent by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var info by rememberSaveable { mutableStateOf<String?>(null) }
+    var passwordVisible by rememberSaveable { mutableStateOf(false) }
 
     fun doLogin() {
         when {
@@ -80,12 +87,15 @@ fun LoginShowerScreen(
                     shower.login(mobile.trim(), password)
                 }
                 loading = false
+                haptics.success()
                 onNext()
             } catch (e: AppError) {
                 loading = false
+                haptics.error()
                 error = e.userMessage
             } catch (e: Exception) {
                 loading = false
+                haptics.error()
                 error = "登录失败：${e.message}"
             }
         }
@@ -119,68 +129,83 @@ fun LoginShowerScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LinearProgressIndicator(
-                progress = { 0.5f },
-                modifier = Modifier.fillMaxWidth(),
-                trackColor = MaterialTheme.colorScheme.secondaryContainer,
-            )
+            if (showProgress) {
+                PrismProgressRail(
+                    step = 3,
+                    total = 4,
+                    labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                )
+            }
             Text(
                 "使用大白U帮的手机号和密码",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            OutlinedTextField(
+            PrismTextField(
                 value = mobile,
                 onValueChange = { mobile = it },
-                label = { Text("手机号") },
-                leadingIcon = { Icon(Icons.Rounded.Phone, null) },
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Phone),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
+                label = "手机号",
+                leadingIcon = Icons.Rounded.Phone,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Phone,
+                    imeAction = ImeAction.Next,
+                ),
             )
             if (!useSms) {
-                OutlinedTextField(
+                PrismTextField(
                     value = password,
                     onValueChange = { password = it },
-                    label = { Text("密码") },
-                    leadingIcon = { Icon(Icons.Rounded.Lock, null) },
-                    visualTransformation = PasswordVisualTransformation(),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "密码",
+                    leadingIcon = Icons.Rounded.Lock,
+                    visualTransformation = if (passwordVisible) {
+                        VisualTransformation.None
+                    } else {
+                        PasswordVisualTransformation()
+                    },
+                    trailingIcon = {
+                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                            Icon(
+                                if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                contentDescription = if (passwordVisible) "隐藏密码" else "显示密码",
+                            )
+                        }
+                    },
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Password,
+                        imeAction = ImeAction.Done,
+                    ),
                 )
             } else {
-                OutlinedTextField(
+                PrismTextField(
                     value = smsCode,
                     onValueChange = { smsCode = it },
-                    label = { Text("短信验证码") },
-                    leadingIcon = { Icon(Icons.Rounded.Sms, null) },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    label = "短信验证码",
+                    leadingIcon = Icons.Rounded.Sms,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                        imeAction = ImeAction.Done,
+                    ),
+                    supportingText = if (smsSent) "验证码已发送" else null,
                 )
             }
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = subheadlineStyle()) }
 
-            Button(
+            PrismButton(
                 onClick = { doLogin() },
-                enabled = !loading,
+                loading = loading,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(52.dp),
             ) {
-                if (loading) {
-                    CircularProgressIndicator(Modifier.height(20.dp).width(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Rounded.Login, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("登录洗浴")
-                }
+                Icon(Icons.Rounded.Login, null)
+                Spacer(Modifier.width(8.dp))
+                Text("登录洗浴")
             }
 
-            TextButton(
+            PrismTextButton(
                 onClick = {
                     if (!useSms) {
-                        if (mobile.isBlank()) { error = "请先输入手机号"; return@TextButton }
+                        if (mobile.isBlank()) { error = "请先输入手机号"; return@PrismTextButton }
                         launchUi {
                             try {
                                 shower.clientSendSms(mobile.trim())
@@ -202,23 +227,21 @@ fun LoginShowerScreen(
                 Text(if (useSms) "改用密码登录" else "改用验证码登录")
             }
 
-            TextButton(
+            PrismTextButton(
                 onClick = onNext,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Schedule, null)
                 Spacer(Modifier.width(8.dp))
-                Text("稍后绑定")
+                Text(skipLabel)
             }
 
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+            PrismCard(
                 modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("为什么需要洗浴账号", style = headlineStyle())
-                    Text("查看澡堂空闲、排队、开关设备与账单。", style = subheadlineStyle())
-                }
+                Text("为什么需要洗浴账号", style = headlineStyle())
+                Text("查看澡堂空闲、排队、开关设备与账单。", style = subheadlineStyle())
             }
 
             Text(

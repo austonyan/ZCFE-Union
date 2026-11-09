@@ -29,9 +29,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
-import com.union.campus.domain.MorningGroup
+import com.union.campus.domain.BuildingGroup
+import com.union.campus.domain.MorningSlot
 import com.union.campus.domain.TimetableSchedule
-import com.union.campus.ui.common.MorningGroupPicker
+import com.union.campus.domain.TimetableScheduleConfig
+import com.union.campus.ui.common.TimetableSchedulePicker
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismCard
@@ -39,17 +41,26 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 
-/** 课表设置：上午作息分组与完整节次时间预览。 */
+/** 课表设置：教学楼作息与完整节次时间预览。 */
 @Composable
 fun TimetableSettingsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings = ServiceLocator.settings
-    val savedGroup by settings.timetableMorningGroup.collectAsState(initial = MorningGroup.GroupOne.storedValue)
-    val selected = MorningGroup.fromStored(savedGroup)
-    val times = TimetableSchedule.sectionTimes(selected)
-    val (lunchStart, lunchEnd) = TimetableSchedule.lunchRange(selected)
+    val jLate by settings.timetableJLate.collectAsState(initial = true)
+    val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
+    val fallbackGroup = if (fallbackValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6
+    val config = TimetableScheduleConfig(
+        j1ToJ6Slot = if (jLate) MorningSlot.Late else MorningSlot.Early,
+        fallbackGroup = fallbackGroup,
+    )
+    val sSlot = config.slotFor(BuildingGroup.S1ToS6AndJ7)
+    val jSlot = config.slotFor(BuildingGroup.J1ToJ6)
+    val sEnd4 = TimetableSchedule.sectionTimes(sSlot).first { it.section == 4 }.end
+    val jEnd4 = TimetableSchedule.sectionTimes(jSlot).first { it.section == 4 }.end
+    val commonTimes = TimetableSchedule.sectionTimes(MorningSlot.Early)
+        .filter { it.section !in 3..4 }
     val (dinnerStart, dinnerEnd) = TimetableSchedule.dinnerRange()
 
     UnionScreenScaffold(
@@ -65,16 +76,22 @@ fun TimetableSettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("上午作息分组", style = headlineStyle())
+            Text("教学楼作息", style = headlineStyle())
             Text(
-                "两组仅上午第 3、4 节时间不同，其余节次一致。分组时间每学期可能调整，以教务通知为准，可随时在此切换。",
+                "学校同时运行两套作息：S1–S6、J7 一套，J1–J6 一套。两套都按正常课表运行，只有第 3、4 节时间不同。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            MorningGroupPicker(
-                selected = selected,
-                onSelect = { group ->
-                    launchUi { settings.setTimetableMorningGroup(group.storedValue) }
+            TimetableSchedulePicker(
+                jLate = jLate,
+                onJLateChange = { late -> launchUi { settings.setTimetableJLate(late) } },
+                fallbackGroup = fallbackGroup,
+                onFallbackGroupChange = { group ->
+                    launchUi {
+                        settings.setTimetableFallbackGroup(
+                            if (group == BuildingGroup.J1ToJ6) 1 else 2,
+                        )
+                    }
                 },
             )
 
@@ -87,13 +104,21 @@ fun TimetableSettingsScreen(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("${selected.label}节次时间", style = headlineStyle())
+                Text("其余节次（两套相同）", style = headlineStyle())
             }
+            Text(
+                "两套作息同时运行；第 3、4 节按课程地点里的楼号自动匹配。",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             PrismCard(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
             ) {
-                times.forEach { time ->
+                commonTimes.forEach { time ->
+                    if (time.section == TimetableSchedule.LUNCH_AFTER_SECTION + 1) {
+                        BreakLine("第 3、4 节见上方 · 午休 $sEnd4 / $jEnd4 起")
+                    }
                     Row(
                         Modifier
                             .fillMaxWidth()
@@ -120,9 +145,6 @@ fun TimetableSettingsScreen(
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                    }
-                    if (time.section == TimetableSchedule.LUNCH_AFTER_SECTION) {
-                        BreakLine("午休 $lunchStart–$lunchEnd")
                     }
                     if (time.section == TimetableSchedule.DINNER_AFTER_SECTION) {
                         BreakLine("晚休 $dinnerStart–$dinnerEnd")

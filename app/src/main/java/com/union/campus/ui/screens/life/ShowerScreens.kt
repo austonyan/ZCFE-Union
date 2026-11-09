@@ -1,9 +1,14 @@
 package com.union.campus.ui.screens.life
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -11,7 +16,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
@@ -21,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
@@ -42,7 +50,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -50,9 +60,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.union.campus.core.AppError
 import com.union.campus.data.remote.shower.formatShowerCountdown
 import com.union.campus.di.ServiceLocator
@@ -74,9 +91,18 @@ import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
+import com.union.campus.ui.prism.LocalPrismMessenger
+import com.union.campus.ui.prism.PrismSnapSheet
+import com.union.campus.ui.prism.PrismSkeletonList
+import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.PrismStatus
+import com.union.campus.ui.prism.PrismStatusDot
+import com.union.campus.ui.prism.PrismSwitch
+import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
+import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
@@ -96,6 +122,8 @@ fun ShowerScreen(
 ) {
     val shower = ServiceLocator.showerRepository
     val settings = ServiceLocator.settings
+    val messenger = LocalPrismMessenger.current
+    val haptics = rememberPrismHaptics()
 
     var orgs by remember { mutableStateOf<List<ShowerOrg>>(emptyList()) }
     var orgAreas by remember { mutableStateOf<List<ShowerOrg>>(emptyList()) }
@@ -119,6 +147,7 @@ fun ShowerScreen(
     var hasActiveSession by remember { mutableStateOf(false) }
     var reservation by remember { mutableStateOf<ShowerReservation?>(null) }
     var reservationBusy by remember { mutableStateOf(false) }
+    var locationSheet by remember { mutableStateOf(false) }
 
     fun loadOrgs() {
         loading = true
@@ -434,7 +463,8 @@ fun ShowerScreen(
                 shower.queueUp(areaId)
                 queueInfo = runCatching { shower.myQueue() }.getOrNull()
                 queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(queueCounts)
-                result = "已加入排队，轮到时会通知"
+                messenger.success("已加入排队，轮到时会通知")
+                haptics.success()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: AppError) {
@@ -455,7 +485,7 @@ fun ShowerScreen(
                 shower.cancelQueue(queueCancelAreaId)
                 queueInfo = runCatching { shower.myQueue() }.getOrNull()
                 queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(queueCounts)
-                result = "已取消排队"
+                messenger.info("已取消排队")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: AppError) {
@@ -494,7 +524,7 @@ fun ShowerScreen(
                 reservation = null
                 devices = runCatching { shower.devices(areaId, forceRefresh = true) }
                     .getOrDefault(devices)
-                result = "已取消预约"
+                messenger.info("已取消预约")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: AppError) {
@@ -611,36 +641,24 @@ fun ShowerScreen(
                 )
             }
 
-            PrismCard {
+            PrismCard(onClick = { locationSheet = true }) {
                 CardHeader("洗浴位置")
-                Spacer(Modifier.height(4.dp))
-                SelectorRow(
-                    label = "学校",
-                    value = selectedOrg?.name ?: "请选择",
-                    options = orgs.map { it.id to it.name },
-                    enabled = orgs.isNotEmpty(),
-                    onSelect = ::chooseOrg,
+                Spacer(Modifier.height(6.dp))
+                val path = listOfNotNull(
+                    selectedOrg?.name,
+                    selectedOrgArea?.name,
+                    selectedBuilding?.let { buildingLabel(it.name) },
+                    selectedArea?.let { areaLabel(it) },
+                ).joinToString(" · ")
+                Text(
+                    path.ifBlank { "选择学校、校区、楼栋与区域" },
+                    style = bodyStyle(),
                 )
-                SelectorRow(
-                    label = "校区",
-                    value = selectedOrgArea?.name ?: "请选择",
-                    options = orgAreas.map { it.id to it.name },
-                    enabled = orgAreas.isNotEmpty(),
-                    onSelect = ::chooseOrgArea,
-                )
-                SelectorRow(
-                    label = "楼栋",
-                    value = selectedBuilding?.let { buildingLabel(it.name) } ?: "请选择",
-                    options = buildings.map { it.id to buildingLabel(it.name) },
-                    enabled = buildings.isNotEmpty(),
-                    onSelect = ::chooseBuilding,
-                )
-                SelectorRow(
-                    label = "区域",
-                    value = selectedArea?.let { areaLabel(it) } ?: "请选择",
-                    options = areas.map { it.id to areaLabel(it) },
-                    enabled = areas.isNotEmpty(),
-                    onSelect = ::chooseArea,
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    if (selectedArea != null) "空闲 ${selectedArea.idleNum}/${selectedArea.totalNum} · 点此更换" else "点此选择位置",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
@@ -722,7 +740,7 @@ fun ShowerScreen(
             )
 
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp).align2())
+                loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4, showHero = false)
                 error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { reload() }) { Text("重试") }
@@ -779,6 +797,26 @@ fun ShowerScreen(
             Spacer(Modifier.height(12.dp))
         }
     }
+
+    ShowerLocationSheet(
+        visible = locationSheet,
+        onDismiss = { locationSheet = false },
+        orgs = orgs,
+        orgAreas = orgAreas,
+        buildings = buildings,
+        areas = areas,
+        selectedOrgId = orgId,
+        selectedOrgAreaId = orgAreaId,
+        selectedBuildingId = buildingId,
+        selectedAreaId = areaId,
+        onSelectOrg = ::chooseOrg,
+        onSelectOrgArea = ::chooseOrgArea,
+        onSelectBuilding = ::chooseBuilding,
+        onSelectArea = { id ->
+            chooseArea(id)
+            locationSheet = false
+        },
+    )
 }
 
 private fun buildingLabel(name: String): String {
@@ -806,6 +844,137 @@ private fun areaLabel(area: ShowerArea): String {
     }
     val prefix = listOf(floor, gender).filter { it.isNotBlank() }.joinToString(" ")
     return if (prefix.isBlank()) area.name else "$prefix ${area.name}"
+}
+
+@Composable
+private fun ShowerLocationSheet(
+    visible: Boolean,
+    onDismiss: () -> Unit,
+    orgs: List<ShowerOrg>,
+    orgAreas: List<ShowerOrg>,
+    buildings: List<ShowerBuilding>,
+    areas: List<ShowerArea>,
+    selectedOrgId: String,
+    selectedOrgAreaId: String,
+    selectedBuildingId: String,
+    selectedAreaId: String,
+    onSelectOrg: (String) -> Unit,
+    onSelectOrgArea: (String) -> Unit,
+    onSelectBuilding: (String) -> Unit,
+    onSelectArea: (String) -> Unit,
+) {
+    if (!visible) return
+    val haptics = rememberPrismHaptics()
+    PrismSnapSheet(visible = visible, onDismiss = onDismiss) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            item {
+                Text("洗浴位置", style = pageTitleStyle())
+                Text(
+                    "选择学校与校区后，再选楼栋和区域",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (orgs.isNotEmpty()) {
+                item { Text("学校", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item {
+                    PrismGroupedList {
+                        orgs.forEachIndexed { index, org ->
+                            LocationOption(
+                                title = org.name,
+                                selected = org.id == selectedOrgId,
+                                index = index,
+                                count = orgs.size,
+                                onClick = { haptics.select(); onSelectOrg(org.id) },
+                            )
+                        }
+                    }
+                }
+            }
+            if (orgAreas.isNotEmpty()) {
+                item { Text("校区", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item {
+                    PrismGroupedList {
+                        orgAreas.forEachIndexed { index, item ->
+                            LocationOption(
+                                title = item.name,
+                                selected = item.id == selectedOrgAreaId,
+                                index = index,
+                                count = orgAreas.size,
+                                onClick = { haptics.select(); onSelectOrgArea(item.id) },
+                            )
+                        }
+                    }
+                }
+            }
+            if (buildings.isNotEmpty()) {
+                item { Text("楼栋", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item {
+                    PrismGroupedList {
+                        buildings.forEachIndexed { index, building ->
+                            LocationOption(
+                                title = buildingLabel(building.name),
+                                selected = building.id == selectedBuildingId,
+                                index = index,
+                                count = buildings.size,
+                                onClick = { haptics.select(); onSelectBuilding(building.id) },
+                            )
+                        }
+                    }
+                }
+            }
+            if (areas.isNotEmpty()) {
+                item { Text("区域", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item {
+                    PrismGroupedList {
+                        areas.forEachIndexed { index, area ->
+                            LocationOption(
+                                title = areaLabel(area),
+                                subtitle = "空闲 ${area.idleNum}/${area.totalNum} · 排队 ${area.queueNum} 人",
+                                selected = area.id == selectedAreaId,
+                                index = index,
+                                count = areas.size,
+                                onClick = { haptics.select(); onSelectArea(area.id) },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LocationOption(
+    title: String,
+    selected: Boolean,
+    index: Int,
+    count: Int,
+    subtitle: String? = null,
+    onClick: () -> Unit,
+) {
+    PrismRow(
+        title = title,
+        subtitle = subtitle,
+        index = index,
+        count = count,
+        onClick = onClick,
+        trailing = if (selected) {
+            {
+                Icon(
+                    Icons.Rounded.Check,
+                    contentDescription = "已选择",
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            null
+        },
+    )
 }
 
 @Composable
@@ -841,19 +1010,49 @@ private fun SelectorRow(
 }
 @Composable
 private fun DeviceCard(device: ShowerDevice, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    val (bg, onBg, statusText) = when (device.state) {
+    val haptics = rememberPrismHaptics()
+    val (targetBg, targetOnBg, statusText) = when (device.state) {
         0 -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "空闲 · 可开始")
         1 -> Triple(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurface, "使用中 · ${device.remainingText.ifBlank { "计时中" }}")
         2 -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "已预约" + if (device.remainingText.isNotBlank()) " · ${device.remainingText}" else "")
         else -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "故障/维护")
     }
+    val bg by animateColorAsState(
+        targetValue = targetBg,
+        animationSpec = tween(PrismMotion.Standard),
+        label = "device-bg",
+    )
+    val onBg by animateColorAsState(
+        targetValue = targetOnBg,
+        animationSpec = tween(PrismMotion.Standard),
+        label = "device-content",
+    )
+    val dotColor = when (device.state) {
+        0 -> PrismStatus.success()
+        1 -> PrismStatus.warning()
+        2 -> MaterialTheme.colorScheme.tertiary
+        else -> MaterialTheme.colorScheme.error
+    }
     PrismCard(
-        onClick = onClick,
+        onClick = {
+            haptics.tap()
+            onClick()
+        },
         containerColor = bg,
         modifier = modifier,
-        contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+        contentPadding = PaddingValues(16.dp),
     ) {
-        Text(device.name, style = headlineStyle(), color = onBg)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PrismStatusDot(dotColor, size = 8)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                device.name,
+                style = headlineStyle(),
+                color = onBg,
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        }
         Spacer(Modifier.height(4.dp))
         Text(statusText, style = footnoteStyle(), color = onBg, textAlign = TextAlign.Start)
     }
@@ -887,22 +1086,60 @@ private fun ReservationCard(
         if (remaining <= 0) onExpired()
     }
     val onContainer = MaterialTheme.colorScheme.onTertiaryContainer
+    val ringColor by animateColorAsState(
+        targetValue = if (remaining <= 60) PrismStatus.warning() else MaterialTheme.colorScheme.tertiary,
+        animationSpec = tween(PrismMotion.Standard),
+        label = "reservation-ring",
+    )
+    val total = reservation.maxWaitSeconds.coerceAtLeast(1)
+    val fraction = (remaining.toFloat() / total).coerceIn(0f, 1f)
     PrismCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(Icons.Rounded.Schedule, null, tint = onContainer)
-            Spacer(Modifier.width(8.dp))
-            Text("已预约 ${reservation.deviceName}", style = headlineStyle(), color = onContainer)
+            Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
+                Canvas(Modifier.fillMaxSize()) {
+                    val stroke = 5.dp.toPx()
+                    val inset = stroke / 2f
+                    drawArc(
+                        color = onContainer.copy(alpha = 0.16f),
+                        startAngle = -90f,
+                        sweepAngle = 360f,
+                        useCenter = false,
+                        topLeft = Offset(inset, inset),
+                        size = Size(size.width - stroke, size.height - stroke),
+                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    )
+                    drawArc(
+                        color = ringColor,
+                        startAngle = -90f,
+                        sweepAngle = 360f * fraction,
+                        useCenter = false,
+                        topLeft = Offset(inset, inset),
+                        size = Size(size.width - stroke, size.height - stroke),
+                        style = Stroke(width = stroke, cap = StrokeCap.Round),
+                    )
+                }
+                Text(
+                    text = "%d:%02d".format(remaining / 60, remaining % 60),
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight(600),
+                    color = onContainer,
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text("已预约 ${reservation.deviceName}", style = headlineStyle(), color = onContainer)
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    if (remaining > 0) {
+                        "剩余 ${formatShowerCountdown(remaining)} 自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
+                    } else {
+                        "预约已过期，请重新预约"
+                    },
+                    style = footnoteStyle(),
+                    color = onContainer.copy(alpha = 0.78f),
+                )
+            }
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            if (remaining > 0) {
-                "剩余 ${formatShowerCountdown(remaining)} 自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
-            } else {
-                "预约已过期，请重新预约"
-            },
-            style = subheadlineStyle(),
-            color = onContainer,
-        )
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = onStart, enabled = remaining > 0 && !busy) {
@@ -933,6 +1170,8 @@ fun DeviceDetailScreen(
 ) {
     val shower = ServiceLocator.showerRepository
     val settings = ServiceLocator.settings
+    val messenger = LocalPrismMessenger.current
+    val haptics = rememberPrismHaptics()
     var startConfirm by remember { mutableStateOf(false) }
     var reserveConfirm by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
@@ -961,7 +1200,7 @@ fun DeviceDetailScreen(
             try {
                 shower.cancelReserve(r.deviceUuid)
                 reservation = null
-                result = "已取消预约"
+                messenger.info("已取消预约")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: AppError) {
@@ -1010,11 +1249,14 @@ fun DeviceDetailScreen(
                     try {
                         val r = shower.reserveDevice(device, areaName)
                         reservation = r
-                        result = if (r != null) {
-                            "预约成功，请在 ${formatShowerCountdown(r.maxWaitSeconds)} 内开始"
-                        } else {
-                            "预约成功，请尽快开始"
-                        }
+                        haptics.success()
+                        messenger.success(
+                            if (r != null) {
+                                "预约成功，请在 ${formatShowerCountdown(r.maxWaitSeconds)} 内开始"
+                            } else {
+                                "预约成功，请尽快开始"
+                            },
+                        )
                     } catch (e: AppError) { result = e.userMessage }
                     catch (e: Exception) { result = "预约失败：${e.message}" }
                 }
@@ -1120,10 +1362,19 @@ fun ShowerSessionScreen(
 ) {
     val shower = ServiceLocator.showerRepository
     val settings = ServiceLocator.settings
+    val messenger = LocalPrismMessenger.current
+    val haptics = rememberPrismHaptics()
+    val keepScreenOn by settings.keepScreenOn.collectAsState(initial = true)
+    val view = LocalView.current
     var elapsedSec by remember { mutableStateOf(((System.currentTimeMillis() - session.startedAt) / 1000).toInt()) }
     var endConfirm by remember { mutableStateOf(false) }
     var ending by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
+
+    DisposableEffect(keepScreenOn) {
+        view.keepScreenOn = keepScreenOn
+        onDispose { view.keepScreenOn = false }
+    }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -1145,6 +1396,8 @@ fun ShowerSessionScreen(
                     try {
                         shower.endShower()
                         ending = false
+                        messenger.success("已结束洗浴")
+                        haptics.success()
                         onBack()
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
@@ -1192,18 +1445,92 @@ fun ShowerSessionScreen(
             Text("本次洗浴", style = headlineStyle())
             val minutes = elapsedSec / 60
             val secs = elapsedSec % 60
-            // 时长进度（以 40 分钟为参考显示波浪进度）
-            val progress = (elapsedSec / (40f * 60f)).coerceIn(0f, 1f)
-            androidx.compose.material3.LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier.fillMaxWidth().height(8.dp),
-                trackColor = MaterialTheme.colorScheme.secondaryContainer,
+            val progressTarget = (elapsedSec / (40f * 60f)).coerceIn(0f, 1f)
+            val progress by animateFloatAsState(
+                targetValue = progressTarget,
+                animationSpec = tween(600),
+                label = "session-progress",
             )
-            Text(
-                String.format("%02d:%02d", minutes, secs),
-                style = com.union.campus.ui.prism.displayStyle(),
-                color = MaterialTheme.colorScheme.primary,
-            )
+            PrismCard(containerColor = surfaceColorOf(SurfaceLevel.Card)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.size(148.dp), contentAlignment = Alignment.Center) {
+                        val ringTrack = MaterialTheme.colorScheme.secondaryContainer
+                        val ringActive = MaterialTheme.colorScheme.primary
+                        Canvas(Modifier.fillMaxSize()) {
+                            val stroke = 8.dp.toPx()
+                            val inset = stroke / 2f
+                            drawArc(
+                                color = ringTrack,
+                                startAngle = -90f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                topLeft = Offset(inset, inset),
+                                size = Size(size.width - stroke, size.height - stroke),
+                                style = Stroke(width = stroke, cap = StrokeCap.Round),
+                            )
+                            drawArc(
+                                color = ringActive,
+                                startAngle = -90f,
+                                sweepAngle = 360f * progress,
+                                useCenter = false,
+                                topLeft = Offset(inset, inset),
+                                size = Size(size.width - stroke, size.height - stroke),
+                                style = Stroke(width = stroke, cap = StrokeCap.Round),
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = String.format("%02d:%02d", minutes, secs),
+                                fontSize = 32.sp,
+                                lineHeight = 38.sp,
+                                fontWeight = FontWeight(700),
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.headlineSmall.copy(
+                                    fontSize = 32.sp,
+                                    lineHeight = 38.sp,
+                                    fontFeatureSettings = "tnum",
+                                ),
+                            )
+                            Text(
+                                "已使用",
+                                style = footnoteStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                    Spacer(Modifier.width(16.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text(session.deviceName, style = headlineStyle())
+                        Spacer(Modifier.height(2.dp))
+                        Text(
+                            "${session.buildingName} ${session.areaName}",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            "圆环按 40 分钟参考，实际费用以结束后的账单为准。",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Schedule, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Column(Modifier.weight(1f)) {
+                        Text("屏幕常亮", style = bodyStyle())
+                        Text("洗浴期间不自动锁屏", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    PrismSwitch(
+                        checked = keepScreenOn,
+                        onCheckedChange = {
+                            launchUi { settings.setKeepScreenOn(it) }
+                        },
+                    )
+                }
+            }
             Text("预计费用以结束后的账单为准（按实际使用时长计费）", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             Text("计费提示", style = headlineStyle())
@@ -1212,10 +1539,10 @@ fun ShowerSessionScreen(
                 PrismRow(title = "结束提醒", subtitle = "离开前请确认关闭设备", index = 1, count = 2, leading = { IconBadge(Icons.Rounded.Info) })
             }
 
-            Button(
+            PrismButton(
                 onClick = { endConfirm = true },
                 enabled = !ending,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
                 Icon(Icons.Rounded.StopCircle, null)
                 Spacer(Modifier.width(8.dp))

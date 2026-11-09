@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -175,23 +177,36 @@ fun PrismRow(
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    Row(
-        modifier = modifier
-            .clip(groupRowShape(index, count))
-            .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-            .defaultMinSize(minHeight = 56.dp)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        if (leading != null) leading()
-        Column(Modifier.weight(1f)) {
-            Text(title, style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (!subtitle.isNullOrBlank()) {
-                Text(subtitle, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    Column(modifier = modifier.fillMaxWidth()) {
+        if (index > 0 && count > 1) GroupDivider()
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(groupRowShape(index, count))
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (leading != null) leading()
+            Column(Modifier.weight(1f)) {
+                Text(title, style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (!subtitle.isNullOrBlank()) {
+                    Text(subtitle, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (trailing != null) {
+                trailing()
+            } else if (onClick != null) {
+                androidx.compose.material3.Icon(
+                    Icons.Rounded.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                    modifier = Modifier.size(18.dp),
+                )
             }
         }
-        if (trailing != null) trailing()
     }
 }
 
@@ -329,6 +344,7 @@ fun PrismButton(
     modifier: Modifier = Modifier,
     filled: Boolean = true,
     enabled: Boolean = true,
+    loading: Boolean = false,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
@@ -342,7 +358,7 @@ fun PrismButton(
     WithPressLook(PressLook.Tint) {
         Surface(
             onClick = onClick,
-            enabled = enabled,
+            enabled = enabled && !loading,
             modifier = modifier
                 .clip(pill)
                 .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp),
@@ -363,7 +379,15 @@ fun PrismButton(
             ) {
                 ProvideContentColor(colors.second.takeIf { enabled }
                     ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) {
-                    content()
+                    if (loading) {
+                        androidx.compose.material3.CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            color = colors.second,
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        content()
+                    }
                 }
             }
         }

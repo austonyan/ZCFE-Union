@@ -89,7 +89,7 @@ fun AcademicsScreen(
         }
     }
 
-    UnionScreenScaffold(title = "教务", onBack = null, modifier = modifier) { padding ->
+    UnionScreenScaffold(title = "教务", onBack = null, largeTitle = true, modifier = modifier) { padding ->
         Column(
             Modifier
                 .fillMaxSize()

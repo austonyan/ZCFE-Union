@@ -21,7 +21,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
-import com.union.campus.domain.MorningGroup
+import com.union.campus.domain.BuildingGroup
+import com.union.campus.domain.MorningSlot
+import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
@@ -39,12 +41,18 @@ fun SettingsScreen(
     onOpenTimetableSettings: () -> Unit,
     onOpenReminders: () -> Unit,
     onOpenPrivacy: () -> Unit,
+    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val settings = ServiceLocator.settings
-    val morningGroupValue by settings.timetableMorningGroup
-        .collectAsState(initial = MorningGroup.GroupOne.storedValue)
-    val morningGroup = MorningGroup.fromStored(morningGroupValue)
+    val jLate by settings.timetableJLate.collectAsState(initial = true)
+    val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
+    val config = TimetableScheduleConfig(
+        j1ToJ6Slot = if (jLate) MorningSlot.Late else MorningSlot.Early,
+        fallbackGroup = if (fallbackValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6,
+    )
+    val jSlot = config.slotFor(BuildingGroup.J1ToJ6)
+    val sSlot = config.slotFor(BuildingGroup.S1ToS6AndJ7)
 
     UnionScreenScaffold(
         title = "设置",
@@ -63,7 +71,7 @@ fun SettingsScreen(
             PrismGroupedList {
                 PrismRow(
                     title = "课表设置",
-                    subtitle = "上午作息 · ${morningGroup.label}（${morningGroup.classCodes}）· 节次时间",
+                    subtitle = "教学楼作息 · J1–J6 ${jSlot.startLabel} · S1–S6、J7 ${sSlot.startLabel}",
                     index = 0, count = 1,
                     leading = { IconBadge(Icons.Rounded.Schedule) },
                     onClick = onOpenTimetableSettings,
@@ -93,13 +101,19 @@ fun SettingsScreen(
             }
 
             Text("关于", style = headlineStyle())
-            PrismCard {
+            PrismCard(onClick = onOpenAbout) {
                 CardHeader("郑财校园", icon = Icons.Rounded.Info)
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "教务、洗浴与电费合并入口；登录状态仅保存在本机，只使用本人账号。",
                     style = subheadlineStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "查看版本、作者与版权",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.primary,
                 )
             }
 

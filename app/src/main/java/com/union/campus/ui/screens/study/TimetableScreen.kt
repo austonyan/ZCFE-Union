@@ -1,5 +1,11 @@
 package com.union.campus.ui.screens.study
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -19,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -42,6 +49,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,18 +63,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
+import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.CourseCell
-import com.union.campus.domain.MorningGroup
+import com.union.campus.domain.MorningSlot
 import com.union.campus.domain.Semester
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
 import com.union.campus.domain.TimetableSchedule
+import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
+import com.union.campus.ui.prism.rememberPrismHaptics
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -86,6 +98,7 @@ fun TimetableScreen(
     val jw = ServiceLocator.jwRepository
     val entities = ServiceLocator.entities
     val settings = ServiceLocator.settings
+    val haptics = rememberPrismHaptics()
 
     var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
     var semesterDm by remember { mutableStateOf("") }
@@ -93,14 +106,20 @@ fun TimetableScreen(
     var maxWeek by remember { mutableIntStateOf(25) }
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
     var showWeekend by remember { mutableStateOf(false) }
+    var weekDirection by remember { mutableIntStateOf(0) }
+    var currentWeek by remember { mutableIntStateOf(1) }
+    var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
 
-    val morningGroupValue by settings.timetableMorningGroup
-        .collectAsState(initial = MorningGroup.GroupOne.storedValue)
-    val morningGroup = MorningGroup.fromStored(morningGroupValue)
-    val sectionTimes = remember(morningGroup) { TimetableSchedule.sectionTimes(morningGroup) }
+    val jLate by settings.timetableJLate.collectAsState(initial = true)
+    val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
+    val scheduleConfig = TimetableScheduleConfig(
+        j1ToJ6Slot = if (jLate) MorningSlot.Late else MorningSlot.Early,
+        fallbackGroup = if (fallbackValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6,
+    )
 
     LaunchedEffect(Unit) {
         semesterDm = jw.currentSemesterDm()
+        currentWeek = SemesterCalc.currentWeek(semesterDm, settings.firstWeekStart.first())
         if (jw.isBound()) {
             semesters = runCatching { jw.semesterList() }.getOrDefault(emptyList())
             val data = runCatching { jw.timetable(semesterDm, 0) }.getOrNull()
@@ -109,16 +128,25 @@ fun TimetableScreen(
                 week = data.week
                 maxWeek = data.maxWeek
             } else {
-                week = SemesterCalc.currentWeek(semesterDm, settings.firstWeekStart.first())
+                week = currentWeek
                 entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let { timetable = it.data }
             }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            nowTick = System.currentTimeMillis()
+            kotlinx.coroutines.delay(30_000L)
         }
     }
 
     fun openSemester(dm: String) {
         if (dm == semesterDm) return
         semesterDm = dm
+        weekDirection = 0
         launchUi {
+            currentWeek = SemesterCalc.currentWeek(dm, settings.firstWeekStart.first())
             runCatching { jw.timetable(dm, 0) }.getOrNull()?.let { data ->
                 timetable = data
                 week = data.week
@@ -129,6 +157,9 @@ fun TimetableScreen(
 
     fun changeWeek(delta: Int) {
         val newWeek = (week + delta).coerceIn(1, maxWeek)
+        if (newWeek == week) return
+        weekDirection = delta
+        haptics.select()
         week = newWeek
         entities.read("jw.timetable.$semesterDm.w$newWeek", TimetableData.serializer())?.let { timetable = it.data }
         if (jw.isBound()) {
@@ -152,6 +183,8 @@ fun TimetableScreen(
     }.orEmpty()
 
     fun goThisWeek() {
+        weekDirection = 0
+        haptics.select()
         launchUi {
             runCatching { jw.timetable(semesterDm, 0, forceRefresh = true) }
                 .getOrNull()?.let { data ->
@@ -165,6 +198,7 @@ fun TimetableScreen(
     UnionScreenScaffold(
         title = "课程表",
         onBack = null,
+        largeTitle = true,
         actions = {
             IconButton(onClick = { changeWeek(-1) }, enabled = week > 1) {
                 Icon(Icons.Rounded.ChevronLeft, contentDescription = "上一周")
@@ -235,9 +269,8 @@ fun TimetableScreen(
                 }
             }
 
-            MorningGroupCard(
-                group = morningGroup,
-                sectionTimes = sectionTimes,
+            TimetableMappingCard(
+                config = scheduleConfig,
                 onClick = onOpenTimetableSettings,
             )
 
@@ -248,12 +281,31 @@ fun TimetableScreen(
                     subtitle = "教务账号未绑定：到「我的 → 凭证中心」登录后即可同步",
                 )
             } else {
-                TimetableGrid(
-                    timetable = timetable,
-                    dayCount = if (showWeekend) 7 else 5,
-                    morningGroup = morningGroup,
-                    onOpenCourse = onOpenCourse,
-                )
+                AnimatedContent(
+                    targetState = week,
+                    transitionSpec = {
+                        if (weekDirection == 0) {
+                            fadeIn(PrismMotion.tween(PrismMotion.Quick)) togetherWith
+                                fadeOut(PrismMotion.tween(PrismMotion.Fast))
+                        } else {
+                            val direction = if (weekDirection > 0) 1 else -1
+                            (slideInHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { it / 2 * direction } +
+                                fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
+                                (slideOutHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { -it / 2 * direction } +
+                                    fadeOut(PrismMotion.tween(PrismMotion.Fast)))
+                        }
+                    },
+                    label = "timetable-week",
+                ) { _ ->
+                    TimetableGrid(
+                        timetable = timetable,
+                        dayCount = if (showWeekend) 7 else 5,
+                        config = scheduleConfig,
+                        nowTick = nowTick,
+                        isCurrentWeek = week == currentWeek,
+                        onOpenCourse = onOpenCourse,
+                    )
+                }
             }
 
             androidx.compose.material3.Button(
@@ -269,15 +321,14 @@ fun TimetableScreen(
     }
 }
 
-/** 上午作息提示：让用户随时知道当前分组，并可直接进入课表设置。 */
+/** 教学楼作息提示：J1–J6 / S1–S6、J7 分别使用哪个时间槽。 */
 @Composable
-private fun MorningGroupCard(
-    group: MorningGroup,
-    sectionTimes: List<com.union.campus.domain.SectionTime>,
+private fun TimetableMappingCard(
+    config: TimetableScheduleConfig,
     onClick: () -> Unit,
 ) {
-    val third = sectionTimes.firstOrNull { it.section == 3 }
-    val fourth = sectionTimes.firstOrNull { it.section == 4 }
+    val jSlot = config.slotFor(BuildingGroup.J1ToJ6)
+    val sSlot = config.slotFor(BuildingGroup.S1ToS6AndJ7)
     PrismCard(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
@@ -294,18 +345,16 @@ private fun MorningGroupCard(
             Spacer(Modifier.width(10.dp))
             Column(Modifier.weight(1f)) {
                 Text(
-                    "上午作息 · ${group.label}（${group.classCodes}）",
+                    "教学楼作息 · 按课程楼号自动匹配",
                     style = footnoteStyle(),
                     fontWeight = FontWeight(600),
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
-                if (third != null && fourth != null) {
-                    Text(
-                        "第 3 节 ${third.start}–${third.end} · 第 4 节 ${fourth.start}–${fourth.end}",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                    )
-                }
+                Text(
+                    "J1–J6 ${jSlot.startLabel} 开始 · S1–S6、J7 ${sSlot.startLabel} 开始",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                )
             }
             Text(
                 "调整",
@@ -326,7 +375,9 @@ private fun MorningGroupCard(
 private fun TimetableGrid(
     timetable: TimetableData?,
     dayCount: Int,
-    morningGroup: MorningGroup,
+    config: TimetableScheduleConfig,
+    nowTick: Long,
+    isCurrentWeek: Boolean,
     onOpenCourse: (CourseCell) -> Unit,
 ) {
     if (timetable == null) {
@@ -342,11 +393,18 @@ private fun TimetableGrid(
         .filter { it.startSection <= maxSection && it.endSection >= 1 }
     val hasEvening = allCells.any { it.endSection >= TimetableSchedule.EVENING_START_SECTION }
     val visibleEnd = if (hasEvening) maxSection else TimetableSchedule.DINNER_AFTER_SECTION
-    val times = TimetableSchedule.sectionTimes(morningGroup).associateBy { it.section }
+    val today = SemesterCalc.dayOfWeek(nowTick)
+    val todayCells = displayedDays.firstOrNull { it.day == today }?.cells.orEmpty()
+    val nowSlot = TimetableSchedule.slotForCurrentOrNext(todayCells, config, nowTick)
+    val times = TimetableSchedule.sectionTimes(nowSlot).associateBy { it.section }
+    val sTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.S1ToS6AndJ7))
+        .associateBy { it.section }
+    val jTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.J1ToJ6))
+        .associateBy { it.section }
 
     val rowHeight = 58.dp
     val breakHeight = 26.dp
-    val timeWidth = 44.dp
+    val timeWidth = 50.dp
 
     fun isBreakAfter(section: Int): Boolean =
         section == TimetableSchedule.LUNCH_AFTER_SECTION || section == TimetableSchedule.DINNER_AFTER_SECTION
@@ -370,8 +428,25 @@ private fun TimetableGrid(
     }
 
     val totalHeight = sectionTop(visibleEnd) + rowHeight
+    val nowMinutes = minutesOfDay(nowTick)
+    var nowY: Dp? = null
+    if (isCurrentWeek) {
+        for (section in 1..visibleEnd) {
+            val time = times[section] ?: continue
+            val start = parseMinutesOfDay(time.start) ?: continue
+            val end = parseMinutesOfDay(time.end) ?: continue
+            if (nowMinutes in start..end) {
+                val fraction = (nowMinutes - start).toFloat() / (end - start).coerceAtLeast(1)
+                nowY = sectionTop(section) + rowHeight * fraction
+                break
+            }
+            if (nowMinutes < start) {
+                nowY = sectionTop(section)
+                break
+            }
+        }
+    }
     val weekStart = runCatching { LocalDate.parse(timetable.weekStart) }.getOrNull()
-    val today = SemesterCalc.dayOfWeek()
     val dateFmt = DateTimeFormatter.ofPattern("MM/dd", Locale.CHINA)
 
     PrismCard(
@@ -433,19 +508,34 @@ private fun TimetableGrid(
                                 fontWeight = FontWeight(700),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                            times[section]?.let { time ->
+                            if (section == 3 || section == 4) {
                                 Text(
-                                    time.start,
+                                    "S ${sTimes[section]?.start ?: ""}",
                                     fontSize = 8.sp,
                                     lineHeight = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                                    color = MaterialTheme.colorScheme.tertiary,
                                 )
                                 Text(
-                                    time.end,
+                                    "J ${jTimes[section]?.start ?: ""}",
                                     fontSize = 8.sp,
                                     lineHeight = 10.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                    color = MaterialTheme.colorScheme.primary,
                                 )
+                            } else {
+                                times[section]?.let { time ->
+                                    Text(
+                                        time.start,
+                                        fontSize = 8.sp,
+                                        lineHeight = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                                    )
+                                    Text(
+                                        time.end,
+                                        fontSize = 8.sp,
+                                        lineHeight = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                    )
+                                }
                             }
                         }
                     }
@@ -535,6 +625,19 @@ private fun TimetableGrid(
                                                     overflow = TextOverflow.Ellipsis,
                                                 )
                                             }
+                                            if (end > start) {
+                                                val info = TimetableSchedule.courseSchedule(cell, config)
+                                                if (info != null) {
+                                                    Text(
+                                                        "${info.start}–${info.end}",
+                                                        fontSize = 8.sp,
+                                                        lineHeight = 10.sp,
+                                                        color = onBg.copy(alpha = 0.72f),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -545,9 +648,10 @@ private fun TimetableGrid(
             }
 
             if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) {
-                val (start, end) = TimetableSchedule.lunchRange(morningGroup)
+                val s4 = sTimes[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
+                val j4 = jTimes[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
                 BreakBand(
-                    label = "午休 $start–$end",
+                    label = if (s4 == j4) "午休 $s4 起" else "午休 $s4 / $j4 起",
                     y = sectionTop(TimetableSchedule.LUNCH_AFTER_SECTION) + rowHeight,
                     height = breakHeight,
                 )
@@ -560,7 +664,47 @@ private fun TimetableGrid(
                     height = breakHeight,
                 )
             }
+
+            nowY?.let { y ->
+                Box(
+                    Modifier
+                        .offset(y = y)
+                        .fillMaxWidth()
+                        .height(1.5.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)),
+                )
+                Box(
+                    Modifier
+                        .offset(x = timeWidth - 4.dp, y = y - 3.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+                Box(
+                    Modifier
+                        .offset(x = timeWidth + 3.dp, y = y - 11.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        "现在",
+                        fontSize = 8.sp,
+                        lineHeight = 10.sp,
+                        fontWeight = FontWeight(700),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
+            }
         }
+        Text(
+            "S = S1–S6、J7 ${sTimes[3]?.start.orEmpty()}–${sTimes[4]?.end.orEmpty()} · " +
+                "J = J1–J6 ${jTimes[3]?.start.orEmpty()}–${jTimes[4]?.end.orEmpty()} · 第 3、4 节按课程楼号自动匹配",
+            fontSize = 8.sp,
+            lineHeight = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            modifier = Modifier.padding(top = 6.dp, start = 4.dp),
+        )
     }
 }
 
@@ -584,6 +728,19 @@ private fun BreakBand(label: String, y: Dp, height: Dp) {
 
 private fun dayName(day: Int): String =
     listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").getOrElse(day - 1) { "" }
+
+private fun minutesOfDay(now: Long): Int {
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = now }
+    return cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+}
+
+private fun parseMinutesOfDay(text: String): Int? {
+    val parts = text.split(":")
+    if (parts.size != 2) return null
+    val hour = parts[0].toIntOrNull() ?: return null
+    val minute = parts[1].toIntOrNull() ?: return null
+    return hour * 60 + minute
+}
 
 @Composable
 private fun coursePalette(name: String): Pair<Color, Color> {

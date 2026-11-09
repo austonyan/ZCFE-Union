@@ -11,19 +11,20 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Home
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -37,6 +38,9 @@ import com.union.campus.domain.CourseCell
 import com.union.campus.navigation.Screen
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
+import com.union.campus.ui.prism.LocalPrismMessenger
+import com.union.campus.ui.prism.PrismDock
+import com.union.campus.ui.prism.PrismSnackbarHost
 import com.union.campus.ui.screens.life.ClassroomDetailScreen
 import com.union.campus.ui.screens.life.DeviceDetailScreen
 import com.union.campus.ui.screens.life.ElectricScreen
@@ -48,6 +52,7 @@ import com.union.campus.ui.screens.life.ShowerSessionScreen
 import com.union.campus.ui.screens.life.UsageDetailScreen
 import com.union.campus.ui.screens.life.WalletScreen
 import com.union.campus.ui.screens.me.CredentialsCenterScreen
+import com.union.campus.ui.screens.me.AboutScreen
 import com.union.campus.ui.screens.me.PrivacyScreen
 import com.union.campus.ui.screens.me.ProfileScreen
 import com.union.campus.ui.screens.me.RemindersCenterScreen
@@ -87,10 +92,12 @@ private val TabFade = tween<Float>(220, easing = PushEasing)
 @Composable
 fun UnionApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
+    var credentialLoginTarget by remember { mutableStateOf<String?>(null) }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = Screen.fromRoute(backStackEntry?.destination?.route)
     val showerRepo = ServiceLocator.showerRepository
-    val activeSession = showerRepo.activeSession.value
+    val activeSession by showerRepo.activeSession.collectAsState(initial = null)
+    val messenger = LocalPrismMessenger.current
 
     // 已完成引导/绑定的用户冷启动直接进今天页
     val startRoute = produceState(initialValue = "", producer = {
@@ -100,15 +107,21 @@ fun UnionApp(modifier: Modifier = Modifier) {
     Scaffold(
         modifier = modifier,
         containerColor = surfaceColorOf(SurfaceLevel.Page),
+        snackbarHost = { PrismSnackbarHost(messenger) },
         bottomBar = {
             AnimatedVisibility(
                 visible = currentScreen in Screen.Tabs,
                 enter = slideInVertically(PushOffsetSpec) { it } + fadeIn(TabFade),
                 exit = slideOutVertically(PushOffsetSpec) { it } + fadeOut(TabFade),
             ) {
-                UnionNavigationBar(
+                PrismDock(
+                    tabs = Screen.Tabs,
                     current = currentScreen,
                     onSelect = { tab -> navigateToTab(navController, tab) },
+                    lifeActive = activeSession != null,
+                    modifier = Modifier
+                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .navigationBarsPadding(),
                 )
             }
         },
@@ -140,21 +153,75 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 )
             }
             composable(Screen.LoginAcademic.route) {
+                val credentialMode = credentialLoginTarget == "jw"
+                DisposableEffect(Unit) {
+                    onDispose {
+                        if (credentialLoginTarget == "jw") credentialLoginTarget = null
+                    }
+                }
                 LoginAcademicScreen(
-                    onBack = { navController.popBackStack() },
-                    onNext = { navController.navigate(Screen.LoginShower.route) },
+                    onBack = {
+                        credentialLoginTarget = null
+                        navController.popBackStack()
+                    },
+                    onNext = {
+                        if (credentialMode) {
+                            credentialLoginTarget = null
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.LoginShower.route)
+                        }
+                    },
+                    showProgress = !credentialMode,
+                    skipLabel = if (credentialMode) "取消" else "稍后绑定",
                 )
             }
             composable(Screen.LoginShower.route) {
+                val credentialMode = credentialLoginTarget == "shower"
+                DisposableEffect(Unit) {
+                    onDispose {
+                        if (credentialLoginTarget == "shower") credentialLoginTarget = null
+                    }
+                }
                 LoginShowerScreen(
-                    onBack = { navController.popBackStack() },
-                    onNext = { navController.navigate(Screen.BindElectric.route) },
+                    onBack = {
+                        credentialLoginTarget = null
+                        navController.popBackStack()
+                    },
+                    onNext = {
+                        if (credentialMode) {
+                            credentialLoginTarget = null
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.BindElectric.route)
+                        }
+                    },
+                    showProgress = !credentialMode,
+                    skipLabel = if (credentialMode) "取消" else "稍后绑定",
                 )
             }
             composable(Screen.BindElectric.route) {
+                val credentialMode = credentialLoginTarget == "electric"
+                DisposableEffect(Unit) {
+                    onDispose {
+                        if (credentialLoginTarget == "electric") credentialLoginTarget = null
+                    }
+                }
                 BindElectricScreen(
-                    onBack = { navController.popBackStack() },
-                    onNext = { navController.navigate(Screen.BindDone.route) },
+                    onBack = {
+                        credentialLoginTarget = null
+                        navController.popBackStack()
+                    },
+                    onNext = {
+                        if (credentialMode) {
+                            credentialLoginTarget = null
+                            navController.popBackStack()
+                        } else {
+                            navController.navigate(Screen.BindDone.route)
+                        }
+                    },
+                    showProgress = !credentialMode,
+                    skipLabel = if (credentialMode) "取消" else "稍后绑定",
                 )
             }
             composable(Screen.BindElectricAdd.route) {
@@ -181,13 +248,13 @@ fun UnionApp(modifier: Modifier = Modifier) {
             // ---------- 今天（tab） ----------
             tabRoute(Screen.Today.route) {
                 TodayScreen(
-                    onOpenTimetable = { navController.navigate(Screen.Timetable.route) },
-                    onOpenCourse = { navController.navigate(Screen.Timetable.route) },
+                    onOpenTimetable = { navigateToTab(navController, Screen.Timetable) },
+                    onOpenCourse = { navigateToTab(navController, Screen.Timetable) },
                     onOpenEvaluation = { navController.navigate(Screen.Evaluation.route) },
                     onOpenExams = { navController.navigate(Screen.Exams.route) },
                     onOpenElectric = { navController.navigate(Screen.Electric.route) },
                     onOpenShower = { navController.navigate(Screen.Shower.route) },
-                    onOpenLife = { navController.navigate(Screen.Life.route) },
+                    onOpenLife = { navigateToTab(navController, Screen.Life) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
                 )
             }
@@ -245,6 +312,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenCredentials = { navController.navigate(Screen.Credentials.route) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
                     onOpenSettings = { navController.navigate(Screen.Settings.route) },
+                    onOpenAbout = { navController.navigate(Screen.About.route) },
                 )
             }
 
@@ -258,7 +326,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 CourseDetailScreen(
                     cell = cell,
                     onBack = { navController.popBackStack() },
-                    onOpenTimetable = { navController.navigate(Screen.Timetable.route) { launchSingleTop = true } },
+                    onOpenTimetable = { navigateToTab(navController, Screen.Timetable) },
                 )
             }
             composable(Screen.Grades.route) {
@@ -441,6 +509,18 @@ fun UnionApp(modifier: Modifier = Modifier) {
                             popUpTo(0) { inclusive = true }
                         }
                     },
+                    onLoginAcademic = {
+                        credentialLoginTarget = "jw"
+                        navController.navigate(Screen.LoginAcademic.route)
+                    },
+                    onLoginShower = {
+                        credentialLoginTarget = "shower"
+                        navController.navigate(Screen.LoginShower.route)
+                    },
+                    onLoginElectric = {
+                        credentialLoginTarget = "electric"
+                        navController.navigate(Screen.BindElectric.route)
+                    },
                 )
             }
             composable(Screen.Reminders.route) {
@@ -452,6 +532,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenTimetableSettings = { navController.navigate(Screen.TimetableSettings.route) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
                     onOpenPrivacy = { navController.navigate(Screen.Privacy.route) },
+                    onOpenAbout = { navController.navigate(Screen.About.route) },
                 )
             }
             composable(Screen.Privacy.route) {
@@ -464,6 +545,9 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     },
                     requestBiometric = { MainActivityHolder.requestBiometric() },
                 )
+            }
+            composable(Screen.About.route) {
+                AboutScreen(onBack = { navController.popBackStack() })
             }
         }
     }
@@ -484,30 +568,13 @@ private fun NavGraphBuilder.tabRoute(
 }
 
 private fun navigateToTab(navController: NavHostController, tab: Screen) {
+    if (navController.currentDestination?.route == tab.route) return
+    // 如果目标 tab 已在返回栈里，直接回到它，避免从详情/生活入口进入后
+    // 直接 navigate 造成的重复实例或无法回到原 tab。
+    if (navController.popBackStack(tab.route, inclusive = false)) return
     navController.navigate(tab.route) {
         popUpTo(Screen.Today.route) { saveState = true }
         launchSingleTop = true
         restoreState = true
-    }
-}
-
-@Composable
-private fun UnionNavigationBar(current: Screen?, onSelect: (Screen) -> Unit) {
-    NavigationBar(
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-    ) {
-        Screen.Tabs.forEach { tab ->
-            NavigationBarItem(
-                selected = current == tab,
-                onClick = { onSelect(tab) },
-                icon = {
-                    Icon(
-                        imageVector = tab.tabIcon ?: Icons.Rounded.Home,
-                        contentDescription = tab.title,
-                    )
-                },
-                label = { Text(tab.title) },
-            )
-        }
     }
 }

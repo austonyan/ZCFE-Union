@@ -1,7 +1,11 @@
 package com.union.campus.ui.screens.life
 
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,23 +18,31 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.domain.ElectricStats
 import com.union.campus.ui.prism.footnoteStyle
+import com.union.campus.ui.prism.rememberPrismHaptics
 
 /** 柱状图上的一个数据点。 */
 data class ElectricBar(val label: String, val value: Double)
 
 /**
  * 轻量柱状图：不依赖图表库，按可用宽度均分柱子。
- * 适合 7 天用量、30/84 天区间和近 6 个月统计。
+ * 支持点按/横向拖动查看某一天，柱子入场逐根生长。
  */
 @Composable
 fun ElectricBarChart(
@@ -62,13 +74,28 @@ fun ElectricBarChart(
     val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val valueColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+    val haptics = rememberPrismHaptics()
+    var selected by remember(bars) { mutableStateOf<Int?>(null) }
+    val activeIndex = selected ?: highlightIndex
+    val activeBar = activeIndex?.let { bars.getOrNull(it) }
 
     Column(modifier.fillMaxWidth()) {
-        Text(
-            "峰值 ${valueFormat(maxValue)}$valueSuffix",
-            style = footnoteStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "峰值 ${valueFormat(maxValue)}$valueSuffix",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            if (activeBar != null) {
+                Text(
+                    "${activeBar.label} · ${valueFormat(activeBar.value)}$valueSuffix",
+                    style = footnoteStyle(),
+                    fontWeight = FontWeight(600),
+                    color = barColor,
+                )
+            }
+        }
         Spacer(Modifier.height(6.dp))
         Box(Modifier.fillMaxWidth().height(160.dp)) {
             Canvas(Modifier.fillMaxSize()) {
@@ -82,7 +109,29 @@ fun ElectricBarChart(
                     )
                 }
             }
-            Row(Modifier.fillMaxSize(), verticalAlignment = Alignment.Bottom) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .pointerInput(bars) {
+                        detectTapGestures { offset ->
+                            selected = indexAt(offset.x, size.width, bars.size)
+                            haptics.tap()
+                        }
+                    }
+                    .pointerInput(bars) {
+                        detectHorizontalDragGestures(
+                            onDragStart = { offset ->
+                                selected = indexAt(offset.x, size.width, bars.size)
+                                haptics.tap()
+                            },
+                            onHorizontalDrag = { change, _ ->
+                                selected = indexAt(change.position.x, size.width, bars.size)
+                                change.consume()
+                            },
+                        )
+                    },
+                verticalAlignment = Alignment.Bottom,
+            ) {
                 bars.forEachIndexed { index, bar ->
                     Column(
                         Modifier.weight(1f).fillMaxHeight(),
@@ -98,17 +147,33 @@ fun ElectricBarChart(
                             )
                         }
                         Box(
-                            Modifier.weight(1f).fillMaxWidth(),
+                            Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .background(
+                                    if (activeIndex == index) barColor.copy(alpha = 0.07f)
+                                    else Color.Transparent,
+                                ),
                             contentAlignment = Alignment.BottomCenter,
                         ) {
-                            val fraction = (bar.value / maxValue).toFloat().coerceIn(0f, 1f)
+                            val target = (bar.value / maxValue).toFloat().coerceIn(0f, 1f)
+                            val animation = remember { Animatable(0f) }
+                            LaunchedEffect(target) {
+                                animation.animateTo(
+                                    targetValue = target,
+                                    animationSpec = tween(
+                                        durationMillis = 500,
+                                        delayMillis = (index * 30).coerceAtMost(180),
+                                    ),
+                                )
+                            }
                             Box(
                                 Modifier
                                     .fillMaxWidth(0.56f)
-                                    .fillMaxHeight(fraction)
+                                    .fillMaxHeight(animation.value)
                                     .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
                                     .background(
-                                        if (highlightIndex == index) barColor
+                                        if (activeIndex == index) barColor
                                         else barColor.copy(alpha = 0.5f),
                                     ),
                             )
@@ -125,4 +190,9 @@ fun ElectricBarChart(
             }
         }
     }
+}
+
+private fun indexAt(x: Float, width: Int, count: Int): Int {
+    if (width <= 0 || count <= 0) return 0
+    return (x / width * count).toInt().coerceIn(0, count - 1)
 }

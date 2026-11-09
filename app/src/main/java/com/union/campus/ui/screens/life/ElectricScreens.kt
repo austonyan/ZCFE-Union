@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Payment
 import androidx.compose.material.icons.rounded.ReceiptLong
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -40,6 +41,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -51,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.union.campus.UnionApplicationHolder
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
@@ -72,7 +75,13 @@ import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
+import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.MetaChip
+import com.union.campus.ui.prism.PrismAnimatedText
+import com.union.campus.ui.prism.PrismSegmented
+import com.union.campus.ui.prism.PrismSkeletonList
+import com.union.campus.ui.prism.PrismStatus
+import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
@@ -131,7 +140,7 @@ fun WalletScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
+                loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
                 error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Text("洗浴账号未绑定或会话过期时可到凭证中心处理", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -197,6 +206,8 @@ fun ElectricScreen(
 ) {
     val electric = ServiceLocator.electricRepository
     val settings = ServiceLocator.settings
+    val messenger = LocalPrismMessenger.current
+    val lowThreshold by settings.lowElectricThreshold.collectAsState(initial = 20)
     var rooms by remember { mutableStateOf<List<ElectricRoom>>(emptyList()) }
     var currentRoom by remember { mutableStateOf<ElectricRoom?>(null) }
     var balance by remember { mutableStateOf<ElectricBalance?>(null) }
@@ -240,7 +251,7 @@ fun ElectricScreen(
                 launchUi {
                     try {
                         currentRoom?.let { electric.unbindRooms(listOf(it.roomVerify)) }
-                        result = "解绑完成"
+                        messenger.success("解绑完成")
                         balance = null; currentRoom = null
                     } catch (e: AppError) { result = e.userMessage }
                 }
@@ -322,7 +333,7 @@ fun ElectricScreen(
             }
 
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
+                loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
                 error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { load(true) }) { Text("重试") }
@@ -347,11 +358,30 @@ fun ElectricScreen(
                     val weekCost = ElectricStats.totalCost(weekDays, price)?.takeIf { weekDays.isNotEmpty() }
                     val projectedCost = ElectricStats.projectedMonthlyCost(weekDays, price)?.takeIf { weekDays.isNotEmpty() }
                     val remainingValue = ElectricStats.remainingValue(b)
+                    val isLow = b.kwh.toDoubleOrNull()?.let { it < lowThreshold } == true
                     var metric by rememberSaveable { mutableStateOf("use") }
                     val effectiveMetric = if (price == null) "use" else metric
 
                     PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                        Text("剩余 ${b.kwh} 度", style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Row(verticalAlignment = Alignment.Bottom) {
+                            Text(
+                                "剩余",
+                                style = subheadlineStyle(),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            PrismAnimatedText(
+                                text = b.kwh,
+                                style = pageTitleStyle().copy(fontSize = 34.sp, lineHeight = 40.sp),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                "度",
+                                style = subheadlineStyle(),
+                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
+                            )
+                        }
                         Spacer(Modifier.height(4.dp))
                         Text(
                             buildString {
@@ -365,6 +395,33 @@ fun ElectricScreen(
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
+                    }
+
+                    if (isLow) {
+                        PrismCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = PrismStatus.warningContainer(),
+                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Rounded.WarningAmber,
+                                    contentDescription = null,
+                                    tint = PrismStatus.warning(),
+                                    modifier = Modifier.width(20.dp),
+                                )
+                                Spacer(Modifier.width(8.dp))
+                                Text(
+                                    "余额低于 $lowThreshold 度，建议及时充值",
+                                    style = subheadlineStyle(),
+                                    color = PrismStatus.onWarningContainer(),
+                                    modifier = Modifier.weight(1f),
+                                )
+                                TextButton(onClick = onOpenTopUp) {
+                                    Text("去充值", color = PrismStatus.warning())
+                                }
+                            }
+                        }
                     }
 
                     if (price != null) {
@@ -390,17 +447,18 @@ fun ElectricScreen(
 
                     Text("用量趋势", style = headlineStyle())
                     PrismCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                if (effectiveMetric == "cost") "近 7 天费用" else "近 7 天用量",
-                                style = headlineStyle(),
+                        Text(
+                            if (effectiveMetric == "cost") "近 7 天费用" else "近 7 天用量",
+                            style = headlineStyle(),
+                        )
+                        if (price != null) {
+                            Spacer(Modifier.height(8.dp))
+                            PrismSegmented(
+                                options = listOf("用量", "费用"),
+                                selectedIndex = if (effectiveMetric == "cost") 1 else 0,
+                                onSelect = { index -> metric = if (index == 0) "use" else "cost" },
+                                modifier = Modifier.width(168.dp),
                             )
-                            Spacer(Modifier.weight(1f))
-                            if (price != null) {
-                                MetricChip("用量", metric == "use") { metric = "use" }
-                                Spacer(Modifier.width(6.dp))
-                                MetricChip("费用", metric == "cost") { metric = "cost" }
-                            }
                         }
                         Spacer(Modifier.height(6.dp))
                         if (weekDays.isEmpty()) {
@@ -586,7 +644,7 @@ fun UsageDetailScreen(
                 }
             }
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
+                loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
                 error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     TextButton(onClick = { load() }) { Text("重试") }
@@ -766,26 +824,17 @@ fun ElectricTopUpScreen(
                 Text("宿舍房间 · 当前余额 $balanceText", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Text("选择充值金额", style = headlineStyle())
-            Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                listOf("20 元", "50 元", "100 元", "自定义").forEachIndexed { i, label ->
-                    FilterChip(
-                        selected = amountIndex == i,
-                        onClick = { amountIndex = i },
-                        label = { Text(label) },
-                    )
-                }
-            }
+            PrismSegmented(
+                options = listOf("20 元", "50 元", "100 元", "自定义"),
+                selectedIndex = amountIndex,
+                onSelect = { amountIndex = it },
+            )
             if (amountIndex == 3) {
-                OutlinedTextField(
+                PrismTextField(
                     value = customAmount,
                     onValueChange = { customAmount = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = { Text("自定义金额（元）") },
+                    label = "自定义金额（元）",
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
                 )
             }
             PrismCard {

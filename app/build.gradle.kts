@@ -14,8 +14,8 @@ android {
         applicationId = "com.union.campus"
         minSdk = 26
         targetSdk = 37
-        versionCode = 11
-        versionName = "0.2.9"
+        versionCode = 15
+        versionName = "0.2.10"
     }
 
     signingConfigs {
@@ -42,6 +42,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

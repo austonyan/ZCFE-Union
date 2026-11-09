@@ -55,6 +55,7 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     Reminders("reminders", "提醒中心"),
     Settings("settings", "设置"),
     Privacy("privacy", "隐私与安全"),
+    About("about", "关于"),
     ;
 
     companion object {
