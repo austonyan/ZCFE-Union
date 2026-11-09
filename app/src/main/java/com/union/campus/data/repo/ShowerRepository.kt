@@ -2,6 +2,7 @@ package com.union.campus.data.repo
 
 import com.union.campus.core.AppError
 import com.union.campus.data.remote.shower.ShowerClient
+import com.union.campus.data.remote.shower.formatShowerCountdown
 import com.union.campus.data.remote.shower.showerAlreadyStoppedMessage
 import com.union.campus.data.remote.shower.showerNeedsReserveMessage
 import com.union.campus.data.store.CacheTtl
@@ -14,6 +15,7 @@ import com.union.campus.domain.ShowerDevice
 import com.union.campus.domain.ShowerOrg
 import com.union.campus.domain.ShowerOrder
 import com.union.campus.domain.ShowerQueue
+import com.union.campus.domain.ShowerReservation
 import com.union.campus.domain.ShowerSessionState
 import com.union.campus.domain.ShowerWallet
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +47,10 @@ class ShowerRepository constructor(
     /** 活跃洗浴会话（重启恢复用）。 */
     private val _activeSession = MutableStateFlow<ShowerSessionState?>(null)
     val activeSession: StateFlow<ShowerSessionState?> = _activeSession
+
+    /** 当前预约；倒计时来源是服务端 remainTime，不在本地写死时长。 */
+    private val _reservation = MutableStateFlow<ShowerReservation?>(null)
+    val reservation: StateFlow<ShowerReservation?> = _reservation
 
     val sessionFileKey = "shower.activeSession"
 
@@ -131,6 +137,7 @@ class ShowerRepository constructor(
         settings.setShowerSelection("", "", "", "", "", "")
         _sessionState.value = SessionState.NOT_BOUND
         _activeSession.value = null
+        _reservation.value = null
         store.remove(sessionFileKey)
     }
 
@@ -306,6 +313,7 @@ class ShowerRepository constructor(
         )
         _activeSession.value = session
         store.write(sessionFileKey, ShowerSessionState.serializer(), session)
+        _reservation.value = null
     }
 
     /** 预约后立即开启；开启失败则释放预约，避免占住设备。 */
@@ -396,9 +404,54 @@ class ShowerRepository constructor(
     /** 我的排队状态；未排队返回 null。 */
     suspend fun myQueue(): ShowerQueue? = parseMyQueue(client.myQueueInfo())
 
-    suspend fun reserveDevice(uuid: String) = client.reserve(uuid)
+    /**
+     * 预约设备。预约成功后立即读取服务端状态：
+     * `userState=reserved` 时 `remainTime` 是实时剩余秒数，用它作为倒计时。
+     * 读取失败时退回预约响应里的 `maxWaitTime`，仍然不是本地固定值。
+     */
+    suspend fun reserveDevice(device: ShowerDevice, areaName: String): ShowerReservation? {
+        val result = client.reserve(device.uuid)
+        val serverReservation = try {
+            refreshReservation()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            null
+        }
+        val reservation = serverReservation ?: reservationFromReserve(device, areaName, result)
+        _reservation.value = reservation
+        return reservation
+    }
 
-    suspend fun cancelReserve(uuid: String) = client.cancelReserve(uuid)
+    /** 读取当前预约（服务端为准）；未预约或已超时返回 null。 */
+    suspend fun refreshReservation(): ShowerReservation? {
+        val state = client.stateByDeviceType()
+        val reservation = parseShowerReservation(state)
+        _reservation.value = reservation
+        return reservation
+    }
+
+    /** 预约接口只给 maxWaitTime；拿不到 getStateByDeviceType 时用它兜底。 */
+    private fun reservationFromReserve(
+        device: ShowerDevice,
+        areaName: String,
+        result: JsonObject?,
+    ): ShowerReservation? {
+        val wait = result?.let { parse.int(it, "maxWaitTime", "max_wait_time") } ?: 0
+        if (wait <= 0) return null
+        return ShowerReservation(
+            deviceUuid = device.uuid,
+            deviceName = device.name,
+            areaName = areaName,
+            maxWaitSeconds = wait,
+            expiresAt = System.currentTimeMillis() + wait * 1000L,
+        )
+    }
+
+    suspend fun cancelReserve(uuid: String) {
+        client.cancelReserve(uuid)
+        if (_reservation.value?.deviceUuid == uuid) _reservation.value = null
+    }
 
     suspend fun queueUp(areaId: String) = client.queueUp(areaId)
 
@@ -415,16 +468,26 @@ class ShowerRepository constructor(
  * `uuid` 取每台唯一的 `device_key`（形如 `<controller_key>_faucet_01`），
  * `controller_key` 是整层共用，不能用来区分浴位。
  */
-internal fun parseShowerDevice(d: JsonObject): ShowerDevice = ShowerDevice(
-    uuid = Parse.str(d, "device_key", "controller_key", "uuid", "device_uuid", "id", "deviceUuid"),
-    name = Parse.str(d, "device_name", "device_number", "device_num", "num", "name", "deviceNo")
-        .ifBlank { "设备" },
-    state = showerDeviceState(d),
-    remainingText = Parse.str(
-        d, "remain_time", "remaining", "reserve_time", "left_time", "max_running_time",
-    ),
-    needReserve = Parse.str(d, "need_reserve", "needReserve").lowercase() in setOf("1", "true", "yes"),
-)
+internal fun parseShowerDevice(d: JsonObject): ShowerDevice {
+    val state = showerDeviceState(d)
+    val reserveTime = Parse.str(d, "reserve_time").toLongOrNull() ?: 0L
+    val reserveWindow = Parse.int(d, "reserve_expires", "max_wait_time", "maxWaitTime")
+    val remainingText = if (state == 2 && reserveTime > 0 && reserveWindow > 0) {
+        // 已预约：用服务端 reserve_time + reserve_expires 显示剩余，而不是原始 epoch
+        val left = reserveTime + reserveWindow - System.currentTimeMillis() / 1000
+        formatShowerCountdown(left.toInt())
+    } else {
+        Parse.str(d, "remain_time", "remaining", "left_time", "max_running_time")
+    }
+    return ShowerDevice(
+        uuid = Parse.str(d, "device_key", "controller_key", "uuid", "device_uuid", "id", "deviceUuid"),
+        name = Parse.str(d, "device_name", "device_number", "device_num", "num", "name", "deviceNo")
+            .ifBlank { "设备" },
+        state = state,
+        remainingText = remainingText,
+        needReserve = Parse.str(d, "need_reserve", "needReserve").lowercase() in setOf("1", "true", "yes"),
+    )
+}
 
 /** 设备状态：0 空闲 / 1 使用中 / 2 已预约 / 3 故障。 */
 internal fun showerDeviceState(d: JsonObject): Int {
@@ -439,6 +502,40 @@ internal fun showerDeviceState(d: JsonObject): Int {
             raw == "3" || raw.contains("故障") -> 3
         else -> raw.toIntOrNull() ?: 0
     }
+}
+
+/**
+ * 解析 `getStateByDeviceType` 的当前预约。
+ * - `userState` 必须是 `reserved`；
+ * - `remainTime` 是服务端实时剩余秒数（实测 300 → 295 → 290 → 280 → 270）；
+ * - 缺失时用 `deviceInfo.reserve_time + reserve_expires`（或 `max_wait_time`）换算。
+ */
+internal fun parseShowerReservation(state: JsonObject?): ShowerReservation? {
+    if (state == null) return null
+    if (!Parse.str(state, "userState").equals("reserved", ignoreCase = true)) return null
+    val info = state["deviceInfo"] as? JsonObject ?: return null
+    val uuid = Parse.str(info, "device_key", "uuid")
+    if (uuid.isBlank()) return null
+    val remain = Parse.int(state, "remainTime")
+    val window = Parse.int(info, "reserve_expires", "max_wait_time", "maxWaitTime")
+    val reserveTime = Parse.str(info, "reserve_time", "reserveTime").toLongOrNull() ?: 0L
+    val now = System.currentTimeMillis()
+    val expiresAt = when {
+        remain > 0 -> now + remain * 1000L
+        reserveTime > 0 && window > 0 -> {
+            val end = (reserveTime + window) * 1000L
+            if (end <= now) return null
+            end
+        }
+        else -> return null
+    }
+    return ShowerReservation(
+        deviceUuid = uuid,
+        deviceName = Parse.str(info, "device_name", "device_number", "device_num").ifBlank { "设备" },
+        areaName = Parse.str(info, "deviceAreaName", "device_area_name", "area_name"),
+        maxWaitSeconds = if (window > 0) window else remain,
+        expiresAt = expiresAt,
+    )
 }
 
 /**

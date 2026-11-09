@@ -55,4 +55,19 @@ class ShowerDeviceParseTest {
         assertEquals(2, showerDeviceState(buildJsonObject { put("running_status", "reserved") }))
         assertEquals(3, showerDeviceState(buildJsonObject { put("device_status", "fault") }))
     }
+
+    @Test
+    fun reservedDeviceShowsCountdownInsteadOfRawEpoch() {
+        val nowSec = System.currentTimeMillis() / 1000
+        val device = parseShowerDevice(
+            buildJsonObject {
+                put("device_key", "k_04")
+                put("device_status", "reserved")
+                put("reserve_time", nowSec.toString())
+                put("reserve_expires", "300")
+            },
+        )
+        assertEquals(2, device.state)
+        assertTrue(device.remainingText.matches(Regex("\\d{2}:\\d{2}")))
+    }
 }

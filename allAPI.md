@@ -793,7 +793,7 @@ UserApi/loginWidthPwd {mobile, pwd}
   -> DeviceApi/turnOff {uuid, deviceType:"faucet"}
 ```
 
-> `uuid` 用设备列表里的 `device_key`（每台唯一，如 `<controller_key>_faucet_01`）；`controller_key` 是整层共用。`need_reserve=1` 的设备未预约直接 turnOn 会返回 code 130，即使处于正常服务时段。
+> `uuid` 用设备列表里的 `device_key`（每台唯一，如 `<controller_key>_faucet_01`）；`controller_key` 是整层共用。`need_reserve=1` 的设备未预约直接 turnOn 会返回 code 130，即使处于正常服务时段。预约倒计时以 `DeviceAreaApi/getStateByDeviceType` 的 `remainTime` 为准（`userState=reserved` 时每秒递减），不要写死 5/8 分钟。
 
 排队：
 
