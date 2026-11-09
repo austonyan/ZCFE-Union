@@ -254,3 +254,15 @@ internal fun showerServiceClosedMessage(msg: String): String? {
         null
     }
 }
+
+/** 设备要求先预约才能开启（code 130「您尚未预约任何设备」）。 */
+internal fun showerNeedsReserveMessage(msg: String): Boolean {
+    if (msg.isBlank()) return false
+    return msg.contains("尚未预约") || msg.contains("需要预约") || msg.contains("请先预约")
+}
+
+/** 结束洗浴时设备/订单已结束（code 100170「您没有正在使用的设备」）。 */
+internal fun showerAlreadyStoppedMessage(msg: String): Boolean {
+    if (msg.isBlank()) return false
+    return msg.contains("没有正在使用") || msg.contains("未在使用") || msg.contains("已结束")
+}

@@ -2,6 +2,8 @@ package com.union.campus.data.repo
 
 import com.union.campus.core.AppError
 import com.union.campus.data.remote.shower.ShowerClient
+import com.union.campus.data.remote.shower.showerAlreadyStoppedMessage
+import com.union.campus.data.remote.shower.showerNeedsReserveMessage
 import com.union.campus.data.store.CacheTtl
 import com.union.campus.data.store.CredentialStore
 import com.union.campus.data.store.EntityStore
@@ -258,49 +260,41 @@ class ShowerRepository constructor(
             }
         }
         val data = client.getDevices(deviceAreaId) ?: return emptyList()
-        val list = parse.objects(parse.array(data)).map { d ->
-            ShowerDevice(
-                uuid = parse.str(d, "device_key", "controller_key", "uuid", "device_uuid", "id", "deviceUuid"),
-                name = parse.str(d, "device_name", "device_number", "device_num", "num", "name", "deviceNo")
-                    .ifBlank { "设备" },
-                state = parseState(d),
-                remainingText = parse.str(
-                    d, "remain_time", "remaining", "reserve_time", "left_time", "max_running_time",
-                ),
-            )
-        }
+        val list = parse.objects(parse.array(data)).map(::parseShowerDevice)
         if (list.isNotEmpty()) {
             store.write(cacheKey, ListSerializer(ShowerDevice.serializer()), list)
         }
         return list
     }
 
-    private fun parseState(d: JsonObject): Int {
-        val raw = parse.str(d, "running_status", "state", "status", "device_state", "device_status").lowercase()
-        return when {
-            raw.contains("idle") || raw.contains("ready") || raw.contains("free") ||
-                raw == "0" || raw.contains("空闲") -> 0
-            raw.contains("using") || raw.contains("running") || raw.contains("busy") ||
-                raw == "1" || raw.contains("使用") -> 1
-            raw.contains("reserve") || raw == "2" || raw.contains("预约") -> 2
-            raw.contains("fault") || raw.contains("error") || raw.contains("offline") ||
-                raw == "3" || raw.contains("故障") -> 3
-            else -> raw.toIntOrNull() ?: 0
-        }
-    }
-
-    /** 开始洗浴（写，不重试）。成功后写入活跃会话。 */
+    /**
+     * 开始洗浴（写，不重试）。
+     * 上游要求 need_reserve=1 的设备必须先 DeviceApi/reserve 预约，再 DeviceApi/turnOn；
+     * 直接 turnOn 会返回 code 130「您尚未预约任何设备」。
+     */
     suspend fun startShower(device: ShowerDevice, areaName: String, buildingName: String) {
         val result = try {
-            client.turnOn(device.uuid)
+            if (device.needReserve) {
+                reserveThenTurnOn(device.uuid)
+            } else {
+                try {
+                    client.turnOn(device.uuid)
+                } catch (e: AppError.Validation) {
+                    // 旧缓存没有 need_reserve 字段时，用服务端文案兜底再预约一次
+                    if (!showerNeedsReserveMessage(e.userMessage)) throw e
+                    reserveThenTurnOn(device.uuid)
+                }
+            }
         } catch (e: AppError.Upstream) {
-            // 上游仅给错误码/技术文案时，开始洗浴仍给出可执行提示，避免“数据源返回异常”
-            throw AppError.Validation(
-                "暂时无法开始洗浴：可能不在浴室开放时间，或设备暂时不可用。请确认开放时间后重试",
-            )
-        } ?: throw AppError.Validation(
-            "设备没有返回开始结果，可能不在服务时间或设备暂时不可用，请稍后重试",
-        )
+            // 上游仅给错误码/技术文案时，给出可执行提示，避免“数据源返回异常”
+            throw AppError.Validation("暂时无法开始洗浴，请确认设备状态后重试")
+        } catch (e: AppError.Validation) {
+            // 预约后仍提示未预约：多半是预约已过期/被释放
+            if (showerNeedsReserveMessage(e.userMessage)) {
+                throw AppError.Validation("设备预约已失效，请刷新设备状态后重试")
+            }
+            throw e
+        } ?: throw AppError.Validation("设备没有返回开始结果，请刷新设备状态后重试")
         val orderSn = parse.str(result, "order_sn", "orderSn")
         val session = ShowerSessionState(
             deviceUuid = device.uuid,
@@ -314,10 +308,24 @@ class ShowerRepository constructor(
         store.write(sessionFileKey, ShowerSessionState.serializer(), session)
     }
 
-    /** 结束洗浴（写，不重试）。 */
+    /** 预约后立即开启；开启失败则释放预约，避免占住设备。 */
+    private suspend fun reserveThenTurnOn(uuid: String): JsonObject? = try {
+        client.reserve(uuid)
+        client.turnOn(uuid)
+    } catch (e: AppError) {
+        runCatching { client.cancelReserve(uuid) }
+        throw e
+    }
+
+    /** 结束洗浴（写，不重试）。设备已结束/已关闭时按幂等成功处理。 */
     suspend fun endShower() {
         val session = _activeSession.value ?: return
-        client.turnOff(session.deviceUuid)
+        try {
+            client.turnOff(session.deviceUuid)
+        } catch (e: AppError.Validation) {
+            // code 100170「您没有正在使用的设备」：订单已结束，清掉本地会话即可
+            if (!showerAlreadyStoppedMessage(e.userMessage)) throw e
+        }
         _activeSession.value = null
         store.remove(sessionFileKey)
     }
@@ -399,6 +407,37 @@ class ShowerRepository constructor(
     suspend fun clearModuleCache() {
         store.removeByPrefix("shower.areas")
         store.removeByPrefix("shower.devices")
+    }
+}
+
+/**
+ * 解析设备项。
+ * `uuid` 取每台唯一的 `device_key`（形如 `<controller_key>_faucet_01`），
+ * `controller_key` 是整层共用，不能用来区分浴位。
+ */
+internal fun parseShowerDevice(d: JsonObject): ShowerDevice = ShowerDevice(
+    uuid = Parse.str(d, "device_key", "controller_key", "uuid", "device_uuid", "id", "deviceUuid"),
+    name = Parse.str(d, "device_name", "device_number", "device_num", "num", "name", "deviceNo")
+        .ifBlank { "设备" },
+    state = showerDeviceState(d),
+    remainingText = Parse.str(
+        d, "remain_time", "remaining", "reserve_time", "left_time", "max_running_time",
+    ),
+    needReserve = Parse.str(d, "need_reserve", "needReserve").lowercase() in setOf("1", "true", "yes"),
+)
+
+/** 设备状态：0 空闲 / 1 使用中 / 2 已预约 / 3 故障。 */
+internal fun showerDeviceState(d: JsonObject): Int {
+    val raw = Parse.str(d, "running_status", "state", "status", "device_state", "device_status").lowercase()
+    return when {
+        raw.contains("idle") || raw.contains("ready") || raw.contains("free") ||
+            raw == "0" || raw.contains("空闲") -> 0
+        raw.contains("using") || raw.contains("running") || raw.contains("busy") ||
+            raw == "1" || raw.contains("使用") -> 1
+        raw.contains("reserve") || raw == "2" || raw.contains("预约") -> 2
+        raw.contains("fault") || raw.contains("error") || raw.contains("offline") ||
+            raw == "3" || raw.contains("故障") -> 3
+        else -> raw.toIntOrNull() ?: 0
     }
 }
 
