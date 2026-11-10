@@ -749,7 +749,12 @@ fun ShowerScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             if (hasActiveSession) {
-                PrismCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer, onClick = onOpenSession, contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp)) {
+                PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                onClick = onOpenSession,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+            ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Shower, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
                         Spacer(Modifier.width(8.dp))
@@ -770,7 +775,10 @@ fun ShowerScreen(
                 }
             }
 
-            PrismCard(onClick = { locationSheet = true }) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = { locationSheet = true },
+            ) {
                 CardHeader("洗浴位置")
                 Spacer(Modifier.height(6.dp))
                 val path = listOfNotNull(
@@ -1285,7 +1293,10 @@ private fun ReservationCard(
     )
     val total = reservation.maxWaitSeconds.coerceAtLeast(1)
     val fraction = (remaining.toFloat() / total).coerceIn(0f, 1f)
-    PrismCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
+    PrismCard(
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+    ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
                 Canvas(Modifier.fillMaxSize()) {
@@ -1496,7 +1507,11 @@ fun DeviceDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            ) {
                 Text(device.name, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -1677,7 +1692,11 @@ fun ShowerSessionScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            ) {
                 Text(session.deviceName, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text("${session.buildingName} ${session.areaName}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
@@ -1691,7 +1710,10 @@ fun ShowerSessionScreen(
                 animationSpec = PrismMotion.tween(PrismMotion.Slow),
                 label = "session-progress",
             )
-            PrismCard(containerColor = surfaceColorOf(SurfaceLevel.Card)) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = surfaceColorOf(SurfaceLevel.Card),
+            ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.size(148.dp), contentAlignment = Alignment.Center) {
                         val ringTrack = MaterialTheme.colorScheme.secondaryContainer

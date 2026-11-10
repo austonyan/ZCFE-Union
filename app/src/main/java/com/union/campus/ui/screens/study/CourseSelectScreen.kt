@@ -231,7 +231,11 @@ fun ConfirmSelectionScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            ) {
                 Text(course.name, style = com.union.campus.ui.prism.pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text("${course.credit} 学分 · ${course.teacher}\n${course.time.ifBlank { "时间待定" }}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)

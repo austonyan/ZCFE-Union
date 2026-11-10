@@ -40,6 +40,7 @@ import com.union.campus.domain.BindWizardNode
 import com.union.campus.domain.ElectricRoom
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
@@ -68,6 +69,7 @@ fun BindElectricScreen(
     var account by rememberSaveable { mutableStateOf("") }
     var loading by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
+    var helpVisible by rememberSaveable { mutableStateOf(false) }
 
     var zones by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
     var builds by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
@@ -207,6 +209,17 @@ fun BindElectricScreen(
         }
     }
 
+    if (helpVisible) {
+        PrismAlertDialog(
+            title = "提示",
+            body = "电费只查本人房间：绑定会把目标房间挂到你的账号下。",
+            confirmText = "知道了",
+            dismissText = null,
+            onConfirm = { helpVisible = false },
+            onDismiss = { helpVisible = false },
+        )
+    }
+
     UnionScreenScaffold(
         title = "绑定完美校园",
         onBack = onBack,
@@ -214,7 +227,7 @@ fun BindElectricScreen(
             PrismIconButton(
                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
                 contentDescription = "帮助",
-                onClick = { error = "电费只查本人房间：绑定会把目标房间挂到你的账号下。" },
+                onClick = { helpVisible = true },
             )
         },
     ) { padding ->

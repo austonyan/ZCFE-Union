@@ -43,9 +43,9 @@ import com.union.campus.ui.prism.PrismSnackbarHost
 import com.union.campus.ui.screens.life.ClassroomDetailScreen
 import com.union.campus.ui.screens.life.DeviceDetailScreen
 import com.union.campus.ui.screens.life.ElectricScreen
-import com.union.campus.ui.screens.life.ElectricTopUpScreen
 import com.union.campus.ui.screens.life.FreeClassroomsScreen
 import com.union.campus.ui.screens.life.LifeScreen
+import com.union.campus.ui.screens.life.ShowerOrdersScreen
 import com.union.campus.ui.screens.life.ShowerScreen
 import com.union.campus.ui.screens.life.ShowerSessionScreen
 import com.union.campus.ui.screens.life.UsageDetailScreen
@@ -468,24 +468,23 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 }
             }
             composable(Screen.Wallet.route) {
-                WalletScreen(onBack = { navController.popBackStack() })
+                WalletScreen(
+                    onBack = { navController.popBackStack() },
+                    onOpenAllOrders = { navController.navigate(Screen.ShowerOrders.route) },
+                )
+            }
+            composable(Screen.ShowerOrders.route) {
+                ShowerOrdersScreen(onBack = { navController.popBackStack() })
             }
             composable(Screen.Electric.route) {
                 ElectricScreen(
                     onBack = { navController.popBackStack() },
                     onOpenUsage = { navController.navigate(Screen.UsageDetail.route) },
-                    onOpenTopUp = { navController.navigate(Screen.ElectricTopUp.route) },
                     onOpenBind = { navController.navigate(Screen.BindElectricAdd.route) },
                 )
             }
             composable(Screen.UsageDetail.route) {
                 UsageDetailScreen(onBack = { navController.popBackStack() })
-            }
-            composable(Screen.ElectricTopUp.route) {
-                ElectricTopUpScreen(
-                    onBack = { navController.popBackStack() },
-                    onDone = { navController.popBackStack() },
-                )
             }
             composable(Screen.FreeClassrooms.route) {
                 FreeClassroomsScreen(onBack = { navController.popBackStack() })

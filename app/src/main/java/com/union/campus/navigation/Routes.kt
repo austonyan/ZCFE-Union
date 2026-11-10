@@ -61,9 +61,9 @@ enum class Screen(
     ShowerSession("shower-session", "洗浴中"),
     DeviceDetail("device-detail", "设备详情"),
     Wallet("wallet", "钱包与账单"),
+    ShowerOrders("shower-orders", "全部订单"),
     Electric("electric", "电费"),
     UsageDetail("usage-detail", "用量明细"),
-    ElectricTopUp("electric-top-up", "电费充值"),
     FreeClassrooms("free-classrooms", "空闲教室"),
     ClassroomDetail("classroom-detail", "教室详情"),
 

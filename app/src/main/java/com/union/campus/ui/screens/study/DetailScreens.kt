@@ -72,6 +72,7 @@ fun CourseDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PrismCard(
+                modifier = Modifier.fillMaxWidth(),
                 containerColor = prismCourseContainer(cell.name),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
             ) {
@@ -166,7 +167,11 @@ fun GradeDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            ) {
                 Text(grade.courseName, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -254,7 +259,11 @@ fun ExamsScreen(
                 )
                 else -> {
                     val first = exams.first()
-                    PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+                    PrismCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+                    ) {
                         Text(first.courseName, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -322,7 +331,11 @@ fun ExamDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+            PrismCard(
+                modifier = Modifier.fillMaxWidth(),
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            ) {
                 Text(exam.courseName, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
                 Text("${exam.time}\n${exam.location}" + (if (exam.seatNo.isNotBlank()) " · 座位 ${exam.seatNo}" else ""), style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)

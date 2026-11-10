@@ -189,7 +189,10 @@ fun SettingsScreen(
             }
 
             PrismSection("关于") {
-                PrismCard(onClick = onOpenAbout) {
+                PrismCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = onOpenAbout,
+                ) {
                     CardHeader("郑财校园", icon = Icons.Outlined.Info)
                     Spacer(Modifier.height(6.dp))
                     Text(

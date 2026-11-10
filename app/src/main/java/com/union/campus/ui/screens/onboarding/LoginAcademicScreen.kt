@@ -41,8 +41,11 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
+import com.union.campus.ui.common.ExternalLinks
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.openExternalLink
+import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismIconButton
@@ -73,6 +76,7 @@ fun LoginAcademicScreen(
     var loading by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var helpVisible by rememberSaveable { mutableStateOf(false) }
     var captchaBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var captchaLoading by remember { mutableStateOf(false) }
 
@@ -128,6 +132,17 @@ fun LoginAcademicScreen(
         }
     }
 
+    if (helpVisible) {
+        PrismAlertDialog(
+            title = "提示",
+            body = "使用学号与教务系统密码；如提示验证码，请按图片输入。",
+            confirmText = "知道了",
+            dismissText = null,
+            onConfirm = { helpVisible = false },
+            onDismiss = { helpVisible = false },
+        )
+    }
+
     UnionScreenScaffold(
         title = "登录教务系统",
         onBack = onBack,
@@ -135,7 +150,7 @@ fun LoginAcademicScreen(
             PrismIconButton(
                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
                 contentDescription = "帮助",
-                onClick = { error = "使用学号与教务系统密码；如提示验证码，请按图片输入。" },
+                onClick = { helpVisible = true },
             )
         },
     ) { padding ->
@@ -241,13 +256,20 @@ fun LoginAcademicScreen(
                 Text("登录教务")
             }
 
-            PrismTextButton(
-                onClick = onNext,
+            Row(
                 modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Icon(Icons.Rounded.Schedule, null)
-                Spacer(Modifier.width(8.dp))
-                Text(skipLabel)
+                PrismTextButton(onClick = onNext) {
+                    Icon(Icons.Rounded.Schedule, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(skipLabel)
+                }
+                PrismTextButton(
+                    onClick = { openExternalLink(ExternalLinks.RetrievePassword) },
+                ) {
+                    Text("忘记密码？")
+                }
             }
 
             PrismCard(

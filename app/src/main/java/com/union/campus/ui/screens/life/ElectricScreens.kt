@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
@@ -40,9 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.union.campus.UnionApplicationHolder
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ElectricBalance
@@ -53,8 +50,10 @@ import com.union.campus.domain.ElectricUsage
 import com.union.campus.domain.ElectricUsageDay
 import com.union.campus.domain.ShowerOrder
 import com.union.campus.domain.ShowerWallet
+import com.union.campus.ui.common.ExternalLinks
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.openExternalLink
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
@@ -73,7 +72,6 @@ import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismSkeletonList
-import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
@@ -86,10 +84,11 @@ import java.util.Locale
 
 // ---------------- 钱包与账单 ----------------
 
-/** 洗浴钱包与账单：余额、押金、最近订单与充值入口。 */
+/** 洗浴钱包与账单：余额、押金、最近 10 条订单与充值入口。 */
 @Composable
 fun WalletScreen(
     onBack: () -> Unit,
+    onOpenAllOrders: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val shower = ServiceLocator.showerRepository
@@ -97,12 +96,12 @@ fun WalletScreen(
     var orders by remember { mutableStateOf<List<ShowerOrder>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
-    var topUpNote by remember { mutableStateOf<String?>(null) }
+    var topUpVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         try {
             wallet = shower.wallet()
-            orders = shower.recentOrders()
+            orders = shower.recentOrders(limit = 10)
             error = null
         } catch (e: AppError) {
             error = e.userMessage
@@ -112,12 +111,16 @@ fun WalletScreen(
         loading = false
     }
 
-    if (topUpNote != null) {
+    if (topUpVisible) {
         PrismAlertDialog(
             title = "充值",
-            body = topUpNote ?: "",
+            body = ExternalLinks.TopUpTip,
             confirmText = "知道了", dismissText = null,
-            onConfirm = { topUpNote = null }, onDismiss = { topUpNote = null },
+            onConfirm = {
+                topUpVisible = false
+                openExternalLink(ExternalLinks.ShowerTopUp)
+            },
+            onDismiss = { topUpVisible = false },
         )
     }
 
@@ -138,7 +141,11 @@ fun WalletScreen(
                 )
                 else -> {
                     val w = wallet
-                    PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+                    PrismCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+                    ) {
                         Text("余额 ¥ ${w?.balance ?: "—"}", style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -148,7 +155,25 @@ fun WalletScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
-                    PrismSection(title = "最近订单") {
+                    PrismButton(
+                        onClick = { topUpVisible = true },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(Icons.Rounded.Payment, null)
+                        Spacer(Modifier.width(8.dp))
+                        Text("去充值")
+                    }
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
+                        Text("充值将跳转至支付宝官方充值页面", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    PrismSection(
+                        title = "最近订单",
+                        action = {
+                            PrismTextButton(onClick = onOpenAllOrders) {
+                                Text("查看全部")
+                            }
+                        },
+                    ) {
                         if (orders.isEmpty()) {
                             NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后账单会显示在这里")
                         } else {
@@ -163,18 +188,99 @@ fun WalletScreen(
                             }
                         }
                     }
-                    PrismButton(
-                        onClick = {
-                            topUpNote = "充值将跳转至大白U帮官方小程序（支付宝）完成，本应用不托管支付密码。"
-                        },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Rounded.Payment, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("去充值")
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+/** 全部洗浴订单：分页加载，展示所有消费记录。 */
+@Composable
+fun ShowerOrdersScreen(
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val shower = ServiceLocator.showerRepository
+    var orders by remember { mutableStateOf<List<ShowerOrder>>(emptyList()) }
+    var page by remember { mutableIntStateOf(0) }
+    var isLast by remember { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+
+    fun loadNext() {
+        if (loading || isLast) return
+        loading = true
+        error = null
+        launchUi {
+            try {
+                val result = shower.ordersPage(page)
+                val known = orders.map { it.orderSn to it.time }.toSet()
+                val fresh = result.items.filter { (it.orderSn to it.time) !in known }
+                orders = orders + fresh
+                page += 1
+                isLast = result.isLast == true || result.items.isEmpty()
+            } catch (e: AppError) {
+                error = e.userMessage
+            } catch (e: Exception) {
+                error = "订单加载失败：${e.message}"
+            } finally {
+                loading = false
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { loadNext() }
+
+    UnionScreenScaffold(title = "全部订单", onBack = onBack, modifier = modifier) { padding ->
+        Column(
+            Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            when {
+                orders.isEmpty() && loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 6)
+                orders.isEmpty() && error != null -> PrismErrorState(
+                    message = error ?: "",
+                    hint = "洗浴账号未绑定或会话过期时可到凭证中心处理",
+                    onRetry = { loadNext() },
+                )
+                orders.isEmpty() -> NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后账单会显示在这里")
+                else -> {
+                    Text(
+                        "共 ${orders.size} 条消费记录",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    PrismGroupedList {
+                        orders.forEach { o ->
+                            PrismRow(
+                                title = o.time,
+                                subtitle = "${o.deviceName} · ${o.durationText.ifBlank { "时长 —" }} · ¥ ${o.amount}",
+                                leading = { IconBadge(Icons.Rounded.ReceiptLong) },
+                            )
+                        }
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                        Text("充值将跳转至大白U帮官方小程序（支付宝）", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (!isLast) {
+                        PrismButton(
+                            onClick = { loadNext() },
+                            loading = loading,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text("加载更多")
+                        }
+                    } else {
+                        Text(
+                            "已显示全部订单",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = subheadlineStyle())
                     }
                 }
             }
@@ -191,7 +297,6 @@ fun WalletScreen(
 fun ElectricScreen(
     onBack: () -> Unit,
     onOpenUsage: () -> Unit,
-    onOpenTopUp: () -> Unit,
     onOpenBind: () -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -208,6 +313,7 @@ fun ElectricScreen(
     var roomMenu by remember { mutableStateOf(false) }
     var unbindConfirm by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
+    var topUpVisible by remember { mutableStateOf(false) }
 
     fun load(force: Boolean) {
         loading = true
@@ -253,6 +359,18 @@ fun ElectricScreen(
     if (result != null) {
         PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "知道了", dismissText = null,
             onConfirm = { result = null }, onDismiss = { result = null })
+    }
+    if (topUpVisible) {
+        PrismAlertDialog(
+            title = "充值",
+            body = ExternalLinks.TopUpTip,
+            confirmText = "知道了", dismissText = null,
+            onConfirm = {
+                topUpVisible = false
+                openExternalLink(ExternalLinks.ElectricTopUp)
+            },
+            onDismiss = { topUpVisible = false },
+        )
     }
 
     UnionScreenScaffold(
@@ -373,7 +491,7 @@ fun ElectricScreen(
                             tone = PrismNoticeTone.Warning,
                             icon = Icons.Rounded.WarningAmber,
                             actionLabel = "去充值",
-                            onAction = onOpenTopUp,
+                            onAction = { topUpVisible = true },
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
@@ -489,7 +607,7 @@ fun ElectricScreen(
                             Text(b.lineStatus, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    PrismButton(onClick = onOpenTopUp, modifier = Modifier.fillMaxWidth()) {
+                    PrismButton(onClick = { topUpVisible = true }, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Rounded.Payment, null)
                         Spacer(Modifier.width(8.dp))
                         Text("去充值")
@@ -616,7 +734,11 @@ fun UsageDetailScreen(
                     val avgCost = ElectricStats.averageCost(u.days, price)
                     val maxDay = u.days.maxByOrNull { ElectricStats.useValue(it.use) }
 
-                    PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
+                    PrismCard(
+                        modifier = Modifier.fillMaxWidth(),
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+                    ) {
                         Text(
                             "区间用电 ${ElectricStats.formatKwh(totalUse)} 度",
                             style = headlineStyle(),
@@ -724,106 +846,6 @@ fun UsageDetailScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-// ---------------- 电费充值 ----------------
-
-/** 电费充值：选择金额、支付方式、生成支付链接与到账说明。 */
-@Composable
-fun ElectricTopUpScreen(
-    onBack: () -> Unit,
-    onDone: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val electric = ServiceLocator.electricRepository
-    val settings = ServiceLocator.settings
-    var amountIndex by rememberSaveable { mutableIntStateOf(1) } // 20/50/100/自定义
-    var customAmount by rememberSaveable { mutableStateOf("") }
-    var linkNote by remember { mutableStateOf<String?>(null) }
-    var balanceText by remember { mutableStateOf("") }
-
-    LaunchedEffect(Unit) {
-        try {
-            val roomVerify = settings.lastElectricRoom.first()
-            electric.balance(roomVerify)?.let { balanceText = "${it.kwh} 度" }
-        } catch (_: Exception) { }
-    }
-
-    if (linkNote != null) {
-        PrismAlertDialog(
-            title = "支付链接已生成",
-            body = linkNote ?: "",
-            confirmText = "复制并返回",
-            onConfirm = {
-                UnionApplicationHolder.clipboard?.setPrimaryClip(
-                    android.content.ClipData.newPlainText("union_pay", linkNote ?: ""),
-                )
-                linkNote = null
-                onDone()
-            },
-            onDismiss = { linkNote = null },
-        )
-    }
-
-    UnionScreenScaffold(title = "电费充值", onBack = onBack, modifier = modifier) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            PrismCard {
-                Text("宿舍房间 · 当前余额 $balanceText", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Text("选择充值金额", style = headlineStyle())
-            PrismSegmented(
-                options = listOf("20 元", "50 元", "100 元", "自定义"),
-                selectedIndex = amountIndex,
-                onSelect = { amountIndex = it },
-            )
-            if (amountIndex == 3) {
-                PrismTextField(
-                    value = customAmount,
-                    onValueChange = { customAmount = it.filter { c -> c.isDigit() || c == '.' } },
-                    label = "自定义金额（元）",
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                )
-            }
-            PrismCard {
-                CardHeader("支付方式")
-                Spacer(Modifier.height(6.dp))
-                Text("完美校园 / 支付宝", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            PrismButton(
-                onClick = {
-                    val amount = when (amountIndex) {
-                        0 -> "20"; 1 -> "50"; 2 -> "100"
-                        else -> customAmount
-                    }
-                    if (amount.isBlank() || amount.toDoubleOrNull() ?: 0.0 <= 0.0) {
-                        linkNote = "请输入有效金额"
-                        return@PrismButton
-                    }
-                    // MVP：只生成提示链接，不托管支付（power.md §4.3.2）
-                    linkNote = "请打开完美校园 App → 智能水电 → 选择房间 → 充值 $amount 元。\n\n（App 内支付链路需额外验证，当前版本提供跳转指引，到账以完美校园为准）"
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Rounded.Link, null)
-                Spacer(Modifier.width(8.dp))
-                Text("生成支付链接")
-            }
-            Text("到账可能有延迟，以完美校园为准", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                Text("链路说明", style = headlineStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Text("App 内支付链路需额外验证；MVP 先做跳转/复制链接。", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer)
             }
             Spacer(Modifier.height(12.dp))
         }
