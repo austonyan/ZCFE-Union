@@ -377,7 +377,8 @@ private fun TimetableGrid(
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
 
-    val today = SemesterCalc.dayOfWeek(nowTick)
+    // 只有显示本周时才有「今天」；翻到其他周不沿用今天的列高亮。
+    val today = if (isCurrentWeek) SemesterCalc.dayOfWeek(nowTick) else 0
     val weekStart = runCatching { LocalDate.parse(timetable.weekStart) }.getOrNull()
     val dateFmt = DateTimeFormatter.ofPattern("MM/dd", Locale.CHINA)
     val nowMinutes = minutesOfDay(nowTick)
@@ -564,10 +565,10 @@ private fun TimetableGrid(
                                     .weight(1f)
                                     .fillMaxHeight()
                                     .background(
-                                        when {
-                                            day == today -> MaterialTheme.colorScheme.primaryContainer.withAlpha(PrismAlpha.Track)
-                                            day % 2 == 0 -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Border)
-                                            else -> Color.Transparent
+                                        if (day == today) {
+                                            MaterialTheme.colorScheme.primaryContainer.withAlpha(PrismAlpha.ContainerTint)
+                                        } else {
+                                            Color.Transparent
                                         },
                                     ),
                             ) {

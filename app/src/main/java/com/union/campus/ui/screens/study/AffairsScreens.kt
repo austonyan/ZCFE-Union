@@ -39,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
@@ -163,7 +164,7 @@ fun TextbooksScreen(
                     ) {
                         Icon(Icons.Rounded.Check, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("确认领取（$pendingCount 门待确认）")
+                        Text("确认领取（$pendingCount 门待确认）", maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 }
             } else {

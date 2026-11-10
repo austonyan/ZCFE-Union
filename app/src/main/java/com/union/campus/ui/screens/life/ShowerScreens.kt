@@ -852,7 +852,11 @@ fun ShowerScreen(
                                 loading = reserveBusy,
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(if (queueTurnDevice != null) "预约空闲设备" else "正在加载空闲设备")
+                                Text(
+                                    if (queueTurnDevice != null) "预约空闲设备" else "正在加载空闲设备",
+                                    maxLines = 1,
+                                    overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                                )
                             }
                         }
                         PrismTextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
@@ -878,6 +882,8 @@ fun ShowerScreen(
                                     otherQueue -> "请先取消其他区域排队"
                                     else -> "加入排队"
                                 },
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -943,7 +949,11 @@ fun ShowerScreen(
                         ) {
                             Icon(Icons.Rounded.Schedule, null)
                             Spacer(Modifier.width(8.dp))
-                            Text(if (firstIdle != null) "预约空闲位置" else "正在加载空闲设备")
+                            Text(
+                                if (firstIdle != null) "预约空闲位置" else "正在加载空闲设备",
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                            )
                         }
                     }
                     devices.chunked(2).forEach { rowDevices ->
@@ -1561,6 +1571,8 @@ fun DeviceDetailScreen(
                             otherReservation != null -> "请先处理其他预约"
                             else -> "预约此设备"
                         },
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                 }
                 else -> PrismButton(

@@ -135,6 +135,14 @@ fun caption1Style(): TextStyle = MaterialTheme.typography.labelMedium.copy(
     fontWeight = FontWeight(600),
 )
 
+/** 按钮标签：15/20 w600；按钮内文字统一用这一档，窄按钮也不换行。 */
+@Composable
+fun buttonLabelStyle(): TextStyle = MaterialTheme.typography.labelLarge.copy(
+    fontSize = 15.sp,
+    lineHeight = 20.sp,
+    fontWeight = FontWeight(600),
+)
+
 /** 最小注记：11/14 w500，不再出现 8/9sp。 */
 @Composable
 fun caption2Style(): TextStyle = MaterialTheme.typography.labelSmall.copy(

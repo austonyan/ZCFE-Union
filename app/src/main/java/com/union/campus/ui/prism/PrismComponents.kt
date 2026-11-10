@@ -28,6 +28,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -781,10 +782,12 @@ fun PrismButton(
             ) {
                 ProvideContentColor(colors.second.takeIf { enabled }
                     ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) {
-                    if (loading) {
-                        PrismLoadingIndicator(size = 18.dp, strokeWidth = 2.dp, color = colors.second)
-                    } else {
-                        content()
+                    CompositionLocalProvider(LocalTextStyle provides buttonLabelStyle()) {
+                        if (loading) {
+                            PrismLoadingIndicator(size = 18.dp, strokeWidth = 2.dp, color = colors.second)
+                        } else {
+                            content()
+                        }
                     }
                 }
             }
@@ -825,7 +828,9 @@ fun PrismTextButton(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ProvideContentColor(MaterialTheme.colorScheme.primary.takeIf { enabled }
-                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) { content() }
+                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) {
+                    CompositionLocalProvider(LocalTextStyle provides buttonLabelStyle()) { content() }
+                }
             }
         }
     }
@@ -898,10 +903,16 @@ fun PrismAlertDialog(
                     )
                     Spacer(Modifier.height(20.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        val actionPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
                         if (dismissText != null) {
                             Box(Modifier.weight(1f)) {
-                                PrismButton(filled = false, onClick = { close(onDismiss) }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(dismissText)
+                                PrismButton(
+                                    filled = false,
+                                    onClick = { close(onDismiss) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentPadding = actionPadding,
+                                ) {
+                                    Text(dismissText, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                                 }
                             }
                         }
@@ -914,10 +925,11 @@ fun PrismAlertDialog(
                                     }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
-                                containerColor = if (destructive) MaterialTheme.colorScheme.error else null,
-                                contentColor = if (destructive) MaterialTheme.colorScheme.onError else null,
+                                contentPadding = actionPadding,
+                                containerColor = if (destructive) MaterialTheme.colorScheme.errorContainer else null,
+                                contentColor = if (destructive) MaterialTheme.colorScheme.onErrorContainer else null,
                             ) {
-                                Text(confirmText)
+                                Text(confirmText, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                             }
                         }
                     }
