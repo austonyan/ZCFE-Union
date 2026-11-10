@@ -49,9 +49,10 @@ class MainActivity : FragmentActivity() {
             lifecycle.repeatOnLifecycle(Lifecycle.State.STARTED) {
                 val settings = ServiceLocator.settings
                 val enabled = settings.biometricUnlock.first() && settings.autoLock.first()
+                val lockMinutes = settings.autoLockMinutes.first().coerceIn(1, 60)
                 if (enabled && pausedAtMs > 0) {
                     val awayMs = System.currentTimeMillis() - pausedAtMs
-                    if (awayMs > 5 * 60_000L) {
+                    if (awayMs > lockMinutes * 60_000L) {
                         requestBiometricSuspend()
                     }
                 }

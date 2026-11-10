@@ -28,7 +28,6 @@ import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,6 +49,7 @@ import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
@@ -208,7 +208,7 @@ fun AcademicsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text("最近通知", style = headlineStyle())
                     Spacer(Modifier.weight(1f))
-                    TextButton(onClick = { onOpen("notices") }) { Text("全部") }
+                    PrismTextButton(onClick = { onOpen("notices") }) { Text("全部") }
                 }
                 PrismGroupedList {
                     notices.forEachIndexed { index, notice ->

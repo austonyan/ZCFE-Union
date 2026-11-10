@@ -1,5 +1,6 @@
 package com.union.campus.ui.prism
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -13,8 +14,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -65,30 +68,37 @@ fun PrismSegmented(
                     else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 ),
         )
-        Row(Modifier.fillMaxSize()) {
-            options.forEachIndexed { optionIndex, label ->
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
-                        .clickable(enabled = enabled) {
-                            if (optionIndex != index) {
-                                haptics.select()
-                                onSelect(optionIndex)
-                            }
-                        },
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(
-                        text = label,
-                        style = caption1Style(),
-                        textAlign = TextAlign.Center,
-                        color = when {
+        CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+            Row(Modifier.fillMaxSize()) {
+                options.forEachIndexed { optionIndex, label ->
+                    val textColor by animateColorAsState(
+                        targetValue = when {
                             !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
                             optionIndex == index -> MaterialTheme.colorScheme.onPrimary
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
+                        animationSpec = PrismMotion.tween(PrismMotion.Fast),
+                        label = "segmented-label-$optionIndex",
                     )
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clickable(enabled = enabled) {
+                                if (optionIndex != index) {
+                                    haptics.select()
+                                    onSelect(optionIndex)
+                                }
+                            },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = label,
+                            style = caption1Style(),
+                            textAlign = TextAlign.Center,
+                            color = textColor,
+                        )
+                    }
                 }
             }
         }

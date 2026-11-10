@@ -154,9 +154,7 @@ fun BindDoneScreen(
                         onEnter()
                     }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("进入应用")
                 Spacer(Modifier.width(8.dp))

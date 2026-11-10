@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,17 +18,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.ArrowDropDown
-import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PlayArrow
@@ -37,24 +30,18 @@ import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Shower
 import androidx.compose.material.icons.rounded.StopCircle
 import androidx.compose.material.icons.rounded.WaterDrop
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -88,6 +75,8 @@ import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismCheckMark
+import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
@@ -98,6 +87,7 @@ import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismStatusDot
 import com.union.campus.ui.prism.PrismSwitch
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
@@ -599,18 +589,12 @@ fun ShowerScreen(
             onConfirm = { result = null }, onDismiss = { result = null })
     }
 
-    Scaffold(
+    UnionScreenScaffold(
+        title = "洗浴",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("洗浴", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
-                actions = {
-                    IconButton(onClick = onOpenWallet) { Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = "钱包") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
+        actions = {
+            IconButton(onClick = onOpenWallet) { Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = "钱包") }
         },
     ) { padding ->
         Column(
@@ -680,7 +664,7 @@ fun ShowerScreen(
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
-                    TextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
+                    PrismTextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
                         Text("取消排队")
                     }
                 }
@@ -704,7 +688,7 @@ fun ShowerScreen(
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        TextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
+                        PrismTextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
                             Text("取消排队")
                         }
                     } else {
@@ -716,15 +700,15 @@ fun ShowerScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         val otherQueue = queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId
-                        Button(
+                        PrismButton(
                             onClick = { queueConfirm = true },
                             enabled = !queueBusy && !otherQueue,
+                            loading = queueBusy,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(
                                 when {
                                     otherQueue -> "请先取消其他区域排队"
-                                    queueBusy -> "处理中…"
                                     else -> "加入排队"
                                 },
                             )
@@ -741,10 +725,10 @@ fun ShowerScreen(
 
             when {
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4, showHero = false)
-                error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { reload() }) { Text("重试") }
-                }
+                error != null -> PrismErrorState(
+                    message = error ?: "",
+                    onRetry = { reload() },
+                )
                 !shower.isBound() -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     NullStatus(Icons.Rounded.Shower, "洗浴未绑定", "登录大白U帮后查看设备空闲与排队")
                     PrismButton(onClick = onOpenBind, modifier = Modifier.fillMaxWidth()) {
@@ -863,7 +847,6 @@ private fun ShowerLocationSheet(
     onSelectBuilding: (String) -> Unit,
     onSelectArea: (String) -> Unit,
 ) {
-    if (!visible) return
     val haptics = rememberPrismHaptics()
     PrismSnapSheet(visible = visible, onDismiss = onDismiss) {
         LazyColumn(
@@ -965,11 +948,7 @@ private fun LocationOption(
         onClick = onClick,
         trailing = if (selected) {
             {
-                Icon(
-                    Icons.Rounded.Check,
-                    contentDescription = "已选择",
-                    tint = MaterialTheme.colorScheme.primary,
-                )
+                PrismCheckMark(checked = true)
             }
         } else {
             null
@@ -990,7 +969,7 @@ private fun SelectorRow(
         Text(label, style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
         Spacer(Modifier.weight(1f))
         Box {
-            TextButton(onClick = { open = true }, enabled = enabled && options.isNotEmpty()) {
+            PrismTextButton(onClick = { open = true }, enabled = enabled && options.isNotEmpty()) {
                 Text(value.ifBlank { "请选择" }, style = subheadlineStyle())
                 Icon(Icons.Rounded.ArrowDropDown, contentDescription = "选择$label")
             }
@@ -1019,12 +998,12 @@ private fun DeviceCard(device: ShowerDevice, onClick: () -> Unit, modifier: Modi
     }
     val bg by animateColorAsState(
         targetValue = targetBg,
-        animationSpec = tween(PrismMotion.Standard),
+        animationSpec = PrismMotion.tween(PrismMotion.Standard),
         label = "device-bg",
     )
     val onBg by animateColorAsState(
         targetValue = targetOnBg,
-        animationSpec = tween(PrismMotion.Standard),
+        animationSpec = PrismMotion.tween(PrismMotion.Standard),
         label = "device-content",
     )
     val dotColor = when (device.state) {
@@ -1088,7 +1067,7 @@ private fun ReservationCard(
     val onContainer = MaterialTheme.colorScheme.onTertiaryContainer
     val ringColor by animateColorAsState(
         targetValue = if (remaining <= 60) PrismStatus.warning() else MaterialTheme.colorScheme.tertiary,
-        animationSpec = tween(PrismMotion.Standard),
+        animationSpec = PrismMotion.tween(PrismMotion.Standard),
         label = "reservation-ring",
     )
     val total = reservation.maxWaitSeconds.coerceAtLeast(1)
@@ -1142,12 +1121,12 @@ private fun ReservationCard(
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onStart, enabled = remaining > 0 && !busy) {
+            PrismButton(onClick = onStart, enabled = remaining > 0 && !busy, loading = busy) {
                 Icon(Icons.Rounded.PlayArrow, null)
                 Spacer(Modifier.width(6.dp))
                 Text("开始洗浴")
             }
-            TextButton(onClick = onCancel, enabled = !busy) {
+            PrismTextButton(onClick = onCancel, enabled = !busy) {
                 Text("取消预约")
             }
         }
@@ -1271,16 +1250,10 @@ fun DeviceDetailScreen(
 
     val reservedHere = reservation?.deviceUuid == device.uuid
 
-    Scaffold(
+    UnionScreenScaffold(
+        title = "设备详情",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("设备详情", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -1325,17 +1298,17 @@ fun DeviceDetailScreen(
                 PrismRow(title = "最近使用", subtitle = device.remainingText.ifBlank { "—" }, index = 1, count = 3, leading = { IconBadge(Icons.Rounded.History) })
                 PrismRow(title = "故障码", subtitle = "无", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Info) })
             }
-            Button(
+            PrismButton(
                 onClick = { startConfirm = true },
                 enabled = device.state == 0 || reservedHere,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.PlayArrow, null)
                 Spacer(Modifier.width(8.dp))
                 Text(if (device.state == 0 || reservedHere) "开始洗浴" else "设备不可用")
             }
             if (!reservedHere) {
-                TextButton(
+                PrismTextButton(
                     onClick = { reserveConfirm = true },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -1418,16 +1391,10 @@ fun ShowerSessionScreen(
             onConfirm = { result = null }, onDismiss = { result = null })
     }
 
-    Scaffold(
+    UnionScreenScaffold(
+        title = "洗浴中",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("洗浴中", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -1448,7 +1415,7 @@ fun ShowerSessionScreen(
             val progressTarget = (elapsedSec / (40f * 60f)).coerceIn(0f, 1f)
             val progress by animateFloatAsState(
                 targetValue = progressTarget,
-                animationSpec = tween(600),
+                animationSpec = PrismMotion.tween(PrismMotion.Slow),
                 label = "session-progress",
             )
             PrismCard(containerColor = surfaceColorOf(SurfaceLevel.Card)) {
@@ -1542,13 +1509,14 @@ fun ShowerSessionScreen(
             PrismButton(
                 onClick = { endConfirm = true },
                 enabled = !ending,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                loading = ending,
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.StopCircle, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (ending) "正在结束…" else "结束洗浴")
+                Text("结束洗浴")
             }
-            TextButton(onClick = onOpenWallet, modifier = Modifier.fillMaxWidth()) {
+            PrismTextButton(onClick = onOpenWallet, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.AccountBalanceWallet, null)
                 Spacer(Modifier.width(8.dp))
                 Text("查看账单")

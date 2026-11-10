@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Event
@@ -43,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,6 +65,7 @@ import com.union.campus.ui.prism.PrismAnimatedText
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismSkeletonList
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.bodyStyle
@@ -125,7 +126,6 @@ fun TodayScreen(
             if (jw.isBound()) {
                 runCatching { timetable = jw.timetable(semesterDm, 0) }
             }
-            todos = runCatching { ServiceLocator.todoRepository.localTodos() }.getOrDefault(emptyList())
             runCatching {
                 val rooms = electric.rooms()
                 rooms.firstOrNull()?.let { electricBalance = electric.balance(it.roomVerify) }
@@ -176,6 +176,13 @@ fun TodayScreen(
 
     val jLate by settings.timetableJLate.collectAsState(initial = true)
     val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
+    val lowElectricThreshold by settings.lowElectricThreshold.collectAsState(initial = 20)
+    val remindEnabled by settings.remindEnabled.collectAsState(initial = true)
+    val remindClass by settings.remindClass.collectAsState(initial = true)
+    val classLead by settings.remindClassLead.collectAsState(initial = 10)
+    val remindExam by settings.remindExam.collectAsState(initial = true)
+    val remindEvaluation by settings.remindEvaluation.collectAsState(initial = true)
+    val remindLowElectric by settings.remindLowElectric.collectAsState(initial = true)
     val scheduleConfig = remember(jLate, fallbackValue) {
         TimetableScheduleConfig(
             j1ToJ6Slot = if (jLate) MorningSlot.Late else MorningSlot.Early,
@@ -186,6 +193,17 @@ fun TodayScreen(
     val todayCells = timetable?.days?.firstOrNull { it.day == today }?.cells.orEmpty()
     val (current, next) = remember(todayCells, scheduleConfig, nowTick) {
         computeCurrentNext(todayCells, scheduleConfig, nowTick)
+    }
+    val minutesToNext = next?.let { cell ->
+        val start = TimetableSchedule.courseSchedule(cell, scheduleConfig)?.start ?: return@let null
+        val startMs = SemesterCalc.timeToMillisToday(start, nowTick) ?: return@let null
+        ((startMs - nowTick) / 60_000L).toInt()
+    }
+    val showClassReminder = remindEnabled && remindClass && next != null &&
+        minutesToNext != null && minutesToNext in 0..classLead
+
+    LaunchedEffect(remindEnabled, remindExam, remindEvaluation, remindLowElectric, lowElectricThreshold) {
+        todos = runCatching { ServiceLocator.todoRepository.localTodos() }.getOrDefault(emptyList())
     }
 
     if (initialLoading) {
@@ -218,6 +236,15 @@ fun TodayScreen(
                     week = timetable?.week ?: 1,
                     onOpenReminders = onOpenReminders,
                 )
+            }
+            if (showClassReminder && next != null && minutesToNext != null) {
+                item {
+                    ClassReminderBanner(
+                        cell = next,
+                        minutes = minutesToNext,
+                        onClick = onOpenTimetable,
+                    )
+                }
             }
             item {
                 NextClassHero(
@@ -291,7 +318,7 @@ fun TodayScreen(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     val days = electricBalance?.let { estimateDays(it) } ?: "—"
-                    val low = electricBalance?.kwh?.toDoubleOrNull()?.let { it < 20.0 } == true
+                    val low = electricBalance?.kwh?.toDoubleOrNull()?.let { it < lowElectricThreshold } == true
                     LifeMetricCard(
                         label = "电费",
                         value = electricBalance?.let { "${it.kwh} 度" } ?: "未绑定",
@@ -401,6 +428,49 @@ private fun TodayHeader(
 }
 
 @Composable
+private fun ClassReminderBanner(
+    cell: CourseCell,
+    minutes: Int,
+    onClick: () -> Unit,
+) {
+    PrismCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconBadge(Icons.Rounded.Notifications)
+            Spacer(Modifier.width(12.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    if (minutes <= 0) "马上上课" else "还有 $minutes 分钟上课",
+                    style = bodyStyle(),
+                    fontWeight = FontWeight(600),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    listOfNotNull(
+                        cell.name,
+                        cell.location.takeIf { it.isNotBlank() },
+                    ).joinToString(" · "),
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.78f),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            Spacer(Modifier.width(8.dp))
+            Text(
+                "看课表",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
+    }
+}
+
+@Composable
 private fun NextClassHero(
     current: CourseCell?,
     next: CourseCell?,
@@ -411,6 +481,8 @@ private fun NextClassHero(
     val cell = current ?: next
     val info = cell?.let { TimetableSchedule.courseSchedule(it, config) }
     val hasClass = cell != null
+    val density = LocalDensity.current
+    val railShape = remember(density.density) { PrismShape(2f * density.density) }
     val container = if (hasClass) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
     val onContainer = if (hasClass) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
 
@@ -504,14 +576,14 @@ private fun NextClassHero(
                 Modifier
                     .fillMaxWidth()
                     .height(4.dp)
-                    .clip(RoundedCornerShape(2.dp))
+                    .clip(railShape)
                     .background(onContainer.copy(alpha = 0.18f)),
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(progress.coerceIn(0f, 1f))
                         .fillMaxHeight()
-                        .clip(RoundedCornerShape(2.dp))
+                        .clip(railShape)
                         .background(onContainer.copy(alpha = 0.9f)),
                 )
             }
@@ -521,9 +593,11 @@ private fun NextClassHero(
 
 @Composable
 private fun HeroChip(text: String, contentColor: Color) {
+    val density = LocalDensity.current
+    val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
     Box(
         Modifier
-            .clip(RoundedCornerShape(999.dp))
+            .clip(pill)
             .background(contentColor.copy(alpha = 0.14f))
             .padding(horizontal = 9.dp, vertical = 4.dp),
     ) {
@@ -665,11 +739,13 @@ private fun LifeMetricCard(
         containerColor = container,
         contentPadding = PaddingValues(14.dp),
     ) {
+        val density = LocalDensity.current
+        val badgeShape = remember(density.density) { PrismShape(9f * density.density) }
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(
                 Modifier
                     .size(28.dp)
-                    .clip(RoundedCornerShape(9.dp))
+                    .clip(badgeShape)
                     .background(accent.copy(alpha = 0.13f)),
                 contentAlignment = Alignment.Center,
             ) {

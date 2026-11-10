@@ -1,14 +1,12 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.nativeCanvas
@@ -53,11 +51,11 @@ private class PressNode(private val interactionSource: InteractionSource) :
                 when (interaction) {
                     is PressInteraction.Press -> {
                         animatable.stop()
-                        launch { animatable.animateTo(1f, tween(200)) }
+                        launch { animatable.animateTo(1f, PrismMotion.tween(PrismMotion.Fast)) }
                     }
                     is PressInteraction.Release, is PressInteraction.Cancel -> {
                         animatable.stop()
-                        launch { animatable.animateTo(0f, tween(250)) }
+                        launch { animatable.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
                     }
                 }
             }

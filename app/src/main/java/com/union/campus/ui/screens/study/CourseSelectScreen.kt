@@ -13,22 +13,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.HowToVote
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.Storage
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -44,22 +37,25 @@ import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.UnionScreenScaffold
-import com.union.campus.ui.common.dataOrNull
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismChip
+import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSlider
+import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.CardHeader
+import com.union.campus.ui.prism.PrismCheckMark
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.SurfaceLevel
 
 // ---------------- 选课 ----------------
 
@@ -72,7 +68,6 @@ data class SelectableCourse(
 )
 
 /** 选课：轮次、可选课程、已选统计与提交。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CourseSelectScreen(
     onBack: () -> Unit,
@@ -112,21 +107,10 @@ fun CourseSelectScreen(
 
     val totalCredit = selected.sumOf { it.credit.toDoubleOrNull() ?: 0.0 }
 
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "选课",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("选课", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                actions = {
-                    IconButton(onClick = {}) { Icon(Icons.Rounded.HowToVote, contentDescription = "轮次") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -137,11 +121,11 @@ fun CourseSelectScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (val s = state) {
-                is UiState.Loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
-                is UiState.Failed -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(s.message, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (s.isAuth) Text("可到「我的 → 凭证中心」重新登录", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                is UiState.Loading -> PrismLoadingBlock(label = "正在加载可选课程")
+                is UiState.Failed -> PrismErrorState(
+                    message = s.message,
+                    hint = "可到「我的 → 凭证中心」重新登录".takeIf { s.isAuth },
+                )
                 is UiState.Empty -> NullStatus(Icons.Rounded.HowToVote, "选课未开放", s.hint)
                 is UiState.Ready -> {
                     Text("可选课程", style = headlineStyle())
@@ -153,12 +137,7 @@ fun CourseSelectScreen(
                                 index = i, count = s.data.size,
                                 leading = { IconBadge(when (i % 3) { 0 -> Icons.Rounded.Storage; 1 -> Icons.Rounded.SmartToy; else -> Icons.Rounded.Movie }) },
                                 trailing = {
-                                    Icon(
-                                        Icons.Rounded.Check, null,
-                                        tint = if (selected.contains(c)) MaterialTheme.colorScheme.primary
-                                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f),
-                                        modifier = Modifier.width(24.dp),
-                                    )
+                                    PrismCheckMark(checked = selected.contains(c))
                                 },
                                 onClick = {
                                     selected = if (selected.contains(c)) selected - c else selected + c
@@ -196,7 +175,6 @@ fun CourseSelectScreen(
 // ---------------- 选课确认 ----------------
 
 /** 确认选课：提交前检查（冲突/学分/轮次）。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConfirmSelectionScreen(
     course: SelectableCourse,
@@ -240,18 +218,10 @@ fun ConfirmSelectionScreen(
         )
     }
 
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "确认选课",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("确认选课", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -276,10 +246,11 @@ fun ConfirmSelectionScreen(
                 onClick = { submit() },
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !submitting,
+                loading = submitting,
             ) {
                 Icon(Icons.Rounded.Check, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (submitting) "提交中…" else "确认提交")
+                Text("确认提交")
             }
             PrismTextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
                 Text("返回修改")
@@ -292,7 +263,6 @@ fun ConfirmSelectionScreen(
 // ---------------- 教学评价 ----------------
 
 /** 教学评价：待评课程、三项评分、主观意见与提交。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun EvaluationScreen(
     onBack: () -> Unit,
@@ -370,18 +340,10 @@ fun EvaluationScreen(
         )
     }
 
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "教学评价",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("教学评价", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -392,7 +354,7 @@ fun EvaluationScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
+                loading -> PrismLoadingBlock(label = "正在加载评教信息")
                 error != null -> Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 pending.isEmpty() -> NullStatus(Icons.Rounded.Star, "当前没有进行中的评教", "评教开放时会显示在这里")
                 else -> {
@@ -403,10 +365,10 @@ fun EvaluationScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             pending.forEach { p ->
-                                FilterChip(
+                                PrismChip(
+                                    label = p.courseName,
                                     selected = current == p,
                                     onClick = { current = p },
-                                    label = { Text(p.courseName) },
                                 )
                             }
                         }
@@ -416,18 +378,21 @@ fun EvaluationScreen(
                         SliderQuestion("课堂组织", q1) { q1 = it }
                         SliderQuestion("教学态度", q2) { q2 = it }
                         SliderQuestion("收获程度", q3) { q3 = it }
-                        androidx.compose.material3.OutlinedTextField(
+                        PrismTextField(
                             value = comment,
                             onValueChange = { comment = it },
-                            label = { Text("主观意见（选填）") },
-                            modifier = Modifier.fillMaxWidth(),
+                            label = "主观意见（选填）",
+                            singleLine = false,
+                            minLines = 3,
+                            maxLines = 6,
                         )
                         PrismButton(
                             onClick = { confirmSubmit = true },
                             modifier = Modifier.fillMaxWidth(),
                             enabled = !submitting,
+                            loading = submitting,
                         ) {
-                            Text(if (submitting) "提交中…" else "提交评教")
+                            Text("提交评教")
                         }
                         Text("评教结果仅在教务系统生效", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
@@ -446,6 +411,6 @@ private fun SliderQuestion(title: String, value: Float, onChange: (Float) -> Uni
             Spacer(Modifier.weight(1f))
             Text("${(value * 100).toInt()} 分", style = subheadlineStyle(), color = MaterialTheme.colorScheme.primary)
         }
-        Slider(value = value, onValueChange = onChange, valueRange = 0f..1f)
+        PrismSlider(value = value, onValueChange = onChange, valueRange = 0f..1f)
     }
 }

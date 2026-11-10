@@ -136,9 +136,7 @@ fun WelcomeScreen(
 
         PrismButton(
             onClick = onStartBinding,
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text("开始绑定")
             Spacer(Modifier.width(8.dp))

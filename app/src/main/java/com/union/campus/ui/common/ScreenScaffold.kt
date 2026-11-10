@@ -4,14 +4,10 @@ import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -32,17 +28,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.ui.prism.NullStatus
-import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSkeletonList
-import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
 
@@ -92,7 +83,7 @@ fun UnionScreenScaffold(
                         }
                     },
                     actions = actions,
-                    colors = TopAppBarDefaults.mediumTopAppBarColors(
+                    colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = Color.Transparent,
                         scrolledContainerColor = surfaceColorOf(SurfaceLevel.Page).copy(alpha = 0.94f),
                     ),
@@ -150,26 +141,11 @@ fun <T> StateContent(
                     Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Column(
-                        Modifier.padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            current.message,
-                            style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            textAlign = TextAlign.Center,
-                        )
-                        PrismButton(filled = false, onClick = onRetry) { Text(retryText) }
-                        if (current.isAuth) {
-                            Text(
-                                "可到「我的 → 凭证中心」重新登录",
-                                style = footnoteStyle(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    com.union.campus.ui.prism.PrismErrorState(
+                        message = current.message,
+                        hint = if (current.isAuth) "可到「我的 → 凭证中心」重新登录" else null,
+                        onRetry = onRetry,
+                    )
                 }
                 is UiState.Empty -> Box(
                     Modifier.fillMaxSize(),

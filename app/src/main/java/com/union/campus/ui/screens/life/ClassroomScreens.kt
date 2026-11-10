@@ -9,52 +9,38 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.Block
 import androidx.compose.material.icons.rounded.CalendarMonth
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.MeetingRoom
-import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.FreeClassroom
 import com.union.campus.domain.TeachingBuilding
-import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismChip
+import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
-import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.SurfaceLevel
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -99,16 +85,10 @@ fun FreeClassroomsScreen(
         loading = false
     }
 
-    Scaffold(
+    UnionScreenScaffold(
+        title = "空闲教室",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("空闲教室", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -123,27 +103,29 @@ fun FreeClassroomsScreen(
 
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 dayLabels.forEachIndexed { i, label ->
-                    FilterChip(selected = dateOffset == i, onClick = { dateOffset = i }, label = { Text(label) })
+                    PrismChip(
+                        label = label,
+                        selected = dateOffset == i,
+                        onClick = { dateOffset = i },
+                    )
                 }
             }
             Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 buildings.forEach { b ->
-                    FilterChip(
+                    PrismChip(
+                        label = b.name,
                         selected = building?.dm == b.dm,
                         onClick = { building = b },
-                        label = { Text(b.name) },
                     )
                 }
             }
 
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(Modifier.padding(32.dp))
-                error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (!jw.isBound()) {
-                        Text("登录教务后可查询真实空闲教室", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
+                loading -> PrismLoadingBlock(label = "正在查询空闲教室")
+                error != null -> PrismErrorState(
+                    message = error ?: "",
+                    hint = if (!jw.isBound()) "登录教务后可查询真实空闲教室" else null,
+                )
                 rooms.isEmpty() -> NullStatus(
                     Icons.Rounded.MeetingRoom,
                     "暂无空闲教室数据",
@@ -183,16 +165,10 @@ fun ClassroomDetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
+    UnionScreenScaffold(
+        title = "教室详情",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("教室详情", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier

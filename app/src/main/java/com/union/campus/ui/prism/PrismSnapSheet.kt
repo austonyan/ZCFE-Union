@@ -1,6 +1,12 @@
 package com.union.campus.ui.prism
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -15,6 +21,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -52,9 +59,9 @@ fun PrismSnapSheet(
     startAt: Float = SnapSheetDefaults.Half,
     content: @Composable () -> Unit,
 ) {
-    if (!visible) return
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
+    val haptics = rememberPrismHaptics()
     val rootHeight = LocalWindowInfo.current.containerSize.height
     val minPx = rootHeight * SnapSheetDefaults.Half
     val maxPx = rootHeight * SnapSheetDefaults.Full
@@ -63,11 +70,21 @@ fun PrismSnapSheet(
         Animatable(startAt.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full))
     }
 
+    if (visible) {
+        BackHandler(onBack = onDismiss)
+    }
+
+    LaunchedEffect(visible) {
+        if (visible) {
+            fraction.snapTo(startAt.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full))
+        }
+    }
+
     suspend fun snapTo(target: Float) {
         fraction.animateTo(target.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full), SnapSheetDefaults.SnapSpring)
     }
 
-    val scrollConnection = remember {
+    val scrollConnection = remember(rootHeight, minPx, maxPx) {
         object : NestedScrollConnection {
             override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
                 val dy = available.y
@@ -103,63 +120,75 @@ fun PrismSnapSheet(
             ),
         )
     }
+    val handleShape = remember(density.density) { PrismShape(2f * density.density) }
 
     Box(modifier.fillMaxSize()) {
         val scrimColor = MaterialTheme.colorScheme.scrim
             .copy(alpha = if (LocalPrismDark.current) 0.48f else 0.20f)
-        Box(
-            Modifier
-                .fillMaxSize()
-                .background(scrimColor)
-                .clickable(onClick = onDismiss),
-        )
+        AnimatedVisibility(
+            visible = visible,
+            enter = fadeIn(PrismMotion.tween(PrismMotion.Fast)),
+            exit = fadeOut(PrismMotion.tween(PrismMotion.Standard)),
+        ) {
+            Box(
+                Modifier
+                    .fillMaxSize()
+                    .background(scrimColor)
+                    .clickable(onClick = onDismiss),
+            )
+        }
 
-        val sheetHeightDp = with(density) { (fraction.value * rootHeight).toDp() }
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(sheetHeightDp)
-                .draggable(
-                    orientation = Orientation.Vertical,
-                    state = rememberDraggableState { delta ->
-                        scope.launch {
-                            fraction.snapTo(
-                                ((fraction.value * rootHeight - delta) / rootHeight)
-                                    .coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full),
-                            )
-                        }
-                    },
-                    onDragStopped = { velocity ->
-                        val v = velocity / rootHeight
-                        if (v > 1.2f) {
-                            onDismiss()
-                        } else {
+        AnimatedVisibility(
+            visible = visible,
+            modifier = Modifier.align(Alignment.BottomCenter),
+            enter = slideInVertically(PrismMotion.tween(PrismMotion.Emphasized)) { it },
+            exit = slideOutVertically(PrismMotion.tween(PrismMotion.Standard)) { it },
+        ) {
+            val sheetHeightDp = with(density) { (fraction.value * rootHeight).toDp() }
+            Box(
+                Modifier
+                    .fillMaxWidth()
+                    .height(sheetHeightDp)
+                    .draggable(
+                        orientation = Orientation.Vertical,
+                        state = rememberDraggableState { delta ->
                             scope.launch {
-                                snapTo(
-                                    if (v < -0.05f ||
-                                        fraction.value > (SnapSheetDefaults.Half + SnapSheetDefaults.Full) / 2
-                                    ) SnapSheetDefaults.Full else SnapSheetDefaults.Half,
+                                fraction.snapTo(
+                                    ((fraction.value * rootHeight - delta) / rootHeight)
+                                        .coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full),
                                 )
                             }
-                        }
-                    },
-                )
-                .clip(topShape)
-                .background(surfaceColorOf(SurfaceLevel.Page))
-                .nestedScroll(scrollConnection),
-        ) {
-            Column(Modifier.fillMaxSize()) {
-                Box(
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(top = 6.dp)
-                        .width(28.dp)
-                        .height(4.dp)
-                        .clip(PrismShape(2.dp.value))
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
-                )
-                Box(Modifier.weight(1f)) { content() }
+                        },
+                        onDragStopped = { velocity ->
+                            val v = velocity / rootHeight
+                            if (v > 1.2f) {
+                                haptics.tap()
+                                onDismiss()
+                            } else {
+                                val target = if (v < -0.05f ||
+                                    fraction.value > (SnapSheetDefaults.Half + SnapSheetDefaults.Full) / 2
+                                ) SnapSheetDefaults.Full else SnapSheetDefaults.Half
+                                haptics.select()
+                                scope.launch { snapTo(target) }
+                            }
+                        },
+                    )
+                    .clip(topShape)
+                    .background(surfaceColorOf(SurfaceLevel.Page))
+                    .nestedScroll(scrollConnection),
+            ) {
+                Column(Modifier.fillMaxSize()) {
+                    Box(
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(top = 6.dp)
+                            .width(28.dp)
+                            .height(4.dp)
+                            .clip(handleShape)
+                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
+                    )
+                    Box(Modifier.weight(1f)) { content() }
+                }
             }
         }
     }

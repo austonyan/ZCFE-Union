@@ -53,6 +53,15 @@ fun SettingsScreen(
     )
     val jSlot = config.slotFor(BuildingGroup.J1ToJ6)
     val sSlot = config.slotFor(BuildingGroup.S1ToS6AndJ7)
+    val remindEnabled by settings.remindEnabled.collectAsState(initial = true)
+    val quietOn by settings.quietEnabled.collectAsState(initial = true)
+    val quietStart by settings.quietStart.collectAsState(initial = 23)
+    val quietEnd by settings.quietEnd.collectAsState(initial = 7)
+    val reminderSummary = when {
+        !remindEnabled -> "已暂停全部提醒"
+        quietOn -> "提醒已开启 · 免打扰 %02d:00–%02d:00".format(quietStart, quietEnd)
+        else -> "提醒已开启 · 免打扰关闭"
+    }
 
     UnionScreenScaffold(
         title = "设置",
@@ -82,7 +91,7 @@ fun SettingsScreen(
             PrismGroupedList {
                 PrismRow(
                     title = "提醒中心",
-                    subtitle = "上课、考试、低电费与免打扰",
+                    subtitle = reminderSummary,
                     index = 0, count = 1,
                     leading = { IconBadge(Icons.Rounded.Notifications) },
                     onClick = onOpenReminders,

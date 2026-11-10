@@ -12,42 +12,37 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Share
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.union.campus.UnionApplicationHolder
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.Exam
 import com.union.campus.domain.Grade
+import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
+import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.SurfaceLevel
 
 // ---------------- 课程详情 ----------------
 
@@ -60,18 +55,10 @@ fun CourseDetailScreen(
     onOpenTimetable: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "课程详情",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("课程详情", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -109,14 +96,15 @@ fun CourseDetailScreen(
                 }
             }
 
-            Button(onClick = onOpenTimetable, modifier = Modifier.fillMaxWidth().height(52.dp)) {
+            PrismButton(onClick = onOpenTimetable, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Group, null)
                 Spacer(Modifier.width(8.dp))
                 Text("查看同班课表")
             }
-            androidx.compose.material3.OutlinedButton(
+            PrismButton(
+                filled = false,
                 onClick = { addToCalendar(cell.name, "${cell.weeks} ${cell.sections} ${cell.location}") },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.CalendarMonth, null)
                 Spacer(Modifier.width(8.dp))
@@ -149,23 +137,15 @@ fun GradeDetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "成绩详情",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("成绩详情", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                actions = {
-                    IconButton(onClick = {
-                        val text = "${grade.courseName}: ${grade.score} 分 / ${grade.credits} 学分（学号已隐藏）— 来自 郑财校园"
-                        UnionApplicationHolder.clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("union", text))
-                    }) { Icon(Icons.Rounded.Share, "分享") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
+        actions = {
+            IconButton(onClick = {
+                val text = "${grade.courseName}: ${grade.score} 分 / ${grade.credits} 学分（学号已隐藏）— 来自 郑财校园"
+                UnionApplicationHolder.clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("union", text))
+            }) { Icon(Icons.Rounded.Share, "分享") }
         },
     ) { padding ->
         Column(
@@ -226,18 +206,10 @@ fun ExamsScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "考试",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("考试", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -260,14 +232,12 @@ fun ExamsScreen(
             }
 
             when {
-                loading -> androidx.compose.material3.CircularProgressIndicator(
-                    Modifier.padding(32.dp).align(Alignment.CenterHorizontally),
+                loading -> PrismLoadingBlock(label = "正在加载考试安排")
+                error != null -> PrismErrorState(
+                    message = error,
+                    hint = if (isAuth) "可到「我的 → 凭证中心」重新登录" else null,
+                    onRetry = onRetry,
                 )
-                error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(error, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = onRetry) { Text("重试") }
-                    if (isAuth) Text("可到「我的 → 凭证中心」重新登录", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
                 exams.isEmpty() -> com.union.campus.ui.prism.NullStatus(
                     icon = Icons.Rounded.Event,
                     title = "暂未发布考试安排",
@@ -296,11 +266,11 @@ fun ExamsScreen(
                             )
                         }
                     }
-                    Button(
+                    PrismButton(
                         onClick = {
                             exams.forEach { addToCalendar(it.courseName, "${it.time} ${it.location} ${it.seatNo}") }
                         },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Rounded.CalendarMonth, null)
                         Spacer(Modifier.width(8.dp))
@@ -330,18 +300,10 @@ fun ExamDetailScreen(
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    androidx.compose.material3.Scaffold(
+    UnionScreenScaffold(
+        title = "考试详情",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("考试详情", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -367,9 +329,9 @@ fun ExamDetailScreen(
                 Spacer(Modifier.height(6.dp))
                 Text("已设置 7 天 / 1 天 / 2 小时提醒（可在提醒中心关闭）", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            Button(
+            PrismButton(
                 onClick = { addToCalendar(exam.courseName, "${exam.time} ${exam.location} ${exam.seatNo}") },
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.CalendarMonth, null)
                 Spacer(Modifier.width(8.dp))

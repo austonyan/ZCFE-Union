@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -21,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 
@@ -30,8 +29,10 @@ import androidx.compose.material3.MaterialTheme
 @Composable
 fun PrismSkeleton(
     modifier: Modifier = Modifier,
-    shape: Shape = RoundedCornerShape(10.dp),
+    corner: Float = PrismCorner.Sm,
 ) {
+    val density = LocalDensity.current
+    val shape = remember(density.density, corner) { PrismShape(corner * density.density) }
     val enabled = prismAnimationsEnabled()
     val transition = rememberInfiniteTransition(label = "prism-skeleton")
     val shimmerState = if (enabled) {
@@ -39,7 +40,7 @@ fun PrismSkeleton(
             initialValue = 0f,
             targetValue = 1f,
             animationSpec = infiniteRepeatable(
-                animation = tween(1200, easing = LinearEasing),
+                animation = tween(PrismMotion.Shimmer, easing = LinearEasing),
                 repeatMode = RepeatMode.Restart,
             ),
             label = "prism-shimmer",
@@ -78,13 +79,13 @@ fun PrismSkeletonList(
         if (showHero) {
             PrismSkeleton(
                 modifier = Modifier.fillMaxWidth().height(132.dp),
-                shape = RoundedCornerShape(18.dp),
+                corner = 18f,
             )
         }
         repeat(rows.coerceAtLeast(1)) {
             PrismSkeleton(
                 modifier = Modifier.fillMaxWidth().height(64.dp),
-                shape = RoundedCornerShape(16.dp),
+                corner = PrismCorner.Md,
             )
         }
     }

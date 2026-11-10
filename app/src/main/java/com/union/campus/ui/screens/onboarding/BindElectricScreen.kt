@@ -1,7 +1,6 @@
 package com.union.campus.ui.screens.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -15,21 +14,15 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
-import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.ExposedDropdownMenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +44,7 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismProgressRail
+import com.union.campus.ui.prism.PrismDropdownField
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.headlineStyle
@@ -330,7 +324,7 @@ fun BindElectricScreen(
             PrismButton(
                 onClick = { doBind() },
                 loading = loading,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Link, null)
                 Spacer(Modifier.width(8.dp))
@@ -367,33 +361,14 @@ fun DropdownField(
     enabled: Boolean = true,
     loadHint: String? = null,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    Box(modifier) {
-        OutlinedTextField(
-            value = selected ?: "",
-            onValueChange = {},
-            readOnly = true,
-            enabled = enabled,
-            label = { Text(label) },
-            leadingIcon = icon?.let { { Icon(it, null) } },
-            supportingText = loadHint?.let { { Text(it) } },
-            trailingIcon = {
-                IconButton(onClick = { if (enabled && options.isNotEmpty()) expanded = !expanded }) {
-                    Icon(Icons.Rounded.ArrowDropDown, contentDescription = "展开")
-                }
-            },
-            modifier = Modifier.fillMaxWidth(),
-        )
-        androidx.compose.material3.DropdownMenu(
-            expanded = expanded && options.isNotEmpty() && enabled,
-            onDismissRequest = { expanded = false },
-        ) {
-            options.forEachIndexed { index, option ->
-                DropdownMenuItem(
-                    text = { Text(option) },
-                    onClick = { onSelected(index); expanded = false },
-                )
-            }
-        }
-    }
+    PrismDropdownField(
+        label = label,
+        options = options,
+        selected = selected,
+        onSelected = onSelected,
+        modifier = modifier,
+        leadingIcon = icon,
+        enabled = enabled,
+        supportingText = loadHint,
+    )
 }

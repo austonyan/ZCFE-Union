@@ -11,12 +11,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.Badge
-import androidx.compose.material.icons.rounded.Book
-import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -30,21 +27,16 @@ import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tag
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -64,16 +56,14 @@ import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
-import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.SurfaceLevel
 
 // ---------------- 教材 ----------------
 
@@ -301,9 +291,10 @@ fun StudentRecordScreen(
                         PrismRow(title = "学籍状态", subtitle = r.status, index = 3, count = 5, leading = { IconBadge(Icons.Rounded.CheckCircle) })
                         PrismRow(title = "身份证", subtitle = r.idCardMasked.ifBlank { "已脱敏 · 仅本人可见" }, index = 4, count = 5, leading = { IconBadge(Icons.Rounded.Lock) })
                     }
-                    androidx.compose.material3.OutlinedButton(
+                    PrismButton(
+                        filled = false,
                         onClick = { launchUi { familyInfo = "家庭信息来自教务系统 getZgjbxx；当前未开放编辑，仅查看。" } },
-                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Rounded.FamilyRestroom, null)
                         Spacer(Modifier.width(8.dp))
@@ -385,18 +376,10 @@ fun NoticeDetailScreen(
     onOpenExams: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Scaffold(
+    UnionScreenScaffold(
+        title = "通知详情",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("通知详情", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = {
-                    IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -440,14 +423,11 @@ fun <T> StateBlock(
     onRetry: () -> Unit,
 ) {
     when (state) {
-        is UiState.Loading -> Column(
-            Modifier.fillMaxWidth().padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) { androidx.compose.material3.CircularProgressIndicator() }
-        is UiState.Failed -> Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            Text(state.message, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            PrismTextButton(onClick = onRetry) { Text("重试") }
-        }
+        is UiState.Loading -> PrismLoadingBlock(label = "正在加载")
+        is UiState.Failed -> PrismErrorState(
+            message = state.message,
+            onRetry = onRetry,
+        )
         is UiState.Empty -> NullStatus(icon = icon, title = "暂无数据", subtitle = state.hint)
         is UiState.Ready -> {}
     }

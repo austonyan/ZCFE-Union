@@ -1,7 +1,6 @@
 package com.union.campus.ui.screens.life
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -14,7 +13,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -29,11 +27,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.domain.ElectricStats
+import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
 
@@ -75,6 +76,15 @@ fun ElectricBarChart(
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
     val valueColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
     val haptics = rememberPrismHaptics()
+    val density = LocalDensity.current
+    val barShape = remember(density.density) {
+        PrismShape(
+            0f,
+            corners = floatArrayOf(
+                4f * density.density, 4f * density.density, 0f, 0f,
+            ),
+        )
+    }
     var selected by remember(bars) { mutableStateOf<Int?>(null) }
     val activeIndex = selected ?: highlightIndex
     val activeBar = activeIndex?.let { bars.getOrNull(it) }
@@ -161,8 +171,8 @@ fun ElectricBarChart(
                             LaunchedEffect(target) {
                                 animation.animateTo(
                                     targetValue = target,
-                                    animationSpec = tween(
-                                        durationMillis = 500,
+                                    animationSpec = PrismMotion.tween(
+                                        durationMillis = PrismMotion.Slow,
                                         delayMillis = (index * 30).coerceAtMost(180),
                                     ),
                                 )
@@ -171,7 +181,7 @@ fun ElectricBarChart(
                                 Modifier
                                     .fillMaxWidth(0.56f)
                                     .fillMaxHeight(animation.value)
-                                    .clip(RoundedCornerShape(topStart = 4.dp, topEnd = 4.dp))
+                                    .clip(barShape)
                                     .background(
                                         if (activeIndex == index) barColor
                                         else barColor.copy(alpha = 0.5f),

@@ -5,25 +5,20 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.navigation.Screen
+import com.union.campus.ui.common.UnionScreenScaffold
+import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.bodyStyle
+import com.union.campus.ui.prism.footnoteStyle
+import com.union.campus.ui.prism.pageTitleStyle
 
 /** 壳阶段的占位屏幕：统一的顶部应用栏 + 居中提示，后续阶段逐屏替换为完整实现。 */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScreenPlaceholder(
     screen: Screen,
@@ -31,23 +26,10 @@ fun ScreenPlaceholder(
     modifier: Modifier = Modifier,
     onBack: () -> Unit = {},
 ) {
-    Scaffold(
+    UnionScreenScaffold(
+        title = screen.title,
+        onBack = if (showBack) onBack else null,
         modifier = modifier,
-        topBar = {
-            TopAppBar(
-                title = { Text(screen.title) },
-                navigationIcon = {
-                    if (showBack) {
-                        IconButton(onClick = onBack) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "返回",
-                            )
-                        }
-                    }
-                },
-            )
-        },
     ) { padding ->
         Box(
             modifier = Modifier
@@ -62,25 +44,19 @@ fun ScreenPlaceholder(
             ) {
                 Text(
                     text = screen.title,
-                    style = MaterialTheme.typography.headlineMedium,
+                    style = pageTitleStyle(),
                     color = MaterialTheme.colorScheme.onSurface,
                 )
                 Text(
                     text = screen.route,
-                    style = MaterialTheme.typography.labelMedium,
+                    style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.primary,
                 )
-                Card(
-                    colors = CardDefaults.cardColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-                    ),
-                    shape = MaterialTheme.shapes.extraLarge,
-                ) {
+                PrismCard {
                     Text(
                         text = "此屏幕为壳阶段占位，完整功能将在后续阶段实现。",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = bodyStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
                     )
                 }
             }

@@ -32,6 +32,13 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         val lowElectricOn = settings.remindLowElectric.first()
         if (!remindEnabled || !lowElectricOn) return Result.success()
 
+        // 免打扰：静音时段内不发系统通知（应用内待办不受影响）
+        if (settings.quietEnabled.first()) {
+            val start = settings.quietStart.first()
+            val end = settings.quietEnd.first()
+            if (inQuietHours(start, end)) return Result.success()
+        }
+
         val electric = ServiceLocator.electricRepository
         if (!electric.isBound()) return Result.success()
         val threshold = settings.lowElectricThreshold.first()
@@ -50,6 +57,21 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             Result.success()
         } catch (_: Exception) {
             Result.success() // 后台检查失败不打扰
+        }
+    }
+
+    /** 支持跨零点，例如 23 → 7。 */
+    private fun inQuietHours(
+        startHour: Int,
+        endHour: Int,
+        now: Calendar = Calendar.getInstance(),
+    ): Boolean {
+        if (startHour == endHour) return false
+        val hour = now.get(Calendar.HOUR_OF_DAY)
+        return if (startHour < endHour) {
+            hour in startHour until endHour
+        } else {
+            hour >= startHour || hour < endHour
         }
     }
 

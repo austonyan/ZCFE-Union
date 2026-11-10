@@ -1,9 +1,9 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
-import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.scaleIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -16,17 +16,18 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -97,18 +99,23 @@ fun PrismCard(
     val shape = remember(corner, density.density) {
         PrismShape(corner * density.density)
     }
+    val fill by animateColorAsState(
+        targetValue = containerColor,
+        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        label = "card-container",
+    )
     if (onClick != null) {
         Surface(
             modifier = modifier
                 .clip(shape)
                 .clickable(onClick = onClick),
-            color = containerColor,
+            color = fill,
             shape = shape,
         ) {
             Column(Modifier.padding(contentPadding), content = content)
         }
     } else {
-        Surface(modifier = modifier, color = containerColor, shape = shape) {
+        Surface(modifier = modifier, color = fill, shape = shape) {
             Column(Modifier.padding(contentPadding), content = content)
         }
     }
@@ -148,7 +155,15 @@ fun PrismGroupedList(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(modifier = modifier.fillMaxWidth(), content = content)
+    val density = LocalDensity.current
+    val shape = remember(density.density) { PrismShape(PrismCorner.Xl * density.density) }
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(shape)
+            .background(surfaceColorOf(SurfaceLevel.Card)),
+        content = content,
+    )
 }
 
 @Composable
@@ -177,48 +192,54 @@ fun PrismRow(
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
-    Column(modifier = modifier.fillMaxWidth()) {
-        if (index > 0 && count > 1) GroupDivider()
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(groupRowShape(index, count))
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                .defaultMinSize(minHeight = 56.dp)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            if (leading != null) leading()
-            Column(Modifier.weight(1f)) {
-                Text(title, style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (!subtitle.isNullOrBlank()) {
-                    Text(subtitle, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
+        Column(modifier = modifier.fillMaxWidth()) {
+            if (index > 0 && count > 1) GroupDivider(
+                startPadding = if (leading != null) 72.dp else 16.dp,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(groupRowShape(index, count))
+                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                    .defaultMinSize(minHeight = 56.dp)
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                if (leading != null) leading()
+                Column(Modifier.weight(1f)) {
+                    Text(title, style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(subtitle, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                    }
                 }
-            }
-            if (trailing != null) {
-                trailing()
-            } else if (onClick != null) {
-                androidx.compose.material3.Icon(
-                    Icons.Rounded.ChevronRight,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                    modifier = Modifier.size(18.dp),
-                )
+                if (trailing != null) {
+                    trailing()
+                } else if (onClick != null) {
+                    androidx.compose.material3.Icon(
+                        Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
             }
         }
     }
 }
 
-/** 分组分隔线（hairline，左缩进 14）。 */
+/** 分组分隔线（hairline，默认从行标题端缩进）。 */
 @Composable
-fun GroupDivider(modifier: Modifier = Modifier) {
+fun GroupDivider(
+    modifier: Modifier = Modifier,
+    startPadding: Dp = 16.dp,
+) {
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .padding(start = 16.dp)
+            .padding(start = startPadding)
             .height(1.dp)
-            .padding(start = 14.dp)
             .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)),
     )
 }
@@ -305,11 +326,7 @@ fun NullStatus(
 
 @Composable
 private fun StaggerItem(shown: Boolean, index: Int, content: @Composable () -> Unit) {
-    AnimatedVisibility(
-        visible = shown,
-        enter = fadeIn(tween(220, delayMillis = 60 * index)) +
-            slideInVertically(tween(220, delayMillis = 60 * index)) { it / 2 },
-    ) { content() }
+    PrismReveal(visible = shown, index = index) { content() }
 }
 
 /** 小状态胶囊（MetaChip 风格：raised 底、sm8、caption2）。 */
@@ -345,26 +362,37 @@ fun PrismButton(
     filled: Boolean = true,
     enabled: Boolean = true,
     loading: Boolean = false,
+    containerColor: Color? = null,
+    contentColor: Color? = null,
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
     val density = LocalDensity.current
+    val haptics = rememberPrismHaptics()
     val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
-    val colors = if (filled) {
+    val base = if (filled) {
         Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
     } else {
         Pair(Color.Transparent, MaterialTheme.colorScheme.primary)
     }
+    val colors = (containerColor ?: base.first) to (contentColor ?: base.second)
+    val resolvedContainer = when {
+        !enabled && filled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        !filled -> Color.Transparent
+        else -> colors.first
+    }
     WithPressLook(PressLook.Tint) {
         Surface(
-            onClick = onClick,
+            onClick = {
+                haptics.tap()
+                onClick()
+            },
             enabled = enabled && !loading,
             modifier = modifier
                 .clip(pill)
                 .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp),
             shape = pill,
-            color = colors.first.takeIf { enabled }
-                ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+            color = resolvedContainer,
             border = if (!filled) androidx.compose.foundation.BorderStroke(
                 1.dp,
                 MaterialTheme.colorScheme.outline.takeIf { enabled }
@@ -380,11 +408,7 @@ fun PrismButton(
                 ProvideContentColor(colors.second.takeIf { enabled }
                     ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) {
                     if (loading) {
-                        androidx.compose.material3.CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = colors.second,
-                            strokeWidth = 2.dp,
-                        )
+                        PrismLoadingIndicator(size = 18.dp, strokeWidth = 2.dp, color = colors.second)
                     } else {
                         content()
                     }
@@ -410,9 +434,13 @@ fun PrismTextButton(
     enabled: Boolean = true,
     content: @Composable RowScope.() -> Unit,
 ) {
+    val haptics = rememberPrismHaptics()
     WithPressLook(PressLook.Tint) {
         Surface(
-            onClick = onClick,
+            onClick = {
+                haptics.tap()
+                onClick()
+            },
             enabled = enabled,
             modifier = modifier.defaultMinSize(minHeight = 40.dp),
             color = Color.Transparent,
@@ -422,7 +450,8 @@ fun PrismTextButton(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                ProvideContentColor(MaterialTheme.colorScheme.primary) { content() }
+                ProvideContentColor(MaterialTheme.colorScheme.primary.takeIf { enabled }
+                    ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) { content() }
             }
         }
     }
@@ -444,45 +473,59 @@ fun PrismAlertDialog(
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
         val density = LocalDensity.current
         val shape = remember(density.density) { PrismShape(PrismCorner.Alert * density.density) }
-        Surface(
-            modifier = modifier.width(348.dp),
-            shape = shape,
-            color = surfaceColorOf(SurfaceLevel.Card),
+        var shown by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { shown = true }
+        AnimatedVisibility(
+            visible = shown,
+            modifier = modifier.fillMaxWidth(0.92f).widthIn(max = 348.dp),
+            enter = fadeIn(PrismMotion.tween(PrismMotion.Fast)) +
+                scaleIn(
+                    initialScale = 0.92f,
+                    animationSpec = PrismMotion.springSnappy(),
+                ),
         ) {
-            Column(Modifier.padding(top = 24.dp, start = 20.dp, end = 20.dp, bottom = 16.dp)) {
-                Text(
-                    title,
-                    style = headlineStyle(),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    body,
-                    style = subheadlineStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(20.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (dismissText != null) {
-                        Box(Modifier.weight(1f)) {
-                            PrismButton(filled = false, onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                                Text(dismissText)
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                shape = shape,
+                color = surfaceColorOf(SurfaceLevel.Card),
+            ) {
+                Column(Modifier.padding(top = 24.dp, start = 20.dp, end = 20.dp, bottom = 16.dp)) {
+                    Text(
+                        title,
+                        style = headlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        body,
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(20.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (dismissText != null) {
+                            Box(Modifier.weight(1f)) {
+                                PrismButton(filled = false, onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                                    Text(dismissText)
+                                }
                             }
                         }
-                    }
-                    Box(Modifier.weight(1f)) {
-                        PrismButton(
-                            onClick = { onDismiss(); onConfirm() },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(
-                                confirmText,
-                                color = if (destructive) Color.White else Color.Unspecified,
-                            )
+                        Box(Modifier.weight(1f)) {
+                            PrismButton(
+                                onClick = {
+                                    onDismiss()
+                                    onConfirm()
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                                containerColor = if (destructive) MaterialTheme.colorScheme.error else null,
+                                contentColor = if (destructive) MaterialTheme.colorScheme.onError else null,
+                            ) {
+                                Text(confirmText)
+                            }
                         }
                     }
                 }

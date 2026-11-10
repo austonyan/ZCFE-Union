@@ -13,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.unit.dp
 
 /** Prism 输入框：连续圆角 16、聚焦 2dp 主色、卡片底、错误内联。 */
 @Composable
@@ -28,6 +27,8 @@ fun PrismTextField(
     isError: Boolean = false,
     keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
     singleLine: Boolean = true,
+    minLines: Int = 1,
+    maxLines: Int = if (singleLine) 1 else 6,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     enabled: Boolean = true,
 ) {
@@ -56,6 +57,8 @@ fun PrismTextField(
         isError = isError,
         keyboardOptions = keyboardOptions,
         singleLine = singleLine,
+        minLines = minLines,
+        maxLines = maxLines,
         visualTransformation = visualTransformation,
         enabled = enabled,
         shape = shape,

@@ -19,12 +19,13 @@ class TodoRepository constructor(
 ) {
     /** 从缓存聚合本地待办（不主动打网络；各屏刷新时更新来源缓存）。 */
     suspend fun localTodos(): List<TodoItem> {
+        if (!settings.remindEnabled.first()) return emptyList()
         val todos = mutableListOf<TodoItem>()
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
         val today = LocalDate.now()
 
         // 评教：待评数（来自评教页最近拉取）
-        jw.let {
+        if (settings.remindEvaluation.first()) jw.let {
             val pending = try {
                 it.pendingEvaluations()
             } catch (_: AppError) {
@@ -44,7 +45,7 @@ class TodoRepository constructor(
         }
 
         // 考试倒计时
-        runCatching {
+        if (settings.remindExam.first()) runCatching {
             val sem = jw.currentSemesterDm()
             if (sem.isNotBlank()) {
                 val exams = jw.exams(sem)
@@ -66,7 +67,7 @@ class TodoRepository constructor(
         }
 
         // 低电费
-        runCatching {
+        if (settings.remindLowElectric.first()) runCatching {
             val threshold = settings.lowElectricThreshold.first()
             val rooms = electric.rooms()
             rooms.firstOrNull()?.let { room ->

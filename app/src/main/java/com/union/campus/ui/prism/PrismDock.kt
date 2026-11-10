@@ -1,7 +1,14 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -29,6 +36,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -86,6 +94,15 @@ fun PrismDock(
                         animationSpec = PrismMotion.tween(PrismMotion.Quick),
                         label = "dock-color",
                     )
+                    val iconScale by animateFloatAsState(
+                        targetValue = when {
+                            !prismAnimationsEnabled() -> 1f
+                            selected -> 1.08f
+                            else -> 1f
+                        },
+                        animationSpec = PrismMotion.springSnappy(),
+                        label = "dock-icon-scale",
+                    )
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -107,11 +124,23 @@ fun PrismDock(
                                     imageVector = tab.tabIcon ?: Icons.Rounded.Home,
                                     contentDescription = tab.title,
                                     tint = contentColor,
-                                    modifier = Modifier.size(21.dp),
+                                    modifier = Modifier.size(21.dp).scale(iconScale),
                                 )
                                 if (lifeActive && tab == Screen.Life) {
+                                    val transition = rememberInfiniteTransition(label = "dock-live-dot")
+                                    val pulse by transition.animateFloat(
+                                        initialValue = 0.45f,
+                                        targetValue = 1f,
+                                        animationSpec = infiniteRepeatable(
+                                            animation = tween(900, easing = LinearEasing),
+                                            repeatMode = RepeatMode.Reverse,
+                                        ),
+                                        label = "dock-live-alpha",
+                                    )
                                     PrismStatusDot(
-                                        color = PrismStatus.success(),
+                                        color = PrismStatus.success().copy(
+                                            alpha = if (prismAnimationsEnabled()) pulse else 1f,
+                                        ),
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)
                                             .offset(x = 3.dp, y = (-2).dp),

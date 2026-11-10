@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -24,7 +25,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -89,8 +89,15 @@ fun PrismSnackbarHost(
     modifier: Modifier = Modifier,
 ) {
     val message = messenger.current
+    val haptics = rememberPrismHaptics()
     LaunchedEffect(message?.id) {
         val current = message ?: return@LaunchedEffect
+        when (current.tone) {
+            PrismMessageTone.Success -> haptics.success()
+            PrismMessageTone.Warning -> haptics.warning()
+            PrismMessageTone.Error -> haptics.error()
+            PrismMessageTone.Info -> Unit
+        }
         delay(if (current.actionLabel != null) 5000L else 3200L)
         messenger.dismiss(current.id)
     }
@@ -143,15 +150,16 @@ fun PrismSnackbarHost(
                         Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
                         Text(
                             text = current.text,
-                            style = MaterialTheme.typography.bodyMedium,
+                            style = subheadlineStyle(),
                             modifier = Modifier.weight(1f),
                         )
                         if (current.actionLabel != null) {
-                            TextButton(
+                            PrismTextButton(
                                 onClick = {
                                     current.onAction?.invoke()
                                     messenger.dismiss(current.id)
                                 },
+                                modifier = Modifier.defaultMinSize(minHeight = 36.dp),
                             ) {
                                 Text(current.actionLabel, color = content)
                             }

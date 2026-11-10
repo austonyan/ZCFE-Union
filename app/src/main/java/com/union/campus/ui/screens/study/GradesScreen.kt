@@ -9,24 +9,19 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Grade
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -43,15 +38,14 @@ import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.dataOrNull
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
-import com.union.campus.ui.common.runListUi
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.displayStyle
 import kotlinx.coroutines.flow.first
 
 /** 成绩：学期 GPA、有效/原始切换、学分进度。 */
@@ -135,10 +129,10 @@ fun GradesScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     semesters.take(8).forEach { sem ->
-                        FilterChip(
+                        PrismChip(
+                            label = sem.shortLabel,
                             selected = semesterDm == sem.dm,
                             onClick = { semesterDm = sem.dm; load() },
-                            label = { Text(sem.shortLabel) },
                         )
                     }
                 }
@@ -155,8 +149,8 @@ fun GradesScreen(
             }
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                FilterChip(selected = effective, onClick = { effective = true; load() }, label = { Text("有效成绩") })
-                FilterChip(selected = !effective, onClick = { effective = false; load() }, label = { Text("原始成绩") })
+                PrismChip(label = "有效成绩", selected = effective, onClick = { effective = true; load() })
+                PrismChip(label = "原始成绩", selected = !effective, onClick = { effective = false; load() })
             }
 
             StateContent(

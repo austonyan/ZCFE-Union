@@ -1,8 +1,6 @@
 package com.union.campus.app
 
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.CubicBezierEasing
-import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -40,6 +38,7 @@ import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismDock
+import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSnackbarHost
 import com.union.campus.ui.screens.life.ClassroomDetailScreen
 import com.union.campus.ui.screens.life.DeviceDetailScreen
@@ -84,10 +83,9 @@ import com.union.campus.ui.screens.today.TodayScreen
  * 页面转场（FlClash page_transition 复刻）：iOS 27 push——
  * 新页 300ms 临界阻尼弹簧从右滑入；被覆盖页回退 30% 并淡出。
  */
-private val PushEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
-private val PushSpec = tween<Float>(300, easing = PushEasing)
-private val PushOffsetSpec = tween<IntOffset>(300, easing = PushEasing)
-private val TabFade = tween<Float>(220, easing = PushEasing)
+private val PushSpec = PrismMotion.tween<Float>(PrismMotion.Emphasized)
+private val PushOffsetSpec = PrismMotion.tween<IntOffset>(PrismMotion.Emphasized)
+private val TabFade = PrismMotion.tween<Float>(PrismMotion.Standard)
 
 @Composable
 fun UnionApp(modifier: Modifier = Modifier) {

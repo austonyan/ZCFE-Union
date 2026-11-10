@@ -4,6 +4,7 @@ import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.TweenSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
@@ -18,13 +19,17 @@ object PrismMotion {
     const val Standard = 220
     const val Emphasized = 300
     const val Slow = 500
+    const val Shimmer = 1200
 
     val StandardEasing = CubicBezierEasing(0.2f, 0f, 0f, 1f)
     val Decelerate = CubicBezierEasing(0.05f, 0.7f, 0.1f, 1f)
     val Accelerate = CubicBezierEasing(0.3f, 0f, 1f, 1f)
 
-    fun <T> tween(durationMillis: Int = Standard): FiniteAnimationSpec<T> =
-        tween(durationMillis = durationMillis, easing = StandardEasing)
+    fun <T> tween(
+        durationMillis: Int = Standard,
+        delayMillis: Int = 0,
+    ): TweenSpec<T> =
+        tween(durationMillis = durationMillis, delayMillis = delayMillis, easing = StandardEasing)
 
     fun <T> springSmooth(stiffness: Float = 380f): FiniteAnimationSpec<T> =
         spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = stiffness)

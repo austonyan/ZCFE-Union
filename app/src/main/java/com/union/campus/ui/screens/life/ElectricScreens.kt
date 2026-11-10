@@ -15,30 +15,21 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Payment
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material3.Button
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -64,7 +55,6 @@ import com.union.campus.domain.ElectricUsage
 import com.union.campus.domain.ElectricUsageDay
 import com.union.campus.domain.ShowerOrder
 import com.union.campus.domain.ShowerWallet
-import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
@@ -72,22 +62,22 @@ import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismChip
+import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.LocalPrismMessenger
-import com.union.campus.ui.prism.MetaChip
 import com.union.campus.ui.prism.PrismAnimatedText
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismSkeletonList
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismTextField
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.SurfaceLevel
 import kotlinx.coroutines.flow.first
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -141,10 +131,10 @@ fun WalletScreen(
         ) {
             when {
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
-                error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text("洗浴账号未绑定或会话过期时可到凭证中心处理", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+                error != null -> PrismErrorState(
+                    message = error ?: "",
+                    hint = "洗浴账号未绑定或会话过期时可到凭证中心处理",
+                )
                 else -> {
                     val w = wallet
                     PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
@@ -264,23 +254,17 @@ fun ElectricScreen(
             onConfirm = { result = null }, onDismiss = { result = null })
     }
 
-    Scaffold(
+    UnionScreenScaffold(
+        title = "电费",
+        onBack = onBack,
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
-        topBar = {
-            TopAppBar(
-                title = { Text("电费", style = MaterialTheme.typography.titleMedium) },
-                navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Rounded.ArrowBack, "返回") } },
-                actions = {
-                    IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "更多") }
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; load(true) })
-                        DropdownMenuItem(text = { Text("添加房间") }, onClick = { menuOpen = false; onOpenBind() })
-                        DropdownMenuItem(text = { Text("解绑房间") }, onClick = { menuOpen = false; unbindConfirm = true })
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-            )
+        actions = {
+            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "更多") }
+            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; load(true) })
+                DropdownMenuItem(text = { Text("添加房间") }, onClick = { menuOpen = false; onOpenBind() })
+                DropdownMenuItem(text = { Text("解绑房间") }, onClick = { menuOpen = false; unbindConfirm = true })
+            }
         },
     ) { padding ->
         Column(
@@ -292,7 +276,7 @@ fun ElectricScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Box {
-                TextButton(
+                PrismTextButton(
                     onClick = { if (rooms.size > 1) roomMenu = true },
                     enabled = rooms.size > 1,
                 ) {
@@ -334,10 +318,10 @@ fun ElectricScreen(
 
             when {
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
-                error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { load(true) }) { Text("重试") }
-                }
+                error != null -> PrismErrorState(
+                    message = error ?: "",
+                    onRetry = { load(true) },
+                )
                 !electric.isBound() -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     NullStatus(Icons.Rounded.Bolt, "电费未绑定", "绑定宿舍房间后可查看余额与用量")
                     PrismButton(onClick = onOpenBind, modifier = Modifier.fillMaxWidth()) {
@@ -417,7 +401,7 @@ fun ElectricScreen(
                                     color = PrismStatus.onWarningContainer(),
                                     modifier = Modifier.weight(1f),
                                 )
-                                TextButton(onClick = onOpenTopUp) {
+                                PrismTextButton(onClick = onOpenTopUp) {
                                     Text("去充值", color = PrismStatus.warning())
                                 }
                             }
@@ -518,13 +502,15 @@ fun ElectricScreen(
                         }
                     }
 
-                    PrismRow(
-                        title = "查看用量明细",
-                        subtitle = "近 30 天每日用量与费用估算",
-                        index = 0, count = 1,
-                        leading = { IconBadge(Icons.Rounded.BarChart) },
-                        onClick = onOpenUsage,
-                    )
+                    PrismGroupedList {
+                        PrismRow(
+                            title = "查看用量明细",
+                            subtitle = "近 30 天每日用量与费用估算",
+                            index = 0, count = 1,
+                            leading = { IconBadge(Icons.Rounded.BarChart) },
+                            onClick = onOpenUsage,
+                        )
+                    }
                     if (b.lineStatus.isNotBlank()) {
                         PrismCard {
                             CardHeader("线路状态")
@@ -572,10 +558,10 @@ private fun MetricChip(
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    FilterChip(
+    PrismChip(
+        label = label,
         selected = selected,
         onClick = onClick,
-        label = { Text(label) },
     )
 }
 
@@ -636,19 +622,19 @@ fun UsageDetailScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(7, 30, 84).forEach { r ->
-                    FilterChip(
+                    PrismChip(
+                        label = "近 $r 天",
                         selected = range == r,
                         onClick = { range = r },
-                        label = { Text("近 $r 天") },
                     )
                 }
             }
             when {
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
-                error != null -> Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = { load() }) { Text("重试") }
-                }
+                error != null -> PrismErrorState(
+                    message = error ?: "",
+                    onRetry = { load() },
+                )
                 usage == null || usage!!.days.isEmpty() -> NullStatus(Icons.Rounded.BarChart, "暂无用量数据", "绑定房间后可查看每日用量")
                 else -> {
                     val u = usage!!
@@ -726,7 +712,7 @@ fun UsageDetailScreen(
                         Text("每日明细", style = headlineStyle())
                         Spacer(Modifier.weight(1f))
                         if (u.days.size > 7) {
-                            TextButton(onClick = { showAll = !showAll }) {
+                            PrismTextButton(onClick = { showAll = !showAll }) {
                                 Text(if (showAll) "收起" else "展开全部")
                             }
                         }

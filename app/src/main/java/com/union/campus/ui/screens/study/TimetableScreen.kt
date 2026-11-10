@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarToday
@@ -38,12 +37,10 @@ import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -57,6 +54,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -74,8 +72,13 @@ import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.NullStatus
+import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismChip
+import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.PrismShape
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
@@ -229,7 +232,7 @@ fun TimetableScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                TextButton(onClick = { goThisWeek() }) {
+                PrismTextButton(onClick = { goThisWeek() }) {
                     Icon(Icons.Rounded.CalendarToday, null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(4.dp))
                     Text("本周")
@@ -244,10 +247,10 @@ fun TimetableScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     semesters.take(8).forEach { s ->
-                        FilterChip(
+                        PrismChip(
+                            label = s.shortLabel,
                             selected = semesterDm == s.dm,
                             onClick = { openSemester(s.dm) },
-                            label = { Text(s.shortLabel) },
                         )
                     }
                 }
@@ -260,7 +263,7 @@ fun TimetableScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.weight(1f))
-                TextButton(onClick = { showWeekend = !showWeekend }) {
+                PrismTextButton(onClick = { showWeekend = !showWeekend }) {
                     Text(
                         if (showWeekend) "隐藏周末"
                         else if (weekendCount > 0) "显示周末 · $weekendCount"
@@ -308,9 +311,9 @@ fun TimetableScreen(
                 }
             }
 
-            androidx.compose.material3.Button(
+            PrismButton(
                 onClick = onOpenFreeClassrooms,
-                modifier = Modifier.fillMaxWidth().height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.MeetingRoom, null)
                 Spacer(Modifier.width(8.dp))
@@ -382,10 +385,15 @@ private fun TimetableGrid(
 ) {
     if (timetable == null) {
         Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
-            Text("课表加载中…", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            PrismLoadingBlock(label = "课表加载中")
         }
         return
     }
+
+    val density = LocalDensity.current
+    val dayShape = remember(density.density) { PrismShape(8f * density.density) }
+    val blockShape = remember(density.density) { PrismShape(10f * density.density) }
+    val tagShape = remember(density.density) { PrismShape(4f * density.density) }
 
     val maxSection = TimetableSchedule.MAX_SECTION
     val displayedDays = timetable.days.filter { it.day in 1..dayCount }
@@ -461,7 +469,7 @@ private fun TimetableGrid(
                     Modifier
                         .weight(1f)
                         .padding(horizontal = 2.dp)
-                        .clip(RoundedCornerShape(8.dp))
+                        .clip(dayShape)
                         .background(
                             if (isToday) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
                             else Color.Transparent,
@@ -584,7 +592,7 @@ private fun TimetableGrid(
                                         .height(blockHeight(start, end))
                                         .fillMaxWidth()
                                         .padding(horizontal = 2.dp, vertical = 1.dp)
-                                        .clip(RoundedCornerShape(10.dp))
+                                        .clip(blockShape)
                                         .background(bg)
                                         .clickable { onOpenCourse(cell) },
                                 ) {
@@ -683,7 +691,7 @@ private fun TimetableGrid(
                 Box(
                     Modifier
                         .offset(x = timeWidth + 3.dp, y = y - 11.dp)
-                        .clip(RoundedCornerShape(4.dp))
+                        .clip(tagShape)
                         .background(MaterialTheme.colorScheme.primary)
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                 ) {

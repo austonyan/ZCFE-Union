@@ -3,11 +3,11 @@ package com.union.campus.ui.prism
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
 /** 52×32 胶囊开关：选中过冲回弹，点按有触感。 */
@@ -61,13 +62,15 @@ fun PrismSwitch(
             .size(width = 52.dp, height = 32.dp)
             .clip(pill)
             .background(trackColor)
-            .clickable(
+            .toggleable(
+                value = checked,
                 enabled = enabled,
+                role = Role.Switch,
                 interactionSource = interactionSource,
                 indication = null,
-            ) {
+            ) { on ->
                 haptics.toggle()
-                onCheckedChange(!checked)
+                onCheckedChange(on)
             },
         contentAlignment = Alignment.CenterStart,
     ) {

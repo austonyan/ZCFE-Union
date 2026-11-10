@@ -35,6 +35,7 @@ class SettingsStore(private val context: Context) {
         val quietEnd = intPreferencesKey("quiet_end")
         val biometricUnlock = booleanPreferencesKey("biometric_unlock")
         val autoLock = booleanPreferencesKey("auto_lock")
+        val autoLockMinutes = intPreferencesKey("auto_lock_minutes")
         val screenshotBlock = booleanPreferencesKey("screenshot_block")
         val logMask = booleanPreferencesKey("log_mask")
         val currentTab = stringPreferencesKey("current_tab")
@@ -73,6 +74,7 @@ class SettingsStore(private val context: Context) {
     val quietEnd: Flow<Int> = context.dataStore.data.map { it[K.quietEnd] ?: 7 }
     val biometricUnlock: Flow<Boolean> = context.dataStore.data.map { it[K.biometricUnlock] ?: false }
     val autoLock: Flow<Boolean> = context.dataStore.data.map { it[K.autoLock] ?: true }
+    val autoLockMinutes: Flow<Int> = context.dataStore.data.map { it[K.autoLockMinutes] ?: 5 }
     val screenshotBlock: Flow<Boolean> = context.dataStore.data.map { it[K.screenshotBlock] ?: false }
     val logMask: Flow<Boolean> = context.dataStore.data.map { it[K.logMask] ?: true }
     val currentTab: Flow<String> = context.dataStore.data.map { it[K.currentTab] ?: "" }
@@ -111,6 +113,7 @@ class SettingsStore(private val context: Context) {
     }
     suspend fun setBiometricUnlock(v: Boolean) = context.dataStore.edit { it[K.biometricUnlock] = v }
     suspend fun setAutoLock(v: Boolean) = context.dataStore.edit { it[K.autoLock] = v }
+    suspend fun setAutoLockMinutes(v: Int) = context.dataStore.edit { it[K.autoLockMinutes] = v }
     suspend fun setScreenshotBlock(v: Boolean) = context.dataStore.edit { it[K.screenshotBlock] = v }
     suspend fun setLogMask(v: Boolean) = context.dataStore.edit { it[K.logMask] = v }
     suspend fun setCurrentTab(v: String) = context.dataStore.edit { it[K.currentTab] = v }
@@ -145,6 +148,9 @@ class SettingsStore(private val context: Context) {
     }
     suspend fun setLastElectricRoom(v: String) = context.dataStore.edit { it[K.lastElectricRoom] = v }
     suspend fun setKeepScreenOn(v: Boolean) = context.dataStore.edit { it[K.keepScreenOn] = v }
+
+    /** 清除全部设置（含引导与绑定标记），用于“清除全部数据”。 */
+    suspend fun clearAll() = context.dataStore.edit { it.clear() }
 
     /** 一次性读取快照（引导流程用）。 */
     suspend fun snapshot(): Snapshot = Snapshot(

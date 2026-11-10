@@ -12,14 +12,15 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 
 /** 引导流程进度轨：段数即步骤数，已完成段填充主色。 */
@@ -30,6 +31,8 @@ fun PrismProgressRail(
     modifier: Modifier = Modifier,
     labels: List<String> = emptyList(),
 ) {
+    val density = LocalDensity.current
+    val shape = remember(density.density) { PrismShape(2f * density.density) }
     Column(modifier) {
         Row(
             Modifier.fillMaxWidth(),
@@ -47,7 +50,8 @@ fun PrismProgressRail(
                     Modifier
                         .weight(1f)
                         .height(4.dp)
-                        .background(color, RoundedCornerShape(2.dp)),
+                        .clip(shape)
+                        .background(color),
                 )
             }
         }
@@ -73,6 +77,8 @@ fun PrismProgressRail(
 /** 顶部细进度条：用于表单页的轻量步骤提示。 */
 @Composable
 fun PrismStepBar(step: Int, total: Int, modifier: Modifier = Modifier) {
+    val density = LocalDensity.current
+    val shape = remember(density.density) { PrismShape(2f * density.density) }
     val progress by animateFloatAsState(
         targetValue = step.toFloat() / total.coerceAtLeast(1) + 0.0001f,
         animationSpec = PrismMotion.tween(PrismMotion.Emphasized),
@@ -82,13 +88,15 @@ fun PrismStepBar(step: Int, total: Int, modifier: Modifier = Modifier) {
         modifier
             .fillMaxWidth()
             .height(4.dp)
-            .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(2.dp)),
+            .clip(shape)
+            .background(MaterialTheme.colorScheme.secondaryContainer),
     ) {
         Box(
             Modifier
                 .fillMaxWidth(progress.coerceIn(0f, 1f))
                 .height(4.dp)
-                .background(MaterialTheme.colorScheme.primary, RoundedCornerShape(2.dp)),
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.primary),
         )
     }
 }

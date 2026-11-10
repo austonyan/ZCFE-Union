@@ -193,9 +193,7 @@ fun LoginShowerScreen(
             PrismButton(
                 onClick = { doLogin() },
                 loading = loading,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Login, null)
                 Spacer(Modifier.width(8.dp))
