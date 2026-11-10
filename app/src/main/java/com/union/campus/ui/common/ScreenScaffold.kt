@@ -16,95 +16,50 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.MediumTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSkeletonList
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
 
-/** 统一页面框架：透明顶栏 + Page 底色；tab 页可开启大标题折叠。 */
+/** 统一页面框架：透明顶栏 + Page 底色；tab 页自带页头，不使用这里的顶栏。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun UnionScreenScaffold(
     title: String,
     modifier: Modifier = Modifier,
     onBack: (() -> Unit)? = null,
-    largeTitle: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val scrollBehavior = if (largeTitle) {
-        TopAppBarDefaults.exitUntilCollapsedScrollBehavior(rememberTopAppBarState())
-    } else {
-        null
-    }
-    val scaffoldModifier = if (scrollBehavior != null) {
-        modifier.nestedScroll(scrollBehavior.nestedScrollConnection)
-    } else {
-        modifier
-    }
     Scaffold(
-        modifier = scaffoldModifier,
+        modifier = modifier,
         containerColor = surfaceColorOf(SurfaceLevel.Page),
         topBar = {
-            if (largeTitle && scrollBehavior != null) {
-                val fraction = scrollBehavior.state.collapsedFraction
-                MediumTopAppBar(
-                    title = {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleMedium.copy(
-                                fontSize = (24f + (17f - 24f) * fraction).sp,
-                                lineHeight = (30f + (22f - 30f) * fraction).sp,
-                                fontWeight = FontWeight(600),
-                            ),
-                        )
-                    },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
-                            }
+            TopAppBar(
+                title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+                navigationIcon = {
+                    if (onBack != null) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
                         }
-                    },
-                    actions = actions,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                        scrolledContainerColor = surfaceColorOf(SurfaceLevel.Page).copy(alpha = 0.94f),
-                    ),
-                    scrollBehavior = scrollBehavior,
-                )
-            } else {
-                TopAppBar(
-                    title = { Text(title, style = MaterialTheme.typography.titleMedium) },
-                    navigationIcon = {
-                        if (onBack != null) {
-                            IconButton(onClick = onBack) {
-                                Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
-                            }
-                        }
-                    },
-                    actions = actions,
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color.Transparent,
-                    ),
-                )
-            }
+                    }
+                },
+                actions = actions,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                ),
+            )
         },
     ) { padding ->
         content(padding)

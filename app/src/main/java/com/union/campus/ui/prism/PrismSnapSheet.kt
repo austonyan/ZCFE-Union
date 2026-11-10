@@ -1,12 +1,7 @@
 package com.union.campus.ui.prism
 
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.Orientation
@@ -22,12 +17,16 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -42,6 +41,7 @@ import kotlinx.coroutines.launch
  * - 临界阻尼弹簧（mass3/stiffness1000 → spring(1f, 333f)）
  * - 把手 28×4 r2，顶部留白 6
  * - 内容上滑先撑满 sheet 再滚动、下滑到顶再收回（NestedScrollConnection）
+ * - 进出场共用一条进度：遮罩与面板同时淡入/下落，退出时先冻结高度再下滑
  */
 object SnapSheetDefaults {
     const val Half = 0.5625f
@@ -69,16 +69,28 @@ fun PrismSnapSheet(
     val fraction = remember {
         Animatable(startAt.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full))
     }
-
-    if (visible) {
-        BackHandler(onBack = onDismiss)
-    }
+    // 0 = 完全收起，1 = 完全展开；遮罩与面板共用同一条进度，进出场严格同步。
+    val progress = remember { Animatable(0f) }
+    // 退出动画播放期间保持组合，播完再真正移除。
+    var mounted by remember { mutableStateOf(visible) }
 
     LaunchedEffect(visible) {
         if (visible) {
+            mounted = true
             fraction.snapTo(startAt.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full))
+            progress.snapTo(0f)
+            progress.animateTo(1f, PrismMotion.tween(PrismMotion.Emphasized, PrismMotion.Decelerate))
+        } else if (mounted) {
+            // 冻结当前高度：退出过程中不再按 fraction 重新测量，避免吸附与下滑叠加造成的卡顿。
+            fraction.stop()
+            progress.animateTo(0f, PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate))
+            mounted = false
         }
     }
+
+    if (!mounted) return
+
+    BackHandler(enabled = visible, onBack = onDismiss)
 
     suspend fun snapTo(target: Float) {
         fraction.animateTo(target.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full), SnapSheetDefaults.SnapSpring)
@@ -121,74 +133,63 @@ fun PrismSnapSheet(
         )
     }
     val handleShape = remember(density.density) { PrismShape(2f * density.density) }
+    val sheetHeightDp = with(density) { (fraction.value * rootHeight).toDp() }
 
     Box(modifier.fillMaxSize()) {
         val scrimColor = MaterialTheme.colorScheme.scrim
             .copy(alpha = if (LocalPrismDark.current) 0.48f else 0.20f)
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(PrismMotion.tween(PrismMotion.Fast)),
-            exit = fadeOut(PrismMotion.tween(PrismMotion.Standard)),
+        Box(
+            Modifier
+                .fillMaxSize()
+                .graphicsLayer { alpha = progress.value }
+                .background(scrimColor)
+                .clickable(enabled = mounted) { if (visible) onDismiss() },
+        )
+        Box(
+            Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .height(sheetHeightDp)
+                .graphicsLayer { translationY = (1f - progress.value) * size.height }
+                .draggable(
+                    orientation = Orientation.Vertical,
+                    state = rememberDraggableState { delta ->
+                        scope.launch {
+                            fraction.snapTo(
+                                ((fraction.value * rootHeight - delta) / rootHeight)
+                                    .coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full),
+                            )
+                        }
+                    },
+                    onDragStopped = { velocity ->
+                        val v = velocity / rootHeight
+                        if (v > 1.2f) {
+                            haptics.tap()
+                            onDismiss()
+                        } else {
+                            val target = if (v < -0.05f ||
+                                fraction.value > (SnapSheetDefaults.Half + SnapSheetDefaults.Full) / 2
+                            ) SnapSheetDefaults.Full else SnapSheetDefaults.Half
+                            haptics.select()
+                            scope.launch { snapTo(target) }
+                        }
+                    },
+                )
+                .clip(topShape)
+                .background(surfaceColorOf(SurfaceLevel.Page))
+                .nestedScroll(scrollConnection),
         ) {
-            Box(
-                Modifier
-                    .fillMaxSize()
-                    .background(scrimColor)
-                    .clickable(onClick = onDismiss),
-            )
-        }
-
-        AnimatedVisibility(
-            visible = visible,
-            modifier = Modifier.align(Alignment.BottomCenter),
-            enter = slideInVertically(PrismMotion.tween(PrismMotion.Emphasized)) { it },
-            exit = slideOutVertically(PrismMotion.tween(PrismMotion.Standard)) { it },
-        ) {
-            val sheetHeightDp = with(density) { (fraction.value * rootHeight).toDp() }
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(sheetHeightDp)
-                    .draggable(
-                        orientation = Orientation.Vertical,
-                        state = rememberDraggableState { delta ->
-                            scope.launch {
-                                fraction.snapTo(
-                                    ((fraction.value * rootHeight - delta) / rootHeight)
-                                        .coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full),
-                                )
-                            }
-                        },
-                        onDragStopped = { velocity ->
-                            val v = velocity / rootHeight
-                            if (v > 1.2f) {
-                                haptics.tap()
-                                onDismiss()
-                            } else {
-                                val target = if (v < -0.05f ||
-                                    fraction.value > (SnapSheetDefaults.Half + SnapSheetDefaults.Full) / 2
-                                ) SnapSheetDefaults.Full else SnapSheetDefaults.Half
-                                haptics.select()
-                                scope.launch { snapTo(target) }
-                            }
-                        },
-                    )
-                    .clip(topShape)
-                    .background(surfaceColorOf(SurfaceLevel.Page))
-                    .nestedScroll(scrollConnection),
-            ) {
-                Column(Modifier.fillMaxSize()) {
-                    Box(
-                        Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(top = 6.dp)
-                            .width(28.dp)
-                            .height(4.dp)
-                            .clip(handleShape)
-                            .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
-                    )
-                    Box(Modifier.weight(1f)) { content() }
-                }
+            Column(Modifier.fillMaxSize()) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterHorizontally)
+                        .padding(top = 6.dp)
+                        .width(28.dp)
+                        .height(4.dp)
+                        .clip(handleShape)
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
+                )
+                Box(Modifier.weight(1f)) { content() }
             }
         }
     }

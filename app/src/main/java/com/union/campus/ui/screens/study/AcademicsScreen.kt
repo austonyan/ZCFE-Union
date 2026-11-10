@@ -44,10 +44,10 @@ import com.union.campus.domain.JwNotice
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
 import com.union.campus.domain.TimetableSchedule
-import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
@@ -89,155 +89,160 @@ fun AcademicsScreen(
         }
     }
 
-    UnionScreenScaffold(title = "教务", onBack = null, largeTitle = true, modifier = modifier) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+    Column(
+        modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        PrismPageHeader(
+            title = "教务",
+            subtitle = listOfNotNull(
+                "第 $week 周",
+                "本周 $courseCount 节课".takeIf { courseCount > 0 },
+            ).joinToString(" · "),
+        )
+
+        PrismCard(
+            modifier = Modifier.fillMaxWidth(),
+            onClick = { onOpen("timetable") },
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
+            contentPadding = PaddingValues(20.dp),
         ) {
-            PrismCard(
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { onOpen("timetable") },
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentPadding = PaddingValues(20.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Rounded.School,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            semesterLabel.ifBlank { "当前学期" },
-                            style = headlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                        Text(
-                            "第 $week 周 · 本周 $courseCount 节课",
-                            style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    Icons.Rounded.School,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
                     Text(
-                        "看课表",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                        semesterLabel.ifBlank { "当前学期" },
+                        style = headlineStyle(),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                    Text(
+                        "本周课表、教室与调课提醒",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+                Text(
+                    "看课表",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                )
+            }
+        }
+
+        Text("常用功能", style = headlineStyle())
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            QuickAction(
+                title = "成绩查询",
+                subtitle = "学分与绩点",
+                icon = Icons.Rounded.Grade,
+                modifier = Modifier.weight(1f),
+                onClick = { onOpen("grades") },
+            )
+            QuickAction(
+                title = "考试安排",
+                subtitle = "时间与考场",
+                icon = Icons.Rounded.Event,
+                modifier = Modifier.weight(1f),
+                onClick = { onOpen("exams") },
+            )
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            QuickAction(
+                title = "选课",
+                subtitle = "轮次与提交",
+                icon = Icons.Rounded.Assignment,
+                modifier = Modifier.weight(1f),
+                onClick = { onOpen("select") },
+            )
+            QuickAction(
+                title = "教学评价",
+                subtitle = "待评课程",
+                icon = Icons.Rounded.RateReview,
+                modifier = Modifier.weight(1f),
+                onClick = { onOpen("evaluation") },
+            )
+        }
+
+        Text("教务事务", style = headlineStyle())
+        PrismGroupedList {
+            PrismRow(
+                title = "学籍档案",
+                subtitle = "姓名、院系、专业与学籍状态",
+                index = 0, count = 5,
+                leading = { IconBadge(Icons.Rounded.Badge) },
+                onClick = { onOpen("record") },
+            )
+            PrismRow(
+                title = "教材确认",
+                subtitle = "待确认教材与教材对账",
+                index = 1, count = 5,
+                leading = { IconBadge(Icons.Rounded.MenuBook) },
+                onClick = { onOpen("textbooks") },
+            )
+            PrismRow(
+                title = "空闲教室",
+                subtitle = "按教学楼查询可自习教室",
+                index = 2, count = 5,
+                leading = { IconBadge(Icons.Rounded.MeetingRoom) },
+                onClick = { onOpen("freeClassrooms") },
+            )
+            PrismRow(
+                title = "教务通知",
+                subtitle = "新闻、公告、调课与停课",
+                index = 3, count = 5,
+                leading = { IconBadge(Icons.Rounded.Campaign) },
+                onClick = { onOpen("notices") },
+            )
+            PrismRow(
+                title = "全部教务事务",
+                subtitle = "异动、免修、预约与问卷",
+                index = 4, count = 5,
+                leading = { IconBadge(Icons.Rounded.ListAlt) },
+                onClick = { onOpen("affairs") },
+            )
+        }
+
+        if (notices.isNotEmpty()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("最近通知", style = headlineStyle())
+                Spacer(Modifier.weight(1f))
+                PrismTextButton(onClick = { onOpen("notices") }) { Text("全部") }
+            }
+            PrismGroupedList {
+                notices.forEachIndexed { index, notice ->
+                    PrismRow(
+                        title = notice.title,
+                        subtitle = "${notice.date} · ${notice.source}",
+                        index = index, count = notices.size,
+                        leading = {
+                            IconBadge(
+                                when (notice.kind) {
+                                    "change" -> Icons.Rounded.SwapHoriz
+                                    "news" -> Icons.Rounded.Campaign
+                                    else -> Icons.Rounded.Assignment
+                                },
+                            )
+                        },
+                        onClick = { onOpenNotice(notice) },
                     )
                 }
             }
-
-            Text("常用功能", style = headlineStyle())
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickAction(
-                    title = "成绩查询",
-                    subtitle = "学分与绩点",
-                    icon = Icons.Rounded.Grade,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("grades") },
-                )
-                QuickAction(
-                    title = "考试安排",
-                    subtitle = "时间与考场",
-                    icon = Icons.Rounded.Event,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("exams") },
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                QuickAction(
-                    title = "选课",
-                    subtitle = "轮次与提交",
-                    icon = Icons.Rounded.Assignment,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("select") },
-                )
-                QuickAction(
-                    title = "教学评价",
-                    subtitle = "待评课程",
-                    icon = Icons.Rounded.RateReview,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("evaluation") },
-                )
-            }
-
-            Text("教务事务", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = "学籍档案",
-                    subtitle = "姓名、院系、专业与学籍状态",
-                    index = 0, count = 5,
-                    leading = { IconBadge(Icons.Rounded.Badge) },
-                    onClick = { onOpen("record") },
-                )
-                PrismRow(
-                    title = "教材确认",
-                    subtitle = "待确认教材与教材对账",
-                    index = 1, count = 5,
-                    leading = { IconBadge(Icons.Rounded.MenuBook) },
-                    onClick = { onOpen("textbooks") },
-                )
-                PrismRow(
-                    title = "空闲教室",
-                    subtitle = "按教学楼查询可自习教室",
-                    index = 2, count = 5,
-                    leading = { IconBadge(Icons.Rounded.MeetingRoom) },
-                    onClick = { onOpen("freeClassrooms") },
-                )
-                PrismRow(
-                    title = "教务通知",
-                    subtitle = "新闻、公告、调课与停课",
-                    index = 3, count = 5,
-                    leading = { IconBadge(Icons.Rounded.Campaign) },
-                    onClick = { onOpen("notices") },
-                )
-                PrismRow(
-                    title = "全部教务事务",
-                    subtitle = "异动、免修、预约与问卷",
-                    index = 4, count = 5,
-                    leading = { IconBadge(Icons.Rounded.ListAlt) },
-                    onClick = { onOpen("affairs") },
-                )
-            }
-
-            if (notices.isNotEmpty()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text("最近通知", style = headlineStyle())
-                    Spacer(Modifier.weight(1f))
-                    PrismTextButton(onClick = { onOpen("notices") }) { Text("全部") }
-                }
-                PrismGroupedList {
-                    notices.forEachIndexed { index, notice ->
-                        PrismRow(
-                            title = notice.title,
-                            subtitle = "${notice.date} · ${notice.source}",
-                            index = index, count = notices.size,
-                            leading = {
-                                IconBadge(
-                                    when (notice.kind) {
-                                        "change" -> Icons.Rounded.SwapHoriz
-                                        "news" -> Icons.Rounded.Campaign
-                                        else -> Icons.Rounded.Assignment
-                                    },
-                                )
-                            },
-                            onClick = { onOpenNotice(notice) },
-                        )
-                    }
-                }
-            }
-
-            Text(
-                "成绩、考试与通知以教务系统为准",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.height(12.dp))
         }
+
+        Text(
+            "成绩、考试与通知以教务系统为准",
+            style = footnoteStyle(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(24.dp))
     }
 }
 

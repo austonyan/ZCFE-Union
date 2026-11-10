@@ -101,7 +101,7 @@ fun WalletScreen(
     LaunchedEffect(Unit) {
         try {
             wallet = shower.wallet()
-            orders = shower.orders()
+            orders = shower.recentOrders()
             error = null
         } catch (e: AppError) {
             error = e.userMessage

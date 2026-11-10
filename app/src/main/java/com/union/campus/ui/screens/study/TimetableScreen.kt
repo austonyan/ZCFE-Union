@@ -24,22 +24,21 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.CalendarToday
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Grade
-import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +55,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -72,29 +72,30 @@ import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.NullStatus
-import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismTextButton
+import com.union.campus.ui.prism.SurfaceLevel
+import com.union.campus.ui.prism.caption1Style
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
+import com.union.campus.ui.prism.surfaceColorOf
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
-/** 课表：学期/周次切换、网格课表、调课提醒、找空教室。 */
+/** 课表：页头、周次切换、网格课表；作息在右上角设置，空教室入口留在生活与教务页。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimetableScreen(
     onOpenCourse: (CourseCell) -> Unit,
     onOpenGrades: () -> Unit,
-    onOpenFreeClassrooms: () -> Unit,
     onOpenTimetableSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -198,178 +199,142 @@ fun TimetableScreen(
         }
     }
 
-    UnionScreenScaffold(
-        title = "课程表",
-        onBack = null,
-        largeTitle = true,
-        actions = {
-            IconButton(onClick = { changeWeek(-1) }, enabled = week > 1) {
-                Icon(Icons.Rounded.ChevronLeft, contentDescription = "上一周")
-            }
-            IconButton(onClick = { changeWeek(1) }, enabled = week < maxWeek) {
-                Icon(Icons.Rounded.ChevronRight, contentDescription = "下一周")
-            }
-            IconButton(onClick = onOpenTimetableSettings) {
-                Icon(Icons.Rounded.Settings, contentDescription = "课表设置")
-            }
-            IconButton(onClick = onOpenGrades) { Icon(Icons.Rounded.Grade, contentDescription = "成绩") }
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("第 $week 周", style = pageTitleStyle(), fontWeight = FontWeight(700))
-                    Text(
-                        listOfNotNull(semesterLabel, weekRange.ifBlank { null }).joinToString(" · "),
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+    Column(
+        modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        PrismPageHeader(
+            title = "课程表",
+            subtitle = listOfNotNull(
+                semesterLabel.takeIf { it.isNotBlank() },
+                weekRange.takeIf { it.isNotBlank() },
+            ).joinToString(" · "),
+            actions = {
+                IconButton(onClick = onOpenTimetableSettings) {
+                    Icon(Icons.Rounded.Settings, contentDescription = "作息设置")
                 }
-                PrismTextButton(onClick = { goThisWeek() }) {
-                    Icon(Icons.Rounded.CalendarToday, null, modifier = Modifier.size(18.dp))
-                    Spacer(Modifier.width(4.dp))
-                    Text("本周")
+                IconButton(onClick = onOpenGrades) {
+                    Icon(Icons.Rounded.Grade, contentDescription = "成绩")
                 }
-            }
+            },
+        )
 
-            if (semesters.size > 1) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    semesters.take(8).forEach { s ->
-                        PrismChip(
-                            label = s.shortLabel,
-                            selected = semesterDm == s.dm,
-                            onClick = { openSemester(s.dm) },
-                        )
-                    }
-                }
-            }
+        WeekSwitcher(
+            week = week,
+            maxWeek = maxWeek,
+            currentWeek = currentWeek,
+            onPrevious = { changeWeek(-1) },
+            onNext = { changeWeek(1) },
+            onThisWeek = { goThisWeek() },
+        )
 
-            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (weekCourseCount > 0) "本周 $weekCourseCount 节课" else "本周暂无课程",
-                    style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.weight(1f))
-                PrismTextButton(onClick = { showWeekend = !showWeekend }) {
-                    Text(
-                        if (showWeekend) "隐藏周末"
-                        else if (weekendCount > 0) "显示周末 · $weekendCount"
-                        else "显示周末",
-                    )
-                }
-            }
-
-            TimetableMappingCard(
-                config = scheduleConfig,
-                onClick = onOpenTimetableSettings,
-            )
-
-            if (!jw.isBound() && timetable == null) {
-                NullStatus(
-                    icon = Icons.Rounded.MenuBook,
-                    title = "登录后查看课表",
-                    subtitle = "教务账号未绑定：到「我的 → 凭证中心」登录后即可同步",
-                )
-            } else {
-                AnimatedContent(
-                    targetState = week,
-                    transitionSpec = {
-                        if (weekDirection == 0) {
-                            fadeIn(PrismMotion.tween(PrismMotion.Quick)) togetherWith
-                                fadeOut(PrismMotion.tween(PrismMotion.Fast))
-                        } else {
-                            val direction = if (weekDirection > 0) 1 else -1
-                            (slideInHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { it / 2 * direction } +
-                                fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
-                                (slideOutHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { -it / 2 * direction } +
-                                    fadeOut(PrismMotion.tween(PrismMotion.Fast)))
-                        }
-                    },
-                    label = "timetable-week",
-                ) { _ ->
-                    TimetableGrid(
-                        timetable = timetable,
-                        dayCount = if (showWeekend) 7 else 5,
-                        config = scheduleConfig,
-                        nowTick = nowTick,
-                        isCurrentWeek = week == currentWeek,
-                        onOpenCourse = onOpenCourse,
-                    )
-                }
-            }
-
-            PrismButton(
-                onClick = onOpenFreeClassrooms,
-                modifier = Modifier.fillMaxWidth(),
+        if (semesters.size > 1) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Icon(Icons.Rounded.MeetingRoom, null)
-                Spacer(Modifier.width(8.dp))
-                Text("找空教室自习")
+                semesters.take(8).forEach { s ->
+                    PrismChip(
+                        label = s.shortLabel,
+                        selected = semesterDm == s.dm,
+                        onClick = { openSemester(s.dm) },
+                    )
+                }
             }
-            Spacer(Modifier.height(12.dp))
         }
+
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                if (weekCourseCount > 0) "本周 $weekCourseCount 节课" else "本周暂无课程",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.weight(1f))
+            PrismTextButton(onClick = { showWeekend = !showWeekend }) {
+                Text(
+                    if (showWeekend) "隐藏周末"
+                    else if (weekendCount > 0) "显示周末 · $weekendCount"
+                    else "显示周末",
+                )
+            }
+        }
+
+        if (!jw.isBound() && timetable == null) {
+            NullStatus(
+                icon = Icons.Rounded.MenuBook,
+                title = "登录后查看课表",
+                subtitle = "教务账号未绑定：到「我的 → 凭证中心」登录后即可同步",
+            )
+        } else {
+            AnimatedContent(
+                targetState = week,
+                transitionSpec = {
+                    if (weekDirection == 0) {
+                        fadeIn(PrismMotion.tween(PrismMotion.Quick)) togetherWith
+                            fadeOut(PrismMotion.tween(PrismMotion.Fast))
+                    } else {
+                        val direction = if (weekDirection > 0) 1 else -1
+                        (slideInHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { it / 2 * direction } +
+                            fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
+                            (slideOutHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { -it / 2 * direction } +
+                                fadeOut(PrismMotion.tween(PrismMotion.Fast)))
+                    }
+                },
+                label = "timetable-week",
+            ) { _ ->
+                TimetableGrid(
+                    timetable = timetable,
+                    dayCount = if (showWeekend) 7 else 5,
+                    config = scheduleConfig,
+                    nowTick = nowTick,
+                    isCurrentWeek = week == currentWeek,
+                    onOpenCourse = onOpenCourse,
+                )
+            }
+        }
+
+        Spacer(Modifier.height(24.dp))
     }
 }
 
-/** 教学楼作息提示：J1–J6 / S1–S6、J7 分别使用哪个时间槽。 */
+/** 周切换：胶囊里左右翻周，右侧「回到本周」只在离开本周后可用。 */
 @Composable
-private fun TimetableMappingCard(
-    config: TimetableScheduleConfig,
-    onClick: () -> Unit,
+private fun WeekSwitcher(
+    week: Int,
+    maxWeek: Int,
+    currentWeek: Int,
+    onPrevious: () -> Unit,
+    onNext: () -> Unit,
+    onThisWeek: () -> Unit,
 ) {
-    val jSlot = config.slotFor(BuildingGroup.J1ToJ6)
-    val sSlot = config.slotFor(BuildingGroup.S1ToS6AndJ7)
-    PrismCard(
-        onClick = onClick,
-        modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(
-                Icons.Rounded.Schedule,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer,
-                modifier = Modifier.size(20.dp),
-            )
-            Spacer(Modifier.width(10.dp))
-            Column(Modifier.weight(1f)) {
+    val density = LocalDensity.current
+    val pill = remember(density.density) { PrismShape(64f * density.density) }
+    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+        Surface(shape = pill, color = surfaceColorOf(SurfaceLevel.Inset)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = onPrevious, enabled = week > 1) {
+                    Icon(Icons.Rounded.ChevronLeft, contentDescription = "上一周")
+                }
                 Text(
-                    "教学楼作息 · 按课程楼号自动匹配",
-                    style = footnoteStyle(),
-                    fontWeight = FontWeight(600),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    text = "第 $week 周",
+                    style = caption1Style(),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.widthIn(min = 52.dp),
                 )
-                Text(
-                    "J1–J6 ${jSlot.startLabel} 开始 · S1–S6、J7 ${sSlot.startLabel} 开始",
-                    style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                )
+                IconButton(onClick = onNext, enabled = week < maxWeek) {
+                    Icon(Icons.Rounded.ChevronRight, contentDescription = "下一周")
+                }
             }
-            Text(
-                "调整",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-            )
-            Icon(
-                Icons.Rounded.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                modifier = Modifier.size(18.dp),
-            )
+        }
+        Spacer(Modifier.weight(1f))
+        PrismTextButton(onClick = onThisWeek, enabled = week != currentWeek) {
+            Text("回到本周")
         }
     }
 }
@@ -705,14 +670,6 @@ private fun TimetableGrid(
                 }
             }
         }
-        Text(
-            "S = S1–S6、J7 ${sTimes[3]?.start.orEmpty()}–${sTimes[4]?.end.orEmpty()} · " +
-                "J = J1–J6 ${jTimes[3]?.start.orEmpty()}–${jTimes[4]?.end.orEmpty()} · 第 3、4 节按课程楼号自动匹配",
-            fontSize = 8.sp,
-            lineHeight = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
-            modifier = Modifier.padding(top = 6.dp, start = 4.dp),
-        )
     }
 }
 

@@ -205,12 +205,27 @@ class ShowerClient {
         data = buildJsonObjectCompat { },
     ) as? JsonObject
 
-    /** 消费明细：只接受 page / pageSize（原生接口实测参数）。 */
-    suspend fun consumptionLog(page: Int = 1, pageSize: Int = 10): JsonElement? = call(
+    /**
+     * 消费明细（原生接口实测参数：page / pageSize）。
+     * 同时带上 apidoc 里记录的 mobile / uid / device_type_key，避免服务端按设备类型
+     * 或账号维度过滤时漏掉新记录；服务端接受缺省的干净请求，多余字段会被忽略。
+     */
+    suspend fun consumptionLog(
+        page: Int = 1,
+        pageSize: Int = 20,
+        mobile: String = "",
+        uid: String = "",
+        deviceTypeKey: String = "faucet",
+    ): JsonElement? = call(
         "ConsumptionApi/consumptionLog",
         data = buildJsonObjectCompat {
+            if (mobile.isNotBlank()) put("mobile", mobile)
+            if (uid.isNotBlank()) put("uid", uid)
+            if (deviceTypeKey.isNotBlank()) put("device_type_key", deviceTypeKey)
             put("page", page)
+            // apidoc 记的是 limit，真机抓包是 pageSize；两个都带，服务端读哪个都能生效。
             put("pageSize", pageSize)
+            put("limit", pageSize)
         },
     )
 

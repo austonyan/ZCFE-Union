@@ -350,40 +350,54 @@ class ShowerRepository constructor(
         )
     }
 
-    /** 消费明细：原生接口返回 { consumptionList[], ifLast, totalAmount }。 */
-    suspend fun orders(page: Int = 1): List<ShowerOrder> {
-        val data = client.consumptionLog(page) ?: return emptyList()
-        return parse.objects(parse.array(data)).map { o ->
-            ShowerOrder(
-                orderSn = parse.str(o, "order_sn", "orderSn", "id"),
-                deviceName = parse.str(o, "device_name", "device_number", "device_num", "name")
-                    .ifBlank { "洗浴设备" },
-                durationText = formatDuration(parse.str(o, "total_used_time", "duration", "use_time")),
-                amount = parse.str(o, "cash_amount", "order_amount", "amount", "money"),
-                time = formatEpoch(parse.str(o, "start_time", "create_time", "time", "created_at")),
-            )
-        }
+    /** 单页消费明细：原生接口返回 { consumptionList[], ifLast, totalAmount }。 */
+    suspend fun ordersPage(page: Int = 1, pageSize: Int = 20): ShowerOrdersPage {
+        val cred = credentials.load()
+        val data = client.consumptionLog(
+            page = page,
+            pageSize = pageSize,
+            mobile = cred.showerMobile,
+            uid = cred.showerUid,
+            deviceTypeKey = "faucet",
+        ) ?: return ShowerOrdersPage(emptyList(), isLast = true)
+        return parseShowerOrdersPage(data)
     }
 
-    private fun formatDuration(raw: String): String {
-        val sec = raw.toLongOrNull() ?: return raw
-        if (sec <= 0) return ""
-        val h = sec / 3600
-        val m = (sec % 3600) / 60
-        val s = sec % 60
-        return when {
-            h > 0 -> "${h}小时${m}分"
-            m > 0 -> "${m}分${s}秒"
-            else -> "${s}秒"
-        }
-    }
+    /** 兼容旧调用：只取第一页。 */
+    suspend fun orders(page: Int = 1): List<ShowerOrder> = ordersPage(page).items
 
-    private fun formatEpoch(raw: String): String {
-        val value = raw.toLongOrNull() ?: return raw
-        if (value <= 0) return ""
-        val ms = if (value > 10_000_000_000L) value else value * 1000
-        return java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CHINA)
-            .format(java.util.Date(ms))
+    /**
+     * 账户页用：按服务端分页把消费明细拉全，再按时间倒序取最近 [limit] 条。
+     *
+     * 原生 `consumptionLog` 默认每页只有 10 条，且 `ifLast=0` 表示还有下一页；
+     * 旧实现只请求 page=1，导致账单永远停在第一页最后一条记录的日期。
+     * 服务端页序可能是升序也可能是降序，因此这里翻完页后统一按时间倒序。
+     */
+    suspend fun recentOrders(
+        limit: Int = 200,
+        pageSize: Int = 20,
+        maxPages: Int = 20,
+    ): List<ShowerOrder> {
+        val all = mutableListOf<ShowerOrder>()
+        val seen = mutableSetOf<String>()
+        var page = 1
+        while (page <= maxPages) {
+            val result = try {
+                ordersPage(page, pageSize)
+            } catch (e: AppError.AuthExpired) {
+                throw e
+            } catch (e: AppError) {
+                // 首页失败就报错；后续页失败时保留已取到的记录，避免整页空白
+                if (all.isEmpty()) throw e
+                break
+            }
+            val fresh = result.items.filter { seen.add(it.dedupeKey()) }
+            if (fresh.isEmpty()) break
+            all += fresh
+            if (result.isLast == true) break
+            page++
+        }
+        return all.sortedByDescending { it.time }.take(limit)
     }
 
     suspend fun myQueueInfo(): JsonElement? = client.myQueueInfo()
@@ -470,6 +484,86 @@ class ShowerRepository constructor(
         store.removeByPrefix("shower.devices")
     }
 }
+
+/** 一页消费明细：`isLast` 为 null 表示服务端没给 ifLast，需要继续探测下一页。 */
+data class ShowerOrdersPage(
+    val items: List<ShowerOrder>,
+    val isLast: Boolean?,
+)
+
+/** 解析 `consumptionLog` 的一页数据；显式取 consumptionList，避免误取响应里的其它数组。 */
+internal fun parseShowerOrdersPage(data: JsonElement?): ShowerOrdersPage {
+    if (data == null) return ShowerOrdersPage(emptyList(), isLast = true)
+    val items = Parse.objects(Parse.array(data, "consumptionList", "list"))
+        .map(::parseShowerOrder)
+    return ShowerOrdersPage(items, isLast = parseShowerOrdersIfLast(data as? JsonObject))
+}
+
+/** `ifLast`：0/false 表示还有下一页，1/true 表示最后一页；缺失时返回 null。 */
+internal fun parseShowerOrdersIfLast(obj: JsonObject?): Boolean? {
+    val raw = obj?.get("ifLast") ?: obj?.get("if_last") ?: return null
+    return when ((raw as? JsonPrimitive)?.content?.trim()?.lowercase()) {
+        "1", "true", "yes", "y", "last" -> true
+        "0", "false", "no", "n" -> false
+        else -> null
+    }
+}
+
+/**
+ * 解析消费记录。日期字段按顺序取第一个有效值：
+ * `start_time` 为 0 / 缺失时继续尝试 `create_time`，不再直接显示空白。
+ */
+internal fun parseShowerOrder(o: JsonObject): ShowerOrder = ShowerOrder(
+    orderSn = Parse.str(o, "order_sn", "orderSn", "id", "order_item_id"),
+    deviceName = Parse.str(o, "device_name", "device_number", "device_num", "name")
+        .ifBlank { "洗浴设备" },
+    durationText = formatShowerDuration(Parse.str(o, "total_used_time", "duration", "use_time")),
+    amount = Parse.str(o, "cash_amount", "order_amount", "amount", "money"),
+    time = formatShowerEpoch(
+        firstPositiveTimestamp(
+            o,
+            "start_time", "startTime", "end_time", "endTime",
+            "create_time", "createTime", "time", "created_at",
+        ),
+    ),
+)
+
+private fun firstPositiveTimestamp(o: JsonObject, vararg keys: String): String {
+    for (k in keys) {
+        val raw = Parse.str(o, k)
+        if (raw.isBlank()) continue
+        val numeric = raw.toLongOrNull()
+        if (numeric != null && numeric <= 0) continue
+        return raw
+    }
+    return ""
+}
+
+internal fun formatShowerDuration(raw: String): String {
+    val sec = raw.toLongOrNull() ?: return raw
+    if (sec <= 0) return ""
+    val h = sec / 3600
+    val m = (sec % 3600) / 60
+    val s = sec % 60
+    return when {
+        h > 0 -> "${h}小时${m}分"
+        m > 0 -> "${m}分${s}秒"
+        else -> "${s}秒"
+    }
+}
+
+/** epoch 秒/毫秒统一转 `yyyy-MM-dd HH:mm`，固定东八区，避免设备时区把日期挤到前一天。 */
+internal fun formatShowerEpoch(raw: String): String {
+    val value = raw.toLongOrNull() ?: return raw.trim()
+    if (value <= 0) return ""
+    val ms = if (value > 10_000_000_000L) value else value * 1000
+    val format = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.CHINA)
+    format.timeZone = java.util.TimeZone.getTimeZone("Asia/Shanghai")
+    return format.format(java.util.Date(ms))
+}
+
+private fun ShowerOrder.dedupeKey(): String =
+    orderSn.ifBlank { "$time|$deviceName|$amount|$durationText" }
 
 /**
  * 解析设备项。

@@ -3,7 +3,9 @@ package com.union.campus.ui.prism
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +34,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -44,6 +47,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 // ---------------- 字号角色（iOS Dynamic Type 档 × Roboto Flex） ----------------
 
@@ -470,18 +475,35 @@ fun PrismAlertDialog(
     dismissText: String? = "取消",
     destructive: Boolean = false,
 ) {
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    val scope = rememberCoroutineScope()
+    var open by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { open = true }
+
+    // 先播放收回动画，再卸载对话框窗口；按钮/返回键都走这里，退出不再是硬切。
+    fun close(action: () -> Unit) {
+        if (!open) return
+        open = false
+        scope.launch {
+            delay((PrismMotion.Quick + 20).toLong())
+            action()
+        }
+    }
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = { close(onDismiss) }) {
         val density = LocalDensity.current
         val shape = remember(density.density) { PrismShape(PrismCorner.Alert * density.density) }
-        var shown by remember { mutableStateOf(false) }
-        LaunchedEffect(Unit) { shown = true }
         AnimatedVisibility(
-            visible = shown,
+            visible = open,
             modifier = modifier.fillMaxWidth(0.92f).widthIn(max = 348.dp),
             enter = fadeIn(PrismMotion.tween(PrismMotion.Fast)) +
                 scaleIn(
                     initialScale = 0.92f,
                     animationSpec = PrismMotion.springSnappy(),
+                ),
+            exit = fadeOut(PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate)) +
+                scaleOut(
+                    targetScale = 0.94f,
+                    animationSpec = PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate),
                 ),
         ) {
             Surface(
@@ -509,7 +531,7 @@ fun PrismAlertDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (dismissText != null) {
                             Box(Modifier.weight(1f)) {
-                                PrismButton(filled = false, onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
+                                PrismButton(filled = false, onClick = { close(onDismiss) }, modifier = Modifier.fillMaxWidth()) {
                                     Text(dismissText)
                                 }
                             }
@@ -517,8 +539,10 @@ fun PrismAlertDialog(
                         Box(Modifier.weight(1f)) {
                             PrismButton(
                                 onClick = {
-                                    onDismiss()
-                                    onConfirm()
+                                    close {
+                                        onDismiss()
+                                        onConfirm()
+                                    }
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                                 containerColor = if (destructive) MaterialTheme.colorScheme.error else null,

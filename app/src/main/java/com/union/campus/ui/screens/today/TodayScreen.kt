@@ -64,6 +64,7 @@ import com.union.campus.ui.prism.MetaChip
 import com.union.campus.ui.prism.PrismAnimatedText
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismSkeletonList
@@ -71,7 +72,6 @@ import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
-import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
@@ -234,10 +234,14 @@ fun TodayScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             item {
-                TodayHeader(
-                    nowTick = nowTick,
-                    week = timetable?.week ?: 1,
-                    onOpenReminders = onOpenReminders,
+                PrismPageHeader(
+                    title = "今天",
+                    subtitle = "${SemesterCalc.dateText(nowTick)} · 第 ${timetable?.week ?: 1} 周",
+                    actions = {
+                        IconButton(onClick = onOpenReminders) {
+                            Icon(Icons.Rounded.Notifications, contentDescription = "提醒中心")
+                        }
+                    },
                 )
             }
             classReminder?.let { (cell, minutes) ->
@@ -263,7 +267,7 @@ fun TodayScreen(
                     Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("今天", style = headlineStyle())
+                    Text("今日课程", style = headlineStyle())
                     Spacer(Modifier.weight(1f))
                     Text(
                         if (todayCells.isEmpty()) "没有课" else "${todayCells.size} 节课",
@@ -401,31 +405,6 @@ fun TodayScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun TodayHeader(
-    nowTick: Long,
-    week: Int,
-    onOpenReminders: () -> Unit,
-) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(
-                "今天",
-                style = pageTitleStyle().copy(fontSize = 28.sp, lineHeight = 34.sp),
-                fontWeight = FontWeight(700),
-            )
-            Text(
-                "${SemesterCalc.dateText(nowTick)} · 第 $week 周",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        IconButton(onClick = onOpenReminders) {
-            Icon(Icons.Rounded.Notifications, contentDescription = "提醒中心")
         }
     }
 }

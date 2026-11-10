@@ -70,6 +70,7 @@ import com.union.campus.ui.prism.PrismLoadingIndicator
 import com.union.campus.ui.prism.PrismOption
 import com.union.campus.ui.prism.PrismOptionSheet
 import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismSnapSheet
@@ -150,98 +151,99 @@ fun ProfileScreen(
         }
     }
 
-    UnionScreenScaffold(
-        title = "我的",
-        modifier = modifier,
-        largeTitle = true,
-        actions = {
-            IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "设置") }
-        },
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+    Column(
+        modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(start = 16.dp, end = 16.dp, top = 4.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        PrismPageHeader(
+            title = "我的",
+            actions = {
+                IconButton(onClick = onOpenSettings) {
+                    Icon(Icons.Rounded.Settings, contentDescription = "设置")
+                }
+            },
+        )
+        PrismCard(
+            modifier = Modifier.fillMaxWidth(),
+            contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         ) {
-            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    IconBadge(Icons.Rounded.Person)
-                    Spacer(Modifier.width(12.dp))
-                    Column {
-                        Text(if (cred.jwStudentNo.isNotBlank()) "同学" else "未登录", style = headlineStyle())
-                        Text(
-                            listOfNotNull(
-                                "郑州财经学院".takeIf { true },
-                                cred.jwStudentNo.takeIf { it.isNotBlank() }?.let { "学号 ${it.take(4)}****" },
-                            ).joinToString(" · "),
-                            style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                IconBadge(Icons.Rounded.Person)
+                Spacer(Modifier.width(12.dp))
+                Column {
+                    Text(if (cred.jwStudentNo.isNotBlank()) "同学" else "未登录", style = headlineStyle())
+                    Text(
+                        listOfNotNull(
+                            "郑州财经学院".takeIf { true },
+                            cred.jwStudentNo.takeIf { it.isNotBlank() }?.let { "学号 ${it.take(4)}****" },
+                        ).joinToString(" · "),
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-
-            Text("账号与凭证", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = "教务", subtitle = if (cred.jwStudentNo.isNotBlank()) "已连接 · 学号 ${cred.jwStudentNo.take(4)}****" else "未绑定",
-                    index = 0, count = 3, leading = { IconBadge(Icons.Rounded.School) },
-                    trailing = { StatusIcon(cred.jwStudentNo.isNotBlank()) },
-                    onClick = onOpenCredentials,
-                )
-                PrismRow(
-                    title = "洗浴", subtitle = if (cred.showerToken.isNotBlank()) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定",
-                    index = 1, count = 3, leading = { IconBadge(Icons.Rounded.Shower) },
-                    trailing = { StatusIcon(cred.showerToken.isNotBlank()) },
-                    onClick = onOpenCredentials,
-                )
-                PrismRow(
-                    title = "电费", subtitle = if (cred.electricAccount.isNotBlank()) "已绑定学号 ${cred.electricAccount.take(4)}****" else "未绑定",
-                    index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Bolt) },
-                    trailing = { StatusIcon(cred.electricAccount.isNotBlank()) },
-                    onClick = onOpenCredentials,
-                )
-            }
-
-            PrismCard(modifier = Modifier.fillMaxWidth()) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("账号体检", style = headlineStyle())
-                        Text(
-                            "并行检查教务、洗浴与电费，不阻塞当前页面",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (checking) {
-                        PrismLoadingIndicator(size = 20.dp)
-                    } else {
-                        PrismTextButton(onClick = { healthCheck() }) {
-                            Icon(Icons.Rounded.Sync, null)
-                            Spacer(Modifier.width(6.dp))
-                            Text("开始")
-                        }
-                    }
-                }
-                if (checkStates.isNotEmpty()) {
-                    Spacer(Modifier.height(4.dp))
-                    CheckStateRow("教务", checkStates["教务"] ?: CheckState.Idle)
-                    CheckStateRow("洗浴", checkStates["洗浴"] ?: CheckState.Idle)
-                    CheckStateRow("电费", checkStates["电费"] ?: CheckState.Idle)
-                }
-            }
-
-            PrismGroupedList {
-                PrismRow(title = "凭证中心", subtitle = "教务、洗浴与电费账号", index = 0, count = 4, leading = { IconBadge(Icons.Rounded.School) }, onClick = onOpenCredentials)
-                PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", index = 1, count = 4, leading = { IconBadge(Icons.Rounded.Notifications) }, onClick = onOpenReminders)
-                PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", index = 2, count = 4, leading = { IconBadge(Icons.Rounded.Settings) }, onClick = onOpenSettings)
-                PrismRow(title = "关于", subtitle = "版本、作者与版权", index = 3, count = 4, leading = { IconBadge(Icons.Rounded.Info) }, onClick = onOpenAbout)
-            }
-            Spacer(Modifier.height(12.dp))
         }
+
+        Text("账号与凭证", style = headlineStyle())
+        PrismGroupedList {
+            PrismRow(
+                title = "教务", subtitle = if (cred.jwStudentNo.isNotBlank()) "已连接 · 学号 ${cred.jwStudentNo.take(4)}****" else "未绑定",
+                index = 0, count = 3, leading = { IconBadge(Icons.Rounded.School) },
+                trailing = { StatusIcon(cred.jwStudentNo.isNotBlank()) },
+                onClick = onOpenCredentials,
+            )
+            PrismRow(
+                title = "洗浴", subtitle = if (cred.showerToken.isNotBlank()) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定",
+                index = 1, count = 3, leading = { IconBadge(Icons.Rounded.Shower) },
+                trailing = { StatusIcon(cred.showerToken.isNotBlank()) },
+                onClick = onOpenCredentials,
+            )
+            PrismRow(
+                title = "电费", subtitle = if (cred.electricAccount.isNotBlank()) "已绑定学号 ${cred.electricAccount.take(4)}****" else "未绑定",
+                index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Bolt) },
+                trailing = { StatusIcon(cred.electricAccount.isNotBlank()) },
+                onClick = onOpenCredentials,
+            )
+        }
+
+        PrismCard(modifier = Modifier.fillMaxWidth()) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("账号体检", style = headlineStyle())
+                    Text(
+                        "并行检查教务、洗浴与电费，不阻塞当前页面",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (checking) {
+                    PrismLoadingIndicator(size = 20.dp)
+                } else {
+                    PrismTextButton(onClick = { healthCheck() }) {
+                        Icon(Icons.Rounded.Sync, null)
+                        Spacer(Modifier.width(6.dp))
+                        Text("开始")
+                    }
+                }
+            }
+            if (checkStates.isNotEmpty()) {
+                Spacer(Modifier.height(4.dp))
+                CheckStateRow("教务", checkStates["教务"] ?: CheckState.Idle)
+                CheckStateRow("洗浴", checkStates["洗浴"] ?: CheckState.Idle)
+                CheckStateRow("电费", checkStates["电费"] ?: CheckState.Idle)
+            }
+        }
+
+        PrismGroupedList {
+            PrismRow(title = "凭证中心", subtitle = "教务、洗浴与电费账号", index = 0, count = 4, leading = { IconBadge(Icons.Rounded.School) }, onClick = onOpenCredentials)
+            PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", index = 1, count = 4, leading = { IconBadge(Icons.Rounded.Notifications) }, onClick = onOpenReminders)
+            PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", index = 2, count = 4, leading = { IconBadge(Icons.Rounded.Settings) }, onClick = onOpenSettings)
+            PrismRow(title = "关于", subtitle = "版本、作者与版权", index = 3, count = 4, leading = { IconBadge(Icons.Rounded.Info) }, onClick = onOpenAbout)
+        }
+        Spacer(Modifier.height(24.dp))
     }
 }
 

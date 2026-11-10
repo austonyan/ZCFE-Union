@@ -265,7 +265,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                         navController.navigate(Screen.CourseDetail.route)
                     },
                     onOpenGrades = { navController.navigate(Screen.Grades.route) },
-                    onOpenFreeClassrooms = { navController.navigate(Screen.FreeClassrooms.route) },
                     onOpenTimetableSettings = { navController.navigate(Screen.TimetableSettings.route) },
                 )
             }

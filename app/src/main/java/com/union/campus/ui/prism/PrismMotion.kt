@@ -2,6 +2,7 @@ package com.union.campus.ui.prism
 
 import android.provider.Settings
 import androidx.compose.animation.core.CubicBezierEasing
+import androidx.compose.animation.core.Easing
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.TweenSpec
@@ -30,6 +31,13 @@ object PrismMotion {
         delayMillis: Int = 0,
     ): TweenSpec<T> =
         tween(durationMillis = durationMillis, delayMillis = delayMillis, easing = StandardEasing)
+
+    /** 指定缓动的补间：进场用 Decelerate，退场用 Accelerate。 */
+    fun <T> tween(
+        durationMillis: Int,
+        easing: Easing,
+    ): TweenSpec<T> =
+        androidx.compose.animation.core.tween(durationMillis = durationMillis, easing = easing)
 
     fun <T> springSmooth(stiffness: Float = 380f): FiniteAnimationSpec<T> =
         spring(dampingRatio = Spring.DampingRatioNoBouncy, stiffness = stiffness)
