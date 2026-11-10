@@ -1,10 +1,13 @@
 package com.union.campus
 
 import com.union.campus.data.remote.shower.formatShowerCountdown
+import com.union.campus.data.repo.canStartReservedShower
 import com.union.campus.data.repo.parseShowerReservation
+import com.union.campus.domain.ShowerReservation
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -93,5 +96,21 @@ class ShowerReservationTest {
         assertEquals("05:00", formatShowerCountdown(300))
         assertEquals("00:09", formatShowerCountdown(9))
         assertEquals("00:00", formatShowerCountdown(-1))
+    }
+
+    @Test
+    fun startRequiresMatchingUnexpiredReservation() {
+        val now = 1_000_000L
+        val reservation = ShowerReservation(
+            deviceUuid = "faucet_01",
+            deviceName = "01",
+            areaName = "3层",
+            maxWaitSeconds = 300,
+            expiresAt = now + 60_000,
+        )
+        assertTrue(canStartReservedShower(reservation, "faucet_01", now))
+        assertFalse(canStartReservedShower(reservation, "faucet_02", now))
+        assertFalse(canStartReservedShower(reservation, "faucet_01", now + 60_000))
+        assertFalse(canStartReservedShower(null, "faucet_01", now))
     }
 }

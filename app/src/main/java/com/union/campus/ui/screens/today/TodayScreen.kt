@@ -194,13 +194,16 @@ fun TodayScreen(
     val (current, next) = remember(todayCells, scheduleConfig, nowTick) {
         computeCurrentNext(todayCells, scheduleConfig, nowTick)
     }
-    val minutesToNext = next?.let { cell ->
-        val start = TimetableSchedule.courseSchedule(cell, scheduleConfig)?.start ?: return@let null
-        val startMs = SemesterCalc.timeToMillisToday(start, nowTick) ?: return@let null
-        ((startMs - nowTick) / 60_000L).toInt()
+    val classReminder = if (remindEnabled && remindClass) {
+        next?.let { cell ->
+            val start = TimetableSchedule.courseSchedule(cell, scheduleConfig)?.start
+            val startMs = start?.let { SemesterCalc.timeToMillisToday(it, nowTick) }
+            val minutes = startMs?.let { ((it - nowTick) / 60_000L).toInt() }
+            if (minutes != null && minutes in 0..classLead) cell to minutes else null
+        }
+    } else {
+        null
     }
-    val showClassReminder = remindEnabled && remindClass && next != null &&
-        minutesToNext != null && minutesToNext in 0..classLead
 
     LaunchedEffect(remindEnabled, remindExam, remindEvaluation, remindLowElectric, lowElectricThreshold) {
         todos = runCatching { ServiceLocator.todoRepository.localTodos() }.getOrDefault(emptyList())
@@ -237,11 +240,11 @@ fun TodayScreen(
                     onOpenReminders = onOpenReminders,
                 )
             }
-            if (showClassReminder && next != null && minutesToNext != null) {
+            classReminder?.let { (cell, minutes) ->
                 item {
                     ClassReminderBanner(
-                        cell = next,
-                        minutes = minutesToNext,
+                        cell = cell,
+                        minutes = minutes,
                         onClick = onOpenTimetable,
                     )
                 }

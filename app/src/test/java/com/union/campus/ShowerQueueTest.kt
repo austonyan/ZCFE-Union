@@ -1,12 +1,16 @@
 package com.union.campus
 
 import com.union.campus.data.repo.chooseBuildingAreas
+import com.union.campus.data.repo.isShowerQueueTurn
 import com.union.campus.data.repo.parseMyQueue
 import com.union.campus.data.repo.parseQueueCounts
 import com.union.campus.domain.ShowerArea
+import com.union.campus.domain.ShowerQueue
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 洗浴：区域队列与我的排队响应解析。 */
@@ -74,5 +78,27 @@ class ShowerQueueTest {
         )
         val result = chooseBuildingAreas(states, emptyList(), "1")
         assertEquals(2, result.size)
+    }
+
+    @Test
+    fun queueTurnRequiresIdleDeviceAndFrontOfLine() {
+        val front = ShowerQueue("875", "3层男浴室", position = 1, queueNum = 2, waitMinutes = 4)
+        val waiting = ShowerQueue("875", "3层男浴室", position = 3, queueNum = 4, waitMinutes = 8)
+        assertTrue(isShowerQueueTurn(front, idleCount = 1))
+        assertFalse("没有空闲设备时不能预约", isShowerQueueTurn(front, idleCount = 0))
+        assertFalse("未排到队首时不能越过前面的人", isShowerQueueTurn(waiting, idleCount = 2))
+        assertFalse(isShowerQueueTurn(null, idleCount = 3))
+    }
+
+    @Test
+    fun zeroWaitMeansQueueTurnEvenWithoutPosition() {
+        val called = ShowerQueue("875", "3层男浴室", position = 0, queueNum = 1, waitMinutes = 0)
+        assertTrue(isShowerQueueTurn(called, idleCount = 1))
+    }
+
+    @Test
+    fun zeroWaitDoesNotOverrideAnExplicitBackPosition() {
+        val third = ShowerQueue("875", "3层男浴室", position = 3, queueNum = 4, waitMinutes = 0)
+        assertFalse(isShowerQueueTurn(third, idleCount = 2))
     }
 }

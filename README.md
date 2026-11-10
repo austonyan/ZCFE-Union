@@ -4,8 +4,8 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.10.apk`** — 已签名 release APK（versionCode 15，v2 签名，CN=Zhengcai Union，有效期 10000 天）
-- 上一版 `郑财校园-release-v0.2.9.apk`（versionCode 11）保留，便于回滚
+- **`郑财校园-release-v0.2.11.apk`** — 已签名 release APK（versionCode 16，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- 上一版 `郑财校园-release-v0.2.10.apk`（versionCode 15）保留，便于回滚
 - 签名密钥：`app/union-release.keystore`（store/key 密码 `***REMOVED***`，alias `union`）
 
 ## 构建

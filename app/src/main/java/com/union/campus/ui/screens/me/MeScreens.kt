@@ -574,6 +574,7 @@ fun RemindersCenterScreen(
     val remindExam by settings.remindExam.collectAsState(initial = true)
     val remindLowElectric by settings.remindLowElectric.collectAsState(initial = true)
     val remindEvaluation by settings.remindEvaluation.collectAsState(initial = true)
+    val remindShowerQueue by settings.remindShowerQueue.collectAsState(initial = true)
     val quietOn by settings.quietEnabled.collectAsState(initial = true)
     val quietStart by settings.quietStart.collectAsState(initial = 23)
     val quietEnd by settings.quietEnd.collectAsState(initial = 7)
@@ -644,12 +645,12 @@ fun RemindersCenterScreen(
                 ) { on -> set { settings.setRemindEvaluation(on) } }
                 ToggleRow(
                     title = "洗浴排队",
-                    subtitle = "尚未接入系统通知",
+                    subtitle = if (remindEnabled && remindShowerQueue) "洗浴页打开时叫号提醒" else "已关闭",
                     icon = Icons.Rounded.Shower,
-                    checked = false,
-                    enabled = false,
+                    checked = remindShowerQueue,
+                    enabled = remindEnabled,
                     index = 5, count = 7,
-                ) { }
+                ) { on -> set { settings.setRemindShowerQueue(on) } }
                 ToggleRow(
                     title = "成绩更新",
                     subtitle = "尚未接入系统通知",
@@ -727,6 +728,7 @@ fun RemindersCenterScreen(
                         settings.setRemindLowElectric(true)
                         settings.setLowElectricThreshold(20)
                         settings.setRemindEvaluation(true)
+                        settings.setRemindShowerQueue(true)
                         settings.setQuietEnabled(true)
                         settings.setQuietRange(23, 7)
                     }
@@ -738,7 +740,7 @@ fun RemindersCenterScreen(
             }
 
             Text(
-                "上课为应用内横幅提醒；考试、评教与低电费会进入待办，低电费另发系统通知。",
+                "上课为应用内横幅提醒；考试、评教与低电费会进入待办，低电费另发系统通知；洗浴排队在洗浴页打开时叫号提醒。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

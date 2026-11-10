@@ -67,7 +67,7 @@ class SettingsStore(private val context: Context) {
     val remindLowElectric: Flow<Boolean> = context.dataStore.data.map { it[K.remindLowElectric] ?: true }
     val lowElectricThreshold: Flow<Int> = context.dataStore.data.map { it[K.lowElectricThreshold] ?: 20 }
     val remindEvaluation: Flow<Boolean> = context.dataStore.data.map { it[K.remindEvaluation] ?: true }
-    val remindShowerQueue: Flow<Boolean> = context.dataStore.data.map { it[K.remindShowerQueue] ?: false }
+    val remindShowerQueue: Flow<Boolean> = context.dataStore.data.map { it[K.remindShowerQueue] ?: true }
     val remindGradeUpdate: Flow<Boolean> = context.dataStore.data.map { it[K.remindGradeUpdate] ?: true }
     val quietEnabled: Flow<Boolean> = context.dataStore.data.map { it[K.quietEnabled] ?: true }
     val quietStart: Flow<Int> = context.dataStore.data.map { it[K.quietStart] ?: 23 }

@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.core.AppError
 import com.union.campus.data.remote.shower.formatShowerCountdown
+import com.union.campus.data.repo.isShowerQueueTurn
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ShowerArea
 import com.union.campus.domain.ShowerBuilding
@@ -99,7 +100,7 @@ import com.union.campus.ui.prism.SurfaceLevel
 
 // ---------------- 洗浴首页 ----------------
 
-/** 洗浴：楼层、设备状态、空闲数、开始洗浴与钱包入口。 */
+/** 洗浴：位置/设备、预约等待、排队叫号与钱包入口；启动必须经过预约。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ShowerScreen(
@@ -130,14 +131,20 @@ fun ShowerScreen(
     var error by remember { mutableStateOf<String?>(null) }
     var deviceError by remember { mutableStateOf<String?>(null) }
     var startConfirm by remember { mutableStateOf<ShowerDevice?>(null) }
+    var reserveTarget by remember { mutableStateOf<ShowerDevice?>(null) }
+    var reserveBusy by remember { mutableStateOf(false) }
+    var expiredGuard by remember { mutableStateOf<String?>(null) }
+    var queueNotifiedFor by remember { mutableStateOf<String?>(null) }
     var queueConfirm by remember { mutableStateOf(false) }
     var cancelQueueConfirm by remember { mutableStateOf(false) }
     var queueBusy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
-    var hasActiveSession by remember { mutableStateOf(false) }
+    val activeSession by shower.activeSession.collectAsState(initial = shower.activeSession.value)
+    val hasActiveSession = activeSession != null
     var reservation by remember { mutableStateOf<ShowerReservation?>(null) }
     var reservationBusy by remember { mutableStateOf(false) }
     var locationSheet by remember { mutableStateOf(false) }
+    val remindShowerQueue by settings.remindShowerQueue.collectAsState(initial = true)
 
     fun loadOrgs() {
         loading = true
@@ -340,7 +347,6 @@ fun ShowerScreen(
             }
             queueInfo = runCatching { shower.myQueue() }.getOrNull()
             queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(emptyMap())
-            hasActiveSession = shower.activeSession.value != null
             val b = buildings.firstOrNull { it.id == buildingId }
             val a = areas.firstOrNull { it.id == areaId }
             if (a != null) {
@@ -390,7 +396,38 @@ fun ShowerScreen(
     }
     val queueNumAtArea = queueCounts[areaId] ?: queueCounts[""] ?: selectedArea?.queueNum ?: 0
     val idleCount = if (devices.isNotEmpty()) devices.count { it.state == 0 } else selectedArea?.idleNum ?: 0
+    val queueTurn = isShowerQueueTurn(myQueueAtArea, idleCount)
+    val queueTurnDevice = if (queueTurn) devices.firstOrNull { it.state == 0 } else null
+    val queueElsewhere = queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId
+    val canReserveNow = !hasActiveSession && reservation == null && !queueElsewhere &&
+        (myQueueAtArea == null || queueTurn)
     val queueCancelAreaId = queueInfo?.areaId?.takeIf { it.isNotBlank() } ?: areaId
+
+    // 叫号提醒：仅在洗浴页打开时轮询到“已轮到”时提示一次
+    LaunchedEffect(queueTurn, remindShowerQueue, reservation?.deviceUuid, myQueueAtArea?.areaId, myQueueAtArea?.position) {
+        if (queueTurn && remindShowerQueue && reservation == null) {
+            val key = "${myQueueAtArea?.areaId ?: areaId}:${myQueueAtArea?.position ?: 0}"
+            if (queueNotifiedFor != key) {
+                queueNotifiedFor = key
+                haptics.success()
+                messenger.success("轮到你了，请在洗浴页预约空闲设备")
+            }
+        }
+    }
+
+    LaunchedEffect(myQueueAtArea?.areaId, myQueueAtArea?.position) {
+        if (myQueueAtArea == null) queueNotifiedFor = null
+    }
+
+    // 服务端/手动预约成功后退出排队，避免同时占着队列和设备
+    LaunchedEffect(reservation?.deviceUuid, queueInfo?.areaId) {
+        if (reservation == null) return@LaunchedEffect
+        val q = queueInfo ?: return@LaunchedEffect
+        if (q.areaId.isNotBlank() || areaId.isNotBlank()) {
+            runCatching { shower.cancelQueue(q.areaId.takeIf { it.isNotBlank() } ?: areaId) }
+            queueInfo = null
+        }
+    }
 
     fun chooseOrg(id: String) {
         if (id == orgId) return
@@ -446,6 +483,14 @@ fun ShowerScreen(
     }
 
     fun joinQueue() {
+        if (hasActiveSession) {
+            result = "当前正在洗浴，请先结束当前洗浴"
+            return
+        }
+        if (queueInfo != null) {
+            result = "已在排队中，请勿重复加入"
+            return
+        }
         if (queueBusy || areaId.isBlank()) return
         queueBusy = true
         launchUi {
@@ -453,7 +498,7 @@ fun ShowerScreen(
                 shower.queueUp(areaId)
                 queueInfo = runCatching { shower.myQueue() }.getOrNull()
                 queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(queueCounts)
-                messenger.success("已加入排队，轮到时会通知")
+                messenger.success("已加入排队，轮到后可在本页预约空闲设备")
                 haptics.success()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -488,18 +533,78 @@ fun ShowerScreen(
         }
     }
 
-    /** 从预约卡片开始洗浴：先刷新设备列表，避免拿到旧状态。 */
-    fun startReserved() {
-        val r = reservation ?: return
+    /** 预约当前区域的一个空闲设备；成功后进入等待倒计时，不再直接启动。 */
+    fun reserve(device: ShowerDevice) {
+        if (hasActiveSession) {
+            result = "当前正在洗浴，请先结束当前洗浴"
+            return
+        }
+        if (myQueueAtArea != null && !queueTurn) {
+            result = "还在排队中，轮到后请在本页预约空闲设备"
+            return
+        }
+        if (queueElsewhere) {
+            result = "请先取消其他区域的排队，再预约当前区域"
+            return
+        }
+        if (reserveBusy || reservation != null) return
+        reserveBusy = true
+        val areaText = selectedArea?.name ?: "当前区域"
         launchUi {
-            val fresh = runCatching { shower.devices(areaId, forceRefresh = true) }
-                .getOrDefault(emptyList())
-            if (fresh.isNotEmpty()) devices = fresh
-            val device = fresh.firstOrNull { it.uuid == r.deviceUuid }
-            if (device != null) {
-                startConfirm = device
-            } else {
-                result = "预约在 ${r.areaName.ifBlank { "其他区域" }}，请先切换到该区域再开始"
+            try {
+                val r = shower.reserveDevice(device, areaText)
+                reservation = r
+                expiredGuard = null
+                devices = runCatching { shower.devices(areaId, forceRefresh = true) }
+                    .getOrDefault(devices)
+                haptics.success()
+                if (r != null) {
+                    messenger.success("预约成功，请在倒计时内启动设备")
+                } else {
+                    messenger.success("预约已提交，请稍候刷新预约状态")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: AppError) {
+                result = e.userMessage
+            } catch (e: Exception) {
+                result = "预约失败：${e.message}"
+            } finally {
+                reserveBusy = false
+            }
+        }
+    }
+
+    /** 从预约卡片启动：先向服务端核对预约，再进入启动确认。 */
+    fun startReserved() {
+        if (reservationBusy) return
+        reservationBusy = true
+        launchUi {
+            try {
+                val latest = shower.refreshReservation()
+                if (latest == null) {
+                    reservation = null
+                    result = "预约已超时或已取消，请重新预约"
+                    return@launchUi
+                }
+                reservation = latest
+                val fresh = runCatching { shower.devices(areaId, forceRefresh = true) }
+                    .getOrDefault(emptyList())
+                if (fresh.isNotEmpty()) devices = fresh
+                val device = fresh.firstOrNull { it.uuid == latest.deviceUuid }
+                if (device != null) {
+                    startConfirm = device
+                } else {
+                    result = "预约在 ${latest.areaName.ifBlank { "其他区域" }}，请先切换到该区域再启动"
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: AppError) {
+                result = e.userMessage
+            } catch (e: Exception) {
+                result = "预约状态刷新失败：${e.message}"
+            } finally {
+                reservationBusy = false
             }
         }
     }
@@ -512,6 +617,7 @@ fun ShowerScreen(
             try {
                 shower.cancelReserve(r.deviceUuid)
                 reservation = null
+                expiredGuard = null
                 devices = runCatching { shower.devices(areaId, forceRefresh = true) }
                     .getOrDefault(devices)
                 messenger.info("已取消预约")
@@ -527,38 +633,64 @@ fun ShowerScreen(
         }
     }
 
-    /** 本地倒计时归零：以服务端状态为准重新核对，并刷新设备。 */
+    /** 本地倒计时归零：主动释放预约并以服务端状态为准，避免占住设备。 */
     fun reservationExpired() {
+        val r = reservation ?: return
+        if (expiredGuard == r.deviceUuid) return
+        expiredGuard = r.deviceUuid
         launchUi {
+            runCatching { shower.cancelReserve(r.deviceUuid) }
             reservation = runCatching { shower.refreshReservation() }.getOrNull()
             devices = runCatching { shower.devices(areaId, forceRefresh = true) }
                 .getOrDefault(devices)
+            messenger.warning("预约已超时并自动取消，请重新预约")
         }
     }
 
+    if (reserveTarget != null) {
+        val device = reserveTarget!!
+        val areaText = selectedArea?.name ?: "当前区域"
+        val buildingText = selectedBuilding?.let { buildingLabel(it.name) } ?: "当前楼栋"
+        PrismAlertDialog(
+            title = "预约洗浴位置",
+            body = "预约设备 ${device.name} · $buildingText $areaText\n预约成功后进入等待倒计时，请在倒计时内启动设备；超时会自动取消。",
+            confirmText = "预约",
+            onConfirm = {
+                reserveTarget = null
+                reserve(device)
+            },
+            onDismiss = { reserveTarget = null },
+        )
+    }
     if (startConfirm != null) {
         val device = startConfirm!!
         val areaText = selectedArea?.name ?: "当前区域"
         val buildingText = selectedBuilding?.let { buildingLabel(it.name) } ?: "当前楼栋"
         PrismAlertDialog(
-            title = "开始洗浴",
-            body = "设备 ${device.name} · $buildingText $areaText\n按实际使用时长计费，以账单为准。确认开始？",
-            confirmText = "开始",
+            title = "启动设备",
+            body = "设备 ${device.name} · $buildingText $areaText\n预约已生效，确认启动设备并开始计费？",
+            confirmText = "启动设备",
             onConfirm = {
                 startConfirm = null
                 launchUi {
                     try {
                         shower.startShower(device, areaText, buildingText)
+                        if (queueInfo != null && queueCancelAreaId.isNotBlank()) {
+                            runCatching { shower.cancelQueue(queueCancelAreaId) }
+                        }
                         reservation = null
-                        hasActiveSession = true
+                        expiredGuard = null
+                        queueInfo = null
                         result = null
+                        haptics.success()
                         onOpenSession()
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: AppError) {
                         result = e.userMessage
+                        reservation = runCatching { shower.refreshReservation() }.getOrNull()
                     } catch (e: Exception) {
-                        result = "开始失败：${e.message}，请刷新设备状态"
+                        result = "启动失败：${e.message}，请刷新设备状态"
                     }
                 }
             },
@@ -568,7 +700,7 @@ fun ShowerScreen(
     if (queueConfirm) {
         PrismAlertDialog(
             title = "加入排队",
-            body = "当前区域暂无空闲设备，加入排队后请留意叫号，轮到时会通知。确认加入？",
+            body = "当前区域暂无空闲设备。加入排队后请保持洗浴页打开，轮到后可在本页预约空闲设备并在倒计时内启动。确认加入？",
             confirmText = "加入排队",
             onConfirm = { queueConfirm = false; joinQueue() },
             onDismiss = { queueConfirm = false },
@@ -615,14 +747,16 @@ fun ShowerScreen(
                 }
             }
 
-            reservation?.let { r ->
-                ReservationCard(
-                    reservation = r,
-                    busy = reservationBusy,
-                    onStart = ::startReserved,
-                    onCancel = ::cancelReservation,
-                    onExpired = ::reservationExpired,
-                )
+            if (!hasActiveSession) {
+                reservation?.let { r ->
+                    ReservationCard(
+                        reservation = r,
+                        busy = reservationBusy,
+                        onStart = ::startReserved,
+                        onCancel = ::cancelReservation,
+                        onExpired = ::reservationExpired,
+                    )
+                }
             }
 
             PrismCard(onClick = { locationSheet = true }) {
@@ -655,7 +789,7 @@ fun ShowerScreen(
             }
 
             // 已在其他区域排队时给出提示，避免重复排队
-            if (!loading && error == null && queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId) {
+            if (!loading && error == null && reservation == null && queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId) {
                 val q = queueInfo!!
                 PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
                     Text(
@@ -671,23 +805,48 @@ fun ShowerScreen(
             }
 
             // 无空闲设备时提供排队入口；已排队时显示进度
-            if (!loading && error == null && selectedArea != null && shower.isBound() &&
-                (idleCount == 0 || myQueueAtArea != null)
+            if (!loading && error == null && reservation == null && selectedArea != null && shower.isBound() &&
+                !queueElsewhere && (idleCount == 0 || myQueueAtArea != null)
             ) {
                 PrismCard {
                     CardHeader("排队")
                     Spacer(Modifier.height(6.dp))
                     if (myQueueAtArea != null) {
                         val pos = myQueueAtArea.position
-                        Text(if (pos > 0) "排队中 · 第 $pos 位" else "排队中", style = headlineStyle())
+                        Text(
+                            if (queueTurn) "轮到你了" else if (pos > 0) "排队中 · 第 $pos 位" else "排队中",
+                            style = headlineStyle(),
+                        )
                         val wait = myQueueAtArea.waitMinutes.takeIf { it > 0 }
                             ?: (pos * 2).takeIf { it > 0 }
                             ?: 0
                         Text(
-                            if (wait > 0) "预计等待约 $wait 分钟，轮到时会通知" else "轮到时会通知",
+                            when {
+                                queueTurn -> "区域已有空闲设备，预约后进入等待，请在倒计时内启动设备"
+                                wait > 0 -> "预计等待约 $wait 分钟，轮到时会通知"
+                                else -> "轮到时会通知"
+                            },
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (queueTurn) {
+                            Spacer(Modifier.height(8.dp))
+                            PrismButton(
+                                onClick = {
+                                    val device = queueTurnDevice
+                                    if (device != null) {
+                                        reserveTarget = device
+                                    } else {
+                                        result = "空闲设备还在加载，请稍后重试"
+                                    }
+                                },
+                                enabled = queueTurnDevice != null && !queueBusy && !reserveBusy && !hasActiveSession,
+                                loading = reserveBusy,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Text(if (queueTurnDevice != null) "预约空闲设备" else "正在加载空闲设备")
+                            }
+                        }
                         PrismTextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
                             Text("取消排队")
                         }
@@ -702,7 +861,7 @@ fun ShowerScreen(
                         val otherQueue = queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId
                         PrismButton(
                             onClick = { queueConfirm = true },
-                            enabled = !queueBusy && !otherQueue,
+                            enabled = !queueBusy && !otherQueue && !hasActiveSession,
                             loading = queueBusy,
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -754,19 +913,56 @@ fun ShowerScreen(
                         }
                     }
                     Text("设备", style = headlineStyle())
+                    Text(
+                        "点击空闲设备先预约，预约成功后在倒计时内启动；超时会自动取消。",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (canReserveNow && idleCount > 0 && myQueueAtArea == null) {
+                        val firstIdle = devices.firstOrNull { it.state == 0 }
+                        Spacer(Modifier.height(8.dp))
+                        PrismButton(
+                            onClick = {
+                                if (firstIdle != null) {
+                                    reserveTarget = firstIdle
+                                } else {
+                                    result = "空闲设备还在加载，请稍后重试"
+                                }
+                            },
+                            enabled = firstIdle != null && !reserveBusy && canReserveNow,
+                            loading = reserveBusy,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(Icons.Rounded.Schedule, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text(if (firstIdle != null) "预约空闲位置" else "正在加载空闲设备")
+                        }
+                    }
                     devices.chunked(2).forEach { rowDevices ->
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                             rowDevices.forEach { d ->
                                 DeviceCard(
                                     device = d,
+                                    reservedByMe = reservation?.deviceUuid == d.uuid,
                                     onClick = {
-                                        val r = reservation
-                                        if (r != null && r.deviceUuid != d.uuid) {
-                                            result = "请先开始或取消当前预约（${r.deviceName}）"
-                                        } else if (d.state == 0) {
-                                            startConfirm = d
+                                        if (hasActiveSession) {
+                                            onOpenSession()
                                         } else {
-                                            onOpenDevice(d, selectedArea)
+                                            val r = reservation
+                                            when {
+                                                r != null && r.deviceUuid == d.uuid -> startConfirm = d
+                                                r != null -> result = "请先启动或取消当前预约（${r.deviceName}）"
+                                                d.state == 0 -> if (canReserveNow) {
+                                                    reserveTarget = d
+                                                } else if (queueElsewhere) {
+                                                    result = "请先取消其他区域的排队"
+                                                } else if (myQueueAtArea != null && !queueTurn) {
+                                                    result = "还在排队中，轮到后再预约设备"
+                                                } else {
+                                                    result = "请先完成当前预约或洗浴"
+                                                }
+                                                else -> onOpenDevice(d, selectedArea)
+                                            }
                                         }
                                     },
                                     modifier = Modifier.weight(1f),
@@ -988,12 +1184,22 @@ private fun SelectorRow(
     }
 }
 @Composable
-private fun DeviceCard(device: ShowerDevice, onClick: () -> Unit, modifier: Modifier = Modifier) {
+private fun DeviceCard(
+    device: ShowerDevice,
+    reservedByMe: Boolean = false,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     val haptics = rememberPrismHaptics()
-    val (targetBg, targetOnBg, statusText) = when (device.state) {
-        0 -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "空闲 · 可开始")
-        1 -> Triple(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurface, "使用中 · ${device.remainingText.ifBlank { "计时中" }}")
-        2 -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "已预约" + if (device.remainingText.isNotBlank()) " · ${device.remainingText}" else "")
+    val (targetBg, targetOnBg, statusText) = when {
+        reservedByMe -> Triple(
+            MaterialTheme.colorScheme.tertiaryContainer,
+            MaterialTheme.colorScheme.onTertiaryContainer,
+            "已预约 · 等待启动",
+        )
+        device.state == 0 -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "空闲 · 可预约")
+        device.state == 1 -> Triple(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurface, "使用中 · ${device.remainingText.ifBlank { "计时中" }}")
+        device.state == 2 -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "已预约" + if (device.remainingText.isNotBlank()) " · ${device.remainingText}" else "")
         else -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "故障/维护")
     }
     val bg by animateColorAsState(
@@ -1006,10 +1212,11 @@ private fun DeviceCard(device: ShowerDevice, onClick: () -> Unit, modifier: Modi
         animationSpec = PrismMotion.tween(PrismMotion.Standard),
         label = "device-content",
     )
-    val dotColor = when (device.state) {
-        0 -> PrismStatus.success()
-        1 -> PrismStatus.warning()
-        2 -> MaterialTheme.colorScheme.tertiary
+    val dotColor = when {
+        reservedByMe -> MaterialTheme.colorScheme.tertiary
+        device.state == 0 -> PrismStatus.success()
+        device.state == 1 -> PrismStatus.warning()
+        device.state == 2 -> MaterialTheme.colorScheme.tertiary
         else -> MaterialTheme.colorScheme.error
     }
     PrismCard(
@@ -1106,16 +1313,22 @@ private fun ReservationCard(
             }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
-                Text("已预约 ${reservation.deviceName}", style = headlineStyle(), color = onContainer)
+                Text("已预约 ${reservation.deviceName} · 等待启动", style = headlineStyle(), color = onContainer)
                 Spacer(Modifier.height(2.dp))
                 Text(
                     if (remaining > 0) {
-                        "剩余 ${formatShowerCountdown(remaining)} 自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
+                        "请在 ${formatShowerCountdown(remaining)} 内启动设备，超时自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
                     } else {
-                        "预约已过期，请重新预约"
+                        "预约已过期，正在自动取消，请重新预约"
                     },
                     style = footnoteStyle(),
                     color = onContainer.copy(alpha = 0.78f),
+                )
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    "预约不会自动开启设备，需在倒计时内手动启动。",
+                    style = footnoteStyle(),
+                    color = onContainer.copy(alpha = 0.72f),
                 )
             }
         }
@@ -1124,7 +1337,7 @@ private fun ReservationCard(
             PrismButton(onClick = onStart, enabled = remaining > 0 && !busy, loading = busy) {
                 Icon(Icons.Rounded.PlayArrow, null)
                 Spacer(Modifier.width(6.dp))
-                Text("开始洗浴")
+                Text("启动设备")
             }
             PrismTextButton(onClick = onCancel, enabled = !busy) {
                 Text("取消预约")
@@ -1137,7 +1350,7 @@ private fun Modifier.align2(): Modifier = this.then(Modifier)
 
 // ---------------- 设备详情 ----------------
 
-/** 设备详情：设备状态、最近使用、开始洗浴与预约。 */
+/** 设备详情：设备状态、最近使用、预约与预约等待内启动。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DeviceDetailScreen(
@@ -1157,6 +1370,8 @@ fun DeviceDetailScreen(
     var buildingName by remember { mutableStateOf("") }
     var reservation by remember { mutableStateOf<ShowerReservation?>(null) }
     var reservationBusy by remember { mutableStateOf(false) }
+    var expiredGuard by remember { mutableStateOf<String?>(null) }
+    val activeSession by shower.activeSession.collectAsState(initial = null)
 
     LaunchedEffect(Unit) {
         buildingName = settings.lastShowerBuilding.first()
@@ -1179,6 +1394,7 @@ fun DeviceDetailScreen(
             try {
                 shower.cancelReserve(r.deviceUuid)
                 reservation = null
+                expiredGuard = null
                 messenger.info("已取消预约")
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -1193,25 +1409,36 @@ fun DeviceDetailScreen(
     }
 
     fun reservationExpired() {
+        val r = reservation ?: return
+        if (expiredGuard == r.deviceUuid) return
+        expiredGuard = r.deviceUuid
         launchUi {
+            runCatching { shower.cancelReserve(r.deviceUuid) }
             reservation = runCatching { shower.refreshReservation() }.getOrNull()
+            messenger.warning("预约已超时并自动取消，请重新预约")
         }
     }
 
     if (startConfirm) {
         PrismAlertDialog(
-            title = "开始洗浴",
-            body = "设备 ${device.name} · $areaName\n按实际使用时长计费，以账单为准。确认开始？",
-            confirmText = "开始",
+            title = "启动设备",
+            body = "设备 ${device.name} · $areaName\n预约已生效，确认启动设备并开始计费？",
+            confirmText = "启动设备",
             onConfirm = {
                 startConfirm = false
                 launchUi {
                     try {
                         shower.startShower(device, areaName, buildingName)
                         reservation = null
+                        expiredGuard = null
+                        haptics.success()
                         onOpenSession()
-                    } catch (e: AppError) { result = e.userMessage }
-                    catch (e: Exception) { result = "开始失败：${e.message}，请刷新确认状态" }
+                    } catch (e: AppError) {
+                        result = e.userMessage
+                        reservation = runCatching { shower.refreshReservation() }.getOrNull()
+                    } catch (e: Exception) {
+                        result = "启动失败：${e.message}，请刷新确认状态"
+                    }
                 }
             },
             onDismiss = { startConfirm = false },
@@ -1219,8 +1446,8 @@ fun DeviceDetailScreen(
     }
     if (reserveConfirm) {
         PrismAlertDialog(
-            title = "预约设备",
-            body = "预约 ${device.name}？预约后请在倒计时内开始，超时会自动取消。",
+            title = "预约洗浴位置",
+            body = "预约 ${device.name}？预约成功后进入等待倒计时，请在倒计时内启动设备；超时会自动取消。",
             confirmText = "预约",
             onConfirm = {
                 reserveConfirm = false
@@ -1228,12 +1455,13 @@ fun DeviceDetailScreen(
                     try {
                         val r = shower.reserveDevice(device, areaName)
                         reservation = r
+                        expiredGuard = null
                         haptics.success()
                         messenger.success(
                             if (r != null) {
-                                "预约成功，请在 ${formatShowerCountdown(r.maxWaitSeconds)} 内开始"
+                                "预约成功，请在倒计时内启动设备"
                             } else {
-                                "预约成功，请尽快开始"
+                                "预约已提交，请刷新后查看等待时间"
                             },
                         )
                     } catch (e: AppError) { result = e.userMessage }
@@ -1268,7 +1496,7 @@ fun DeviceDetailScreen(
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "$areaName · " + when (device.state) {
-                        0 -> "空闲"
+                        0 -> "空闲 · 可预约"
                         1 -> "使用中"
                         2 -> "已预约"
                         else -> "故障/维护"
@@ -1277,7 +1505,26 @@ fun DeviceDetailScreen(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
             }
-            if (reservedHere) {
+            if (activeSession != null) {
+                PrismCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
+                    Text(
+                        "已有正在进行的洗浴，请先在洗浴页结束当前洗浴再预约。",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                    )
+                }
+            }
+            val otherReservation = reservation
+            if (!reservedHere && otherReservation != null) {
+                PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
+                    Text(
+                        "已在 ${otherReservation.deviceName} 预约，请先启动或取消该预约，再预约当前设备。",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                }
+            }
+            if (reservedHere && activeSession == null) {
                 ReservationCard(
                     reservation = reservation!!,
                     busy = reservationBusy,
@@ -1289,8 +1536,8 @@ fun DeviceDetailScreen(
             Text("设备状态", style = headlineStyle())
             PrismGroupedList {
                 PrismRow(title = "当前状态", subtitle = when {
-                    reservedHere -> "已预约 · 请在倒计时内开始"
-                    device.state == 0 -> "空闲 · 可立即开始"
+                    reservedHere -> "已预约 · 请在倒计时内启动"
+                    device.state == 0 -> "空闲 · 可预约"
                     device.state == 1 -> "使用中"
                     device.state == 2 -> "已预约"
                     else -> "故障"
@@ -1298,24 +1545,45 @@ fun DeviceDetailScreen(
                 PrismRow(title = "最近使用", subtitle = device.remainingText.ifBlank { "—" }, index = 1, count = 3, leading = { IconBadge(Icons.Rounded.History) })
                 PrismRow(title = "故障码", subtitle = "无", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Info) })
             }
-            PrismButton(
-                onClick = { startConfirm = true },
-                enabled = device.state == 0 || reservedHere,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Rounded.PlayArrow, null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (device.state == 0 || reservedHere) "开始洗浴" else "设备不可用")
-            }
-            if (!reservedHere) {
-                PrismTextButton(
+            when {
+                reservedHere -> PrismButton(
+                    onClick = { startConfirm = true },
+                    enabled = activeSession == null,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(Icons.Rounded.PlayArrow, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(if (activeSession == null) "启动设备" else "洗浴进行中")
+                }
+                device.state == 0 -> PrismButton(
                     onClick = { reserveConfirm = true },
+                    enabled = activeSession == null && otherReservation == null,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Rounded.Schedule, null)
                     Spacer(Modifier.width(8.dp))
-                    Text("预约设备")
+                    Text(
+                        when {
+                            activeSession != null -> "洗浴进行中"
+                            otherReservation != null -> "请先处理其他预约"
+                            else -> "预约此设备"
+                        },
+                    )
                 }
+                else -> PrismButton(
+                    onClick = {},
+                    enabled = false,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("设备不可用")
+                }
+            }
+            if (!reservedHere && device.state == 0) {
+                Text(
+                    "预约后不会自动开启设备，请在倒计时内回到此页启动。",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             Spacer(Modifier.height(12.dp))
         }

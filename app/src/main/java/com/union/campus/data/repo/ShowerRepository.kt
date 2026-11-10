@@ -275,33 +275,35 @@ class ShowerRepository constructor(
     }
 
     /**
-     * 开始洗浴（写，不重试）。
-     * 上游要求 need_reserve=1 的设备必须先 DeviceApi/reserve 预约，再 DeviceApi/turnOn；
-     * 直接 turnOn 会返回 code 130「您尚未预约任何设备」。
+     * 启动洗浴（写，不重试）。
+     * 必须先通过 [reserveDevice] 预约当前设备，并在服务端下发/兜底的等待时间内启动；
+     * 不再提供“直接 turnOn”或“预约后立即 turnOn”的路径。
      */
     suspend fun startShower(device: ShowerDevice, areaName: String, buildingName: String) {
+        if (_activeSession.value != null) {
+            throw AppError.Validation("已有正在进行的洗浴，请先结束当前洗浴")
+        }
+        val reservation = _reservation.value
+        if (reservation == null || reservation.deviceUuid != device.uuid) {
+            throw AppError.Validation("请先预约该设备，等预约成功后再启动洗浴")
+        }
+        if (!canStartReservedShower(reservation, device.uuid)) {
+            _reservation.value = null
+            throw AppError.Validation("预约已超时并自动取消，请重新预约")
+        }
         val result = try {
-            if (device.needReserve) {
-                reserveThenTurnOn(device.uuid)
-            } else {
-                try {
-                    client.turnOn(device.uuid)
-                } catch (e: AppError.Validation) {
-                    // 旧缓存没有 need_reserve 字段时，用服务端文案兜底再预约一次
-                    if (!showerNeedsReserveMessage(e.userMessage)) throw e
-                    reserveThenTurnOn(device.uuid)
-                }
-            }
-        } catch (e: AppError.Upstream) {
-            // 上游仅给错误码/技术文案时，给出可执行提示，避免“数据源返回异常”
-            throw AppError.Validation("暂时无法开始洗浴，请确认设备状态后重试")
+            client.turnOn(device.uuid)
         } catch (e: AppError.Validation) {
-            // 预约后仍提示未预约：多半是预约已过期/被释放
+            // 预约已过期/被释放时，上游会回到“尚未预约任何设备”
             if (showerNeedsReserveMessage(e.userMessage)) {
-                throw AppError.Validation("设备预约已失效，请刷新设备状态后重试")
+                _reservation.value = null
+                throw AppError.Validation("预约已失效，请重新预约后再启动")
             }
             throw e
-        } ?: throw AppError.Validation("设备没有返回开始结果，请刷新设备状态后重试")
+        } catch (e: AppError.Upstream) {
+            // 上游仅给错误码/技术文案时，给出可执行提示，避免“数据源返回异常”
+            throw AppError.Validation("暂时无法启动洗浴，请确认设备状态后重试")
+        } ?: throw AppError.Validation("设备没有返回启动结果，请刷新设备状态后重试")
         val orderSn = parse.str(result, "order_sn", "orderSn")
         val session = ShowerSessionState(
             deviceUuid = device.uuid,
@@ -314,15 +316,6 @@ class ShowerRepository constructor(
         _activeSession.value = session
         store.write(sessionFileKey, ShowerSessionState.serializer(), session)
         _reservation.value = null
-    }
-
-    /** 预约后立即开启；开启失败则释放预约，避免占住设备。 */
-    private suspend fun reserveThenTurnOn(uuid: String): JsonObject? = try {
-        client.reserve(uuid)
-        client.turnOn(uuid)
-    } catch (e: AppError) {
-        runCatching { client.cancelReserve(uuid) }
-        throw e
     }
 
     /** 结束洗浴（写，不重试）。设备已结束/已关闭时按幂等成功处理。 */
@@ -407,9 +400,20 @@ class ShowerRepository constructor(
     /**
      * 预约设备。预约成功后立即读取服务端状态：
      * `userState=reserved` 时 `remainTime` 是实时剩余秒数，用它作为倒计时。
-     * 读取失败时退回预约响应里的 `maxWaitTime`，仍然不是本地固定值。
+     * 读取失败时退回预约响应里的 `maxWaitTime`；仍缺失才使用兜底窗口，
+     * 之后的轮询会用服务端 remainTime 覆盖。
      */
     suspend fun reserveDevice(device: ShowerDevice, areaName: String): ShowerReservation? {
+        if (_activeSession.value != null) {
+            throw AppError.Validation("已有正在进行的洗浴，请先结束当前洗浴")
+        }
+        val existing = _reservation.value
+        if (existing != null &&
+            existing.deviceUuid != device.uuid &&
+            existing.expiresAt > System.currentTimeMillis()
+        ) {
+            throw AppError.Validation("已有其他设备的预约，请先启动或取消当前预约")
+        }
         val result = client.reserve(device.uuid)
         val serverReservation = try {
             refreshReservation()
@@ -418,7 +422,8 @@ class ShowerRepository constructor(
         } catch (_: Exception) {
             null
         }
-        val reservation = serverReservation ?: reservationFromReserve(device, areaName, result)
+        val merged = serverReservation ?: reservationFromReserve(device, areaName, result)
+        val reservation = if (merged.areaName.isBlank()) merged.copy(areaName = areaName) else merged
         _reservation.value = reservation
         return reservation
     }
@@ -436,9 +441,12 @@ class ShowerRepository constructor(
         device: ShowerDevice,
         areaName: String,
         result: JsonObject?,
-    ): ShowerReservation? {
-        val wait = result?.let { parse.int(it, "maxWaitTime", "max_wait_time") } ?: 0
-        if (wait <= 0) return null
+    ): ShowerReservation {
+        // 响应没有等待时间时仍要进入“预约等待”流程，用服务端常见窗口兜底；
+        // 之后每次 refreshReservation 都会用服务端 remainTime 覆盖。
+        val wait = result?.let { parse.int(it, "maxWaitTime", "max_wait_time") }
+            ?.takeIf { it > 0 }
+            ?: DEFAULT_RESERVATION_WAIT_SECONDS
         return ShowerReservation(
             deviceUuid = device.uuid,
             deviceName = device.name,
@@ -593,7 +601,9 @@ internal fun parseQueueCounts(element: JsonElement?): Map<String, Int> {
     return out
 }
 
-/** 解析 `getMyQueueInfo`；空闲时上游返回空字符串，此时返回 null。 */
+/**
+ * 解析 `getMyQueueInfo`；空闲时上游返回空字符串，此时返回 null。
+ */
 internal fun parseMyQueue(element: JsonElement?): ShowerQueue? {
     val obj = when (element) {
         is JsonObject -> {
@@ -638,3 +648,22 @@ internal fun parseMyQueue(element: JsonElement?): ShowerQueue? {
         waitMinutes = wait,
     )
 }
+
+/** 预约响应缺少等待窗口时的展示兜底；服务端 remainTime 会随后覆盖。 */
+private const val DEFAULT_RESERVATION_WAIT_SECONDS = 300
+
+/**
+ * 排队是否已轮到：区域里已有空闲设备，且自己排在最前（position<=1）。
+ * position=0 表示服务端未给出具体名次或已叫号，此时同样允许预约。
+ */
+internal fun isShowerQueueTurn(queue: ShowerQueue?, idleCount: Int): Boolean =
+    queue != null && idleCount > 0 && queue.position <= 1
+
+/** 启动前必须满足：预约属于当前设备，且尚未超过服务端下发的等待时间。 */
+internal fun canStartReservedShower(
+    reservation: ShowerReservation?,
+    deviceUuid: String,
+    now: Long = System.currentTimeMillis(),
+): Boolean = reservation != null &&
+    reservation.deviceUuid == deviceUuid &&
+    reservation.expiresAt > now
