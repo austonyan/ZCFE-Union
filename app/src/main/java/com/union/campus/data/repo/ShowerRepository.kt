@@ -350,38 +350,41 @@ class ShowerRepository constructor(
         )
     }
 
-    /** 单页消费明细：原生接口返回 { consumptionList[], ifLast, totalAmount }。 */
-    suspend fun ordersPage(page: Int = 1, pageSize: Int = 20): ShowerOrdersPage {
+    /**
+     * 单页消费明细：原生接口返回 { consumptionList[], ifLast, totalAmount }。
+     * 注意 `page` 是 **0 基**：page=0 才是最新一页，page=1 会跳过最新一页。
+     */
+    suspend fun ordersPage(page: Int = 0, pageSize: Int = 100): ShowerOrdersPage {
         val cred = credentials.load()
         val data = client.consumptionLog(
             page = page,
             pageSize = pageSize,
             mobile = cred.showerMobile,
             uid = cred.showerUid,
-            deviceTypeKey = "faucet",
+            // 不传 device_type_key：账单里可能同时有 faucet / hotwater 两种记录
         ) ?: return ShowerOrdersPage(emptyList(), isLast = true)
         return parseShowerOrdersPage(data)
     }
 
-    /** 兼容旧调用：只取第一页。 */
-    suspend fun orders(page: Int = 1): List<ShowerOrder> = ordersPage(page).items
+    /** 兼容旧调用：取最新一页。 */
+    suspend fun orders(page: Int = 0): List<ShowerOrder> = ordersPage(page).items
 
     /**
-     * 账户页用：按服务端分页把消费明细拉全，再按时间倒序取最近 [limit] 条。
+     * 账户页用：从 page=0 开始分页，取最近 [limit] 条消费明细。
      *
-     * 原生 `consumptionLog` 默认每页只有 10 条，且 `ifLast=0` 表示还有下一页；
-     * 旧实现只请求 page=1，导致账单永远停在第一页最后一条记录的日期。
-     * 服务端页序可能是升序也可能是降序，因此这里翻完页后统一按时间倒序。
+     * 原生 `consumptionLog` 的 `page` 从 0 开始，`page=1` 会跳过最新一页；
+     * 旧实现正好请求 page=1，所以账单总是从第 11 条开始，看起来停在某个较早日期。
+     * 服务端按时间倒序返回，拿到 [limit] 条即可停；最后再按时间倒序兜底一次。
      */
     suspend fun recentOrders(
-        limit: Int = 200,
-        pageSize: Int = 20,
-        maxPages: Int = 20,
+        limit: Int = 100,
+        pageSize: Int = 100,
+        maxPages: Int = 5,
     ): List<ShowerOrder> {
         val all = mutableListOf<ShowerOrder>()
         val seen = mutableSetOf<String>()
-        var page = 1
-        while (page <= maxPages) {
+        var page = 0
+        while (page < maxPages) {
             val result = try {
                 ordersPage(page, pageSize)
             } catch (e: AppError.AuthExpired) {
@@ -394,7 +397,7 @@ class ShowerRepository constructor(
             val fresh = result.items.filter { seen.add(it.dedupeKey()) }
             if (fresh.isEmpty()) break
             all += fresh
-            if (result.isLast == true) break
+            if (result.isLast == true || all.size >= limit) break
             page++
         }
         return all.sortedByDescending { it.time }.take(limit)
