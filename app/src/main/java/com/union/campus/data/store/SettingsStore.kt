@@ -45,6 +45,8 @@ class SettingsStore(private val context: Context) {
         val currentSemesterDm = stringPreferencesKey("current_semester_dm")
         val gradeEffectiveMode = booleanPreferencesKey("grade_effective_mode")
         val timetableWeekMode = stringPreferencesKey("timetable_week_mode") // week/odd/all
+        val timetableJLate = booleanPreferencesKey("timetable_j_late") // true=J1–J6 10:40；false=10:20
+        val timetableFallbackGroup = intPreferencesKey("timetable_fallback_group") // 1=J1–J6 2=S1–S6、J7
         val lastShowerArea = stringPreferencesKey("last_shower_area")
         val lastShowerBuilding = stringPreferencesKey("last_shower_building")
         val lastShowerOrgArea = stringPreferencesKey("last_shower_org_area")
@@ -81,6 +83,8 @@ class SettingsStore(private val context: Context) {
     val currentSemesterDm: Flow<String> = context.dataStore.data.map { it[K.currentSemesterDm] ?: "" }
     val gradeEffectiveMode: Flow<Boolean> = context.dataStore.data.map { it[K.gradeEffectiveMode] ?: true }
     val timetableWeekMode: Flow<String> = context.dataStore.data.map { it[K.timetableWeekMode] ?: "week" }
+    val timetableJLate: Flow<Boolean> = context.dataStore.data.map { it[K.timetableJLate] ?: true }
+    val timetableFallbackGroup: Flow<Int> = context.dataStore.data.map { it[K.timetableFallbackGroup] ?: 1 }
     val lastShowerArea: Flow<String> = context.dataStore.data.map { it[K.lastShowerArea] ?: "" }
     val lastShowerBuilding: Flow<String> = context.dataStore.data.map { it[K.lastShowerBuilding] ?: "" }
     val lastShowerOrgArea: Flow<String> = context.dataStore.data.map { it[K.lastShowerOrgArea] ?: "" }
@@ -117,6 +121,8 @@ class SettingsStore(private val context: Context) {
     suspend fun setCurrentSemesterDm(v: String) = context.dataStore.edit { it[K.currentSemesterDm] = v }
     suspend fun setGradeEffectiveMode(v: Boolean) = context.dataStore.edit { it[K.gradeEffectiveMode] = v }
     suspend fun setTimetableWeekMode(v: String) = context.dataStore.edit { it[K.timetableWeekMode] = v }
+    suspend fun setTimetableJLate(v: Boolean) = context.dataStore.edit { it[K.timetableJLate] = v }
+    suspend fun setTimetableFallbackGroup(v: Int) = context.dataStore.edit { it[K.timetableFallbackGroup] = v }
     suspend fun setLastShower(area: String, building: String, orgArea: String) = context.dataStore.edit {
         it[K.lastShowerArea] = area; it[K.lastShowerBuilding] = building; it[K.lastShowerOrgArea] = orgArea
     }

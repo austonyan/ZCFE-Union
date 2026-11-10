@@ -11,11 +11,14 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import com.union.campus.ui.prism.LocalPrismDark
+import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.LocalPressLook
 import com.union.campus.ui.prism.LocalSurfaceLevel
 import com.union.campus.ui.prism.PressLook
+import com.union.campus.ui.prism.PrismMessenger
 import com.union.campus.ui.prism.PrismPressIndication
 import com.union.campus.ui.prism.SurfaceLevel
 
@@ -31,6 +34,7 @@ fun UnionTheme(
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
+    val messenger = remember { PrismMessenger() }
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= 31 ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -44,6 +48,7 @@ fun UnionTheme(
         LocalPrismDark provides darkTheme,
         LocalSurfaceLevel provides SurfaceLevel.Page,
         LocalPressLook provides PressLook.Ink,
+        LocalPrismMessenger provides messenger,
     ) {
         MaterialTheme(
             colorScheme = colorScheme,

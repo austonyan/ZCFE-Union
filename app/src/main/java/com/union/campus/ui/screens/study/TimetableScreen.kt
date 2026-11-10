@@ -1,5 +1,11 @@
 package com.union.campus.ui.screens.study
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -7,6 +13,7 @@ import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -17,8 +24,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -28,20 +35,21 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Grade
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -55,51 +63,63 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
+import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.CourseCell
-import com.union.campus.domain.SectionTime
+import com.union.campus.domain.MorningSlot
 import com.union.campus.domain.Semester
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
+import com.union.campus.domain.TimetableSchedule
+import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismCorner
-import com.union.campus.ui.prism.PrismShape
+import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
-import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.ui.prism.rememberPrismHaptics
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.builtins.ListSerializer
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
-/** 课表：学期/周次切换、日视图课程列表、调课提醒、找空教室。 */
+/** 课表：学期/周次切换、网格课表、调课提醒、找空教室。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimetableScreen(
     onOpenCourse: (CourseCell) -> Unit,
     onOpenGrades: () -> Unit,
     onOpenFreeClassrooms: () -> Unit,
+    onOpenTimetableSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val jw = ServiceLocator.jwRepository
     val entities = ServiceLocator.entities
     val settings = ServiceLocator.settings
+    val haptics = rememberPrismHaptics()
 
     var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
     var semesterDm by remember { mutableStateOf("") }
     var week by remember { mutableIntStateOf(1) }
     var maxWeek by remember { mutableIntStateOf(25) }
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
-    var sectionTimes by remember { mutableStateOf<List<SectionTime>>(emptyList()) }
     var showWeekend by remember { mutableStateOf(false) }
-    var notice by remember { mutableStateOf<String?>(null) }
+    var weekDirection by remember { mutableIntStateOf(0) }
+    var currentWeek by remember { mutableIntStateOf(1) }
+    var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+
+    val jLate by settings.timetableJLate.collectAsState(initial = true)
+    val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
+    val scheduleConfig = TimetableScheduleConfig(
+        j1ToJ6Slot = if (jLate) MorningSlot.Late else MorningSlot.Early,
+        fallbackGroup = if (fallbackValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6,
+    )
 
     LaunchedEffect(Unit) {
         semesterDm = jw.currentSemesterDm()
+        currentWeek = SemesterCalc.currentWeek(semesterDm, settings.firstWeekStart.first())
         if (jw.isBound()) {
             semesters = runCatching { jw.semesterList() }.getOrDefault(emptyList())
             val data = runCatching { jw.timetable(semesterDm, 0) }.getOrNull()
@@ -108,18 +128,25 @@ fun TimetableScreen(
                 week = data.week
                 maxWeek = data.maxWeek
             } else {
-                week = SemesterCalc.currentWeek(semesterDm, settings.firstWeekStart.first())
+                week = currentWeek
                 entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let { timetable = it.data }
             }
-            runCatching { notice = jw.notices().firstOrNull { it.kind == "change" }?.title }
-            sectionTimes = runCatching { jw.sectionTimes() }.getOrDefault(emptyList())
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            nowTick = System.currentTimeMillis()
+            kotlinx.coroutines.delay(30_000L)
         }
     }
 
     fun openSemester(dm: String) {
         if (dm == semesterDm) return
         semesterDm = dm
+        weekDirection = 0
         launchUi {
+            currentWeek = SemesterCalc.currentWeek(dm, settings.firstWeekStart.first())
             runCatching { jw.timetable(dm, 0) }.getOrNull()?.let { data ->
                 timetable = data
                 week = data.week
@@ -130,6 +157,9 @@ fun TimetableScreen(
 
     fun changeWeek(delta: Int) {
         val newWeek = (week + delta).coerceIn(1, maxWeek)
+        if (newWeek == week) return
+        weekDirection = delta
+        haptics.select()
         week = newWeek
         entities.read("jw.timetable.$semesterDm.w$newWeek", TimetableData.serializer())?.let { timetable = it.data }
         if (jw.isBound()) {
@@ -137,8 +167,12 @@ fun TimetableScreen(
         }
     }
 
-    val weekCourseCount = timetable?.days?.sumOf { it.cells.size } ?: 0
-    val weekendCount = timetable?.days?.filter { it.day >= 6 }?.sumOf { it.cells.size } ?: 0
+    val weekCourseCount = timetable?.days?.sumOf { day ->
+        day.cells.count { it.startSection <= TimetableSchedule.MAX_SECTION && it.endSection >= 1 }
+    } ?: 0
+    val weekendCount = timetable?.days?.filter { it.day >= 6 }?.sumOf { day ->
+        day.cells.count { it.startSection <= TimetableSchedule.MAX_SECTION && it.endSection >= 1 }
+    } ?: 0
     val semesterLabel = timetable?.semesterName?.takeIf { it.isNotBlank() }
         ?: semesters.firstOrNull { it.dm == semesterDm }?.name
         ?: semesterDm
@@ -149,6 +183,8 @@ fun TimetableScreen(
     }.orEmpty()
 
     fun goThisWeek() {
+        weekDirection = 0
+        haptics.select()
         launchUi {
             runCatching { jw.timetable(semesterDm, 0, forceRefresh = true) }
                 .getOrNull()?.let { data ->
@@ -162,12 +198,16 @@ fun TimetableScreen(
     UnionScreenScaffold(
         title = "课程表",
         onBack = null,
+        largeTitle = true,
         actions = {
             IconButton(onClick = { changeWeek(-1) }, enabled = week > 1) {
                 Icon(Icons.Rounded.ChevronLeft, contentDescription = "上一周")
             }
             IconButton(onClick = { changeWeek(1) }, enabled = week < maxWeek) {
                 Icon(Icons.Rounded.ChevronRight, contentDescription = "下一周")
+            }
+            IconButton(onClick = onOpenTimetableSettings) {
+                Icon(Icons.Rounded.Settings, contentDescription = "课表设置")
             }
             IconButton(onClick = onOpenGrades) { Icon(Icons.Rounded.Grade, contentDescription = "成绩") }
         },
@@ -229,18 +269,10 @@ fun TimetableScreen(
                 }
             }
 
-            if (notice != null) {
-                PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.SwapHoriz, null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
-                        Spacer(Modifier.width(10.dp))
-                        Column {
-                            Text("调课提醒", style = footnoteStyle(), fontWeight = FontWeight(600), color = MaterialTheme.colorScheme.onSecondaryContainer)
-                            Text(notice ?: "", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                        }
-                    }
-                }
-            }
+            TimetableMappingCard(
+                config = scheduleConfig,
+                onClick = onOpenTimetableSettings,
+            )
 
             if (!jw.isBound() && timetable == null) {
                 NullStatus(
@@ -249,12 +281,31 @@ fun TimetableScreen(
                     subtitle = "教务账号未绑定：到「我的 → 凭证中心」登录后即可同步",
                 )
             } else {
-                TimetableGrid(
-                    timetable = timetable,
-                    dayCount = if (showWeekend) 7 else 5,
-                    sectionTimes = sectionTimes,
-                    onOpenCourse = onOpenCourse,
-                )
+                AnimatedContent(
+                    targetState = week,
+                    transitionSpec = {
+                        if (weekDirection == 0) {
+                            fadeIn(PrismMotion.tween(PrismMotion.Quick)) togetherWith
+                                fadeOut(PrismMotion.tween(PrismMotion.Fast))
+                        } else {
+                            val direction = if (weekDirection > 0) 1 else -1
+                            (slideInHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { it / 2 * direction } +
+                                fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
+                                (slideOutHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { -it / 2 * direction } +
+                                    fadeOut(PrismMotion.tween(PrismMotion.Fast)))
+                        }
+                    },
+                    label = "timetable-week",
+                ) { _ ->
+                    TimetableGrid(
+                        timetable = timetable,
+                        dayCount = if (showWeekend) 7 else 5,
+                        config = scheduleConfig,
+                        nowTick = nowTick,
+                        isCurrentWeek = week == currentWeek,
+                        onOpenCourse = onOpenCourse,
+                    )
+                }
             }
 
             androidx.compose.material3.Button(
@@ -270,63 +321,167 @@ fun TimetableScreen(
     }
 }
 
+/** 教学楼作息提示：J1–J6 / S1–S6、J7 分别使用哪个时间槽。 */
+@Composable
+private fun TimetableMappingCard(
+    config: TimetableScheduleConfig,
+    onClick: () -> Unit,
+) {
+    val jSlot = config.slotFor(BuildingGroup.J1ToJ6)
+    val sSlot = config.slotFor(BuildingGroup.S1ToS6AndJ7)
+    PrismCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        containerColor = MaterialTheme.colorScheme.secondaryContainer,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(
+                Icons.Rounded.Schedule,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer,
+                modifier = Modifier.size(20.dp),
+            )
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "教学楼作息 · 按课程楼号自动匹配",
+                    style = footnoteStyle(),
+                    fontWeight = FontWeight(600),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+                Text(
+                    "J1–J6 ${jSlot.startLabel} 开始 · S1–S6、J7 ${sSlot.startLabel} 开始",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                )
+            }
+            Text(
+                "调整",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+            )
+            Icon(
+                Icons.Rounded.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                modifier = Modifier.size(18.dp),
+            )
+        }
+    }
+}
+
 @Composable
 private fun TimetableGrid(
     timetable: TimetableData?,
     dayCount: Int,
-    sectionTimes: List<SectionTime>,
+    config: TimetableScheduleConfig,
+    nowTick: Long,
+    isCurrentWeek: Boolean,
     onOpenCourse: (CourseCell) -> Unit,
 ) {
     if (timetable == null) {
-        Box(Modifier.fillMaxWidth().height(220.dp))
+        Box(Modifier.fillMaxWidth().height(220.dp), contentAlignment = Alignment.Center) {
+            Text("课表加载中…", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         return
     }
-    val maxSection = maxOf(12, timetable.days.flatMap { it.cells }.maxOfOrNull { it.endSection } ?: 0)
-    val rowHeight = 56.dp
-    val separatorHeight = 24.dp
-    val timeWidth = 42.dp
-    val times = sectionTimes.associateBy { it.section }
-    val weekStart = runCatching { LocalDate.parse(timetable.weekStart) }.getOrNull()
-    val today = SemesterCalc.dayOfWeek()
 
-    fun sectionY(section: Int): Dp {
+    val maxSection = TimetableSchedule.MAX_SECTION
+    val displayedDays = timetable.days.filter { it.day in 1..dayCount }
+    val allCells = displayedDays.flatMap { it.cells }
+        .filter { it.startSection <= maxSection && it.endSection >= 1 }
+    val hasEvening = allCells.any { it.endSection >= TimetableSchedule.EVENING_START_SECTION }
+    val visibleEnd = if (hasEvening) maxSection else TimetableSchedule.DINNER_AFTER_SECTION
+    val today = SemesterCalc.dayOfWeek(nowTick)
+    val todayCells = displayedDays.firstOrNull { it.day == today }?.cells.orEmpty()
+    val nowSlot = TimetableSchedule.slotForCurrentOrNext(todayCells, config, nowTick)
+    val times = TimetableSchedule.sectionTimes(nowSlot).associateBy { it.section }
+    val sTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.S1ToS6AndJ7))
+        .associateBy { it.section }
+    val jTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.J1ToJ6))
+        .associateBy { it.section }
+
+    val rowHeight = 58.dp
+    val breakHeight = 26.dp
+    val timeWidth = 50.dp
+
+    fun isBreakAfter(section: Int): Boolean =
+        section == TimetableSchedule.LUNCH_AFTER_SECTION || section == TimetableSchedule.DINNER_AFTER_SECTION
+
+    fun sectionTop(section: Int): Dp {
         var y = 0.dp
         for (i in 1 until section) {
             y += rowHeight
-            if (i == 5 || i == 9) y += separatorHeight
+            if (isBreakAfter(i)) y += breakHeight
         }
         return y
     }
 
-    fun sectionHeight(start: Int, end: Int): Dp {
+    fun blockHeight(start: Int, end: Int): Dp {
         var h = 0.dp
         for (i in start..end) {
             h += rowHeight
-            if ((i == 5 || i == 9) && i < end) h += separatorHeight
+            if (i < end && isBreakAfter(i)) h += breakHeight
         }
         return maxOf(h - 2.dp, 1.dp)
     }
 
-    val totalHeight = sectionY(maxSection + 1)
+    val totalHeight = sectionTop(visibleEnd) + rowHeight
+    val nowMinutes = minutesOfDay(nowTick)
+    var nowY: Dp? = null
+    if (isCurrentWeek) {
+        for (section in 1..visibleEnd) {
+            val time = times[section] ?: continue
+            val start = parseMinutesOfDay(time.start) ?: continue
+            val end = parseMinutesOfDay(time.end) ?: continue
+            if (nowMinutes in start..end) {
+                val fraction = (nowMinutes - start).toFloat() / (end - start).coerceAtLeast(1)
+                nowY = sectionTop(section) + rowHeight * fraction
+                break
+            }
+            if (nowMinutes < start) {
+                nowY = sectionTop(section)
+                break
+            }
+        }
+    }
+    val weekStart = runCatching { LocalDate.parse(timetable.weekStart) }.getOrNull()
     val dateFmt = DateTimeFormatter.ofPattern("MM/dd", Locale.CHINA)
 
-    Column(Modifier.fillMaxWidth()) {
+    PrismCard(
+        modifier = Modifier.fillMaxWidth(),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+    ) {
         Row(Modifier.fillMaxWidth()) {
             Spacer(Modifier.width(timeWidth))
             (1..dayCount).forEach { day ->
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                val isToday = day == today
+                Column(
+                    Modifier
+                        .weight(1f)
+                        .padding(horizontal = 2.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(
+                            if (isToday) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                            else Color.Transparent,
+                        )
+                        .padding(vertical = 3.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     Text(
                         dayName(day),
                         style = footnoteStyle(),
-                        fontWeight = if (day == today) FontWeight(700) else FontWeight(500),
-                        color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (isToday) FontWeight(700) else FontWeight(500),
+                        color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                     )
                     val date = weekStart?.plusDays((day - 1).toLong())
                     if (date != null) {
                         Text(
                             date.format(dateFmt),
                             style = footnoteStyle(),
-                            color = if (day == today) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = if (isToday) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
@@ -336,39 +491,78 @@ private fun TimetableGrid(
 
         Box(Modifier.fillMaxWidth().height(totalHeight)) {
             Row(Modifier.fillMaxSize()) {
-                Column(Modifier.width(timeWidth)) {
-                    for (section in 1..maxSection) {
+                Box(Modifier.width(timeWidth).fillMaxHeight()) {
+                    for (section in 1..visibleEnd) {
                         Column(
-                            Modifier.height(rowHeight).padding(start = 2.dp),
+                            Modifier
+                                .offset(y = sectionTop(section))
+                                .height(rowHeight)
+                                .fillMaxWidth()
+                                .padding(horizontal = 2.dp),
                             verticalArrangement = Arrangement.Center,
+                            horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text("$section", fontSize = 12.sp, fontWeight = FontWeight(600), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            times[section]?.let { st ->
-                                Text(st.start, fontSize = 8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f))
-                                Text(st.end, fontSize = 8.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f))
+                            Text(
+                                "$section",
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight(700),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (section == 3 || section == 4) {
+                                Text(
+                                    "S ${sTimes[section]?.start ?: ""}",
+                                    fontSize = 8.sp,
+                                    lineHeight = 10.sp,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                )
+                                Text(
+                                    "J ${jTimes[section]?.start ?: ""}",
+                                    fontSize = 8.sp,
+                                    lineHeight = 10.sp,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            } else {
+                                times[section]?.let { time ->
+                                    Text(
+                                        time.start,
+                                        fontSize = 8.sp,
+                                        lineHeight = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                                    )
+                                    Text(
+                                        time.end,
+                                        fontSize = 8.sp,
+                                        lineHeight = 10.sp,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                    )
+                                }
                             }
                         }
                     }
                 }
+
                 Row(Modifier.weight(1f).fillMaxHeight()) {
                     (1..dayCount).forEach { day ->
-                        val cells = timetable.days.firstOrNull { it.day == day }?.cells.orEmpty()
+                        val cells = displayedDays.firstOrNull { it.day == day }?.cells.orEmpty()
                         Box(
                             Modifier
                                 .weight(1f)
                                 .fillMaxHeight()
                                 .background(
-                                    if (day % 2 == 0) MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.45f)
-                                    else Color.Transparent,
+                                    when {
+                                        day == today -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f)
+                                        day % 2 == 0 -> MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.45f)
+                                        else -> Color.Transparent
+                                    },
                                 ),
                         ) {
-                            for (section in 1..maxSection) {
+                            for (section in 1..visibleEnd) {
                                 Box(
                                     Modifier
-                                        .offset(y = sectionY(section))
+                                        .offset(y = sectionTop(section))
                                         .fillMaxWidth()
                                         .height(1.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
                                 )
                             }
                             Box(
@@ -376,50 +570,74 @@ private fun TimetableGrid(
                                     .align(Alignment.CenterEnd)
                                     .width(1.dp)
                                     .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.28f)),
+                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
                             )
                             cells.forEach { cell ->
+                                if (cell.startSection > maxSection || cell.endSection < 1) return@forEach
+                                if (cell.startSection > visibleEnd) return@forEach
+                                val start = cell.startSection.coerceIn(1, visibleEnd)
+                                val end = cell.endSection.coerceIn(start, visibleEnd)
                                 val (bg, onBg) = coursePalette(cell.name)
                                 Box(
                                     Modifier
-                                        .offset(y = sectionY(cell.startSection))
-                                        .height(sectionHeight(cell.startSection, cell.endSection))
+                                        .offset(y = sectionTop(start))
+                                        .height(blockHeight(start, end))
                                         .fillMaxWidth()
                                         .padding(horizontal = 2.dp, vertical = 1.dp)
                                         .clip(RoundedCornerShape(10.dp))
                                         .background(bg)
-                                        .clickable { onOpenCourse(cell) }
-                                        .padding(horizontal = 5.dp, vertical = 4.dp),
+                                        .clickable { onOpenCourse(cell) },
                                 ) {
-                                    Column {
-                                        Text(
-                                            cell.name,
-                                            fontSize = 12.sp,
-                                            lineHeight = 14.sp,
-                                            fontWeight = FontWeight(600),
-                                            color = onBg,
-                                            maxLines = 3,
-                                            overflow = TextOverflow.Ellipsis,
+                                    Row(Modifier.fillMaxSize()) {
+                                        Box(
+                                            Modifier
+                                                .width(3.dp)
+                                                .fillMaxHeight()
+                                                .background(onBg.copy(alpha = 0.20f)),
                                         )
-                                        if (cell.location.isNotBlank()) {
+                                        Column(Modifier.padding(horizontal = 5.dp, vertical = 4.dp)) {
                                             Text(
-                                                "@${cell.location}",
-                                                fontSize = 9.sp,
-                                                lineHeight = 11.sp,
-                                                color = onBg.copy(alpha = 0.82f),
-                                                maxLines = 2,
+                                                cell.name,
+                                                fontSize = 12.sp,
+                                                lineHeight = 14.sp,
+                                                fontWeight = FontWeight(600),
+                                                color = onBg,
+                                                maxLines = if (end == start) 2 else 3,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
-                                        }
-                                        if (cell.teacher.isNotBlank()) {
-                                            Text(
-                                                cell.teacher,
-                                                fontSize = 9.sp,
-                                                lineHeight = 11.sp,
-                                                color = onBg.copy(alpha = 0.82f),
-                                                maxLines = 1,
-                                                overflow = TextOverflow.Ellipsis,
-                                            )
+                                            if (cell.location.isNotBlank()) {
+                                                Text(
+                                                    "@${cell.location}",
+                                                    fontSize = 9.sp,
+                                                    lineHeight = 11.sp,
+                                                    color = onBg.copy(alpha = 0.82f),
+                                                    maxLines = if (end == start) 1 else 2,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            }
+                                            if (cell.teacher.isNotBlank() && end > start) {
+                                                Text(
+                                                    cell.teacher,
+                                                    fontSize = 9.sp,
+                                                    lineHeight = 11.sp,
+                                                    color = onBg.copy(alpha = 0.82f),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
+                                            }
+                                            if (end > start) {
+                                                val info = TimetableSchedule.courseSchedule(cell, config)
+                                                if (info != null) {
+                                                    Text(
+                                                        "${info.start}–${info.end}",
+                                                        fontSize = 8.sp,
+                                                        lineHeight = 10.sp,
+                                                        color = onBg.copy(alpha = 0.72f),
+                                                        maxLines = 1,
+                                                        overflow = TextOverflow.Ellipsis,
+                                                    )
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -429,29 +647,100 @@ private fun TimetableGrid(
                 }
             }
 
-            SeparatorBand("午休", sectionY(6) - separatorHeight, separatorHeight, totalHeight)
-            SeparatorBand("晚休", sectionY(10) - separatorHeight, separatorHeight, totalHeight)
+            if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) {
+                val s4 = sTimes[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
+                val j4 = jTimes[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
+                BreakBand(
+                    label = if (s4 == j4) "午休 $s4 起" else "午休 $s4 / $j4 起",
+                    y = sectionTop(TimetableSchedule.LUNCH_AFTER_SECTION) + rowHeight,
+                    height = breakHeight,
+                )
+            }
+            if (visibleEnd > TimetableSchedule.DINNER_AFTER_SECTION) {
+                val (start, end) = TimetableSchedule.dinnerRange()
+                BreakBand(
+                    label = "晚休 $start–$end",
+                    y = sectionTop(TimetableSchedule.DINNER_AFTER_SECTION) + rowHeight,
+                    height = breakHeight,
+                )
+            }
+
+            nowY?.let { y ->
+                Box(
+                    Modifier
+                        .offset(y = y)
+                        .fillMaxWidth()
+                        .height(1.5.dp)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)),
+                )
+                Box(
+                    Modifier
+                        .offset(x = timeWidth - 4.dp, y = y - 3.dp)
+                        .size(8.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primary),
+                )
+                Box(
+                    Modifier
+                        .offset(x = timeWidth + 3.dp, y = y - 11.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(MaterialTheme.colorScheme.primary)
+                        .padding(horizontal = 4.dp, vertical = 1.dp),
+                ) {
+                    Text(
+                        "现在",
+                        fontSize = 8.sp,
+                        lineHeight = 10.sp,
+                        fontWeight = FontWeight(700),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                    )
+                }
+            }
         }
+        Text(
+            "S = S1–S6、J7 ${sTimes[3]?.start.orEmpty()}–${sTimes[4]?.end.orEmpty()} · " +
+                "J = J1–J6 ${jTimes[3]?.start.orEmpty()}–${jTimes[4]?.end.orEmpty()} · 第 3、4 节按课程楼号自动匹配",
+            fontSize = 8.sp,
+            lineHeight = 11.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+            modifier = Modifier.padding(top = 6.dp, start = 4.dp),
+        )
     }
 }
 
 @Composable
-private fun SeparatorBand(label: String, y: Dp, height: Dp, totalHeight: Dp) {
-    if (y < 0.dp || y + height > totalHeight) return
+private fun BreakBand(label: String, y: Dp, height: Dp) {
     Box(
         Modifier
             .offset(y = y)
             .fillMaxWidth()
             .height(height)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)),
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)),
         contentAlignment = Alignment.Center,
     ) {
-        Text(label, style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            label,
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
 private fun dayName(day: Int): String =
     listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").getOrElse(day - 1) { "" }
+
+private fun minutesOfDay(now: Long): Int {
+    val cal = java.util.Calendar.getInstance().apply { timeInMillis = now }
+    return cal.get(java.util.Calendar.HOUR_OF_DAY) * 60 + cal.get(java.util.Calendar.MINUTE)
+}
+
+private fun parseMinutesOfDay(text: String): Int? {
+    val parts = text.split(":")
+    if (parts.size != 2) return null
+    val hour = parts[0].toIntOrNull() ?: return null
+    val minute = parts[1].toIntOrNull() ?: return null
+    return hour * 60 + minute
+}
 
 @Composable
 private fun coursePalette(name: String): Pair<Color, Color> {

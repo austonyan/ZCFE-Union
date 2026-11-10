@@ -22,21 +22,15 @@ import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -54,6 +48,11 @@ import com.union.campus.domain.BindWizardNode
 import com.union.campus.domain.ElectricRoom
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismProgressRail
+import com.union.campus.ui.prism.PrismTextField
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.footnoteStyle
@@ -64,6 +63,8 @@ fun BindElectricScreen(
     onBack: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    showProgress: Boolean = true,
+    skipLabel: String = "稍后绑定",
 ) {
     val electric = ServiceLocator.electricRepository
     val jw = ServiceLocator.jwRepository
@@ -227,22 +228,22 @@ fun BindElectricScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LinearProgressIndicator(
-                progress = { 0.75f },
-                modifier = Modifier.fillMaxWidth(),
-                trackColor = MaterialTheme.colorScheme.secondaryContainer,
-            )
+            if (showProgress) {
+                PrismProgressRail(
+                    step = 4,
+                    total = 4,
+                    labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                )
+            }
             Text("选择你所在的宿舍房间", style = subheadlineStyle())
 
-            OutlinedTextField(
+            PrismTextField(
                 value = account,
                 onValueChange = { account = it },
-                label = { Text("学号") },
-                leadingIcon = { Icon(Icons.Rounded.Person, null) },
-                supportingText = { Text(if (jw.isBound()) "已从教务带入 ${jw.maskedStudentNo()}" else "未登录教务时需手动输入") },
+                label = "学号",
+                leadingIcon = Icons.Rounded.Person,
+                supportingText = if (jw.isBound()) "已从教务带入 ${jw.maskedStudentNo()}" else "未登录教务时需手动输入",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
             )
             if (boundLoading) {
                 Text(
@@ -251,50 +252,46 @@ fun BindElectricScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else if (boundRooms.isNotEmpty()) {
-                Card(
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer),
+                PrismCard(
+                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     modifier = Modifier.fillMaxWidth(),
+                    contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
                 ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Text(
-                            "已绑定房间（${boundRooms.size}）",
-                            style = headlineStyle(),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer,
-                        )
-                        boundRooms.forEach { bound ->
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
+                    Text(
+                        "已绑定房间（${boundRooms.size}）",
+                        style = headlineStyle(),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                    )
+                    boundRooms.forEach { bound ->
+                        Row(
+                            Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    bound.fullName,
+                                    style = subheadlineStyle(),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                )
+                                Text(
+                                    bound.roomVerify,
+                                    style = footnoteStyle(),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                )
+                            }
+                            PrismTextButton(
+                                onClick = { chooseBoundRoom(bound) },
+                                enabled = !loading,
                             ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        bound.fullName,
-                                        style = subheadlineStyle(),
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    )
-                                    Text(
-                                        bound.roomVerify,
-                                        style = footnoteStyle(),
-                                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
-                                    )
-                                }
-                                TextButton(
-                                    onClick = { chooseBoundRoom(bound) },
-                                    enabled = !loading,
-                                ) {
-                                    Text("使用")
-                                }
+                                Text("使用")
                             }
                         }
-                        Text(
-                            "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
-                        )
                     }
+                    Text(
+                        "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                    )
                 }
                 Text("绑定新房间", style = headlineStyle())
             }
@@ -330,30 +327,27 @@ fun BindElectricScreen(
 
             error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = subheadlineStyle()) }
 
-            Button(
+            PrismButton(
                 onClick = { doBind() },
-                enabled = !loading,
-                modifier = Modifier.fillMaxWidth().height(56.dp),
+                loading = loading,
+                modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
-                if (loading) {
-                    CircularProgressIndicator(Modifier.height(20.dp).width(20.dp), color = MaterialTheme.colorScheme.onPrimary, strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Rounded.Link, null)
-                    Spacer(Modifier.width(8.dp))
-                    Text("绑定房间")
-                }
+                Icon(Icons.Rounded.Link, null)
+                Spacer(Modifier.width(8.dp))
+                Text("绑定房间")
             }
-            TextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+            PrismTextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Schedule, null)
                 Spacer(Modifier.width(8.dp))
-                Text("稍后绑定")
+                Text(skipLabel)
             }
 
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("电费只查本人房间", style = headlineStyle())
-                    Text("使用绑定功能会将目标房间绑定至您的完美校园账户", style = subheadlineStyle())
-                }
+            PrismCard(
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("电费只查本人房间", style = headlineStyle())
+                Text("使用绑定功能会将目标房间绑定至您的完美校园账户", style = subheadlineStyle())
             }
             Text("登录状态仅保存在本机", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))

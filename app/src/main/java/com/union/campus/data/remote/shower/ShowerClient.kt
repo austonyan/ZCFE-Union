@@ -176,6 +176,15 @@ class ShowerClient {
         data = buildJsonObjectCompat { put("deviceAreaId", deviceAreaId); put("deviceTypeKey", deviceTypeKey) },
     )
 
+    /**
+     * 我的设备状态：`userState=reserved` 时 `remainTime` 是当前预约的实时剩余秒数；
+     * `deviceInfo` 同时给出 `reserve_time` / `reserve_expires` / `max_wait_time`。
+     */
+    suspend fun stateByDeviceType(deviceTypeKey: String = "faucet"): JsonObject? = call(
+        "DeviceAreaApi/getStateByDeviceType",
+        data = buildJsonObjectCompat { put("deviceTypeKey", deviceTypeKey) },
+    ) as? JsonObject
+
     suspend fun turnOn(uuid: String, deviceType: String = "faucet"): JsonObject? = call(
         "DeviceApi/turnOn",
         data = buildJsonObjectCompat { put("uuid", uuid); put("deviceType", deviceType) },
@@ -253,4 +262,22 @@ internal fun showerServiceClosedMessage(msg: String): String? {
     } else {
         null
     }
+}
+
+/** 设备要求先预约才能开启（code 130「您尚未预约任何设备」）。 */
+internal fun showerNeedsReserveMessage(msg: String): Boolean {
+    if (msg.isBlank()) return false
+    return msg.contains("尚未预约") || msg.contains("需要预约") || msg.contains("请先预约")
+}
+
+/** 结束洗浴时设备/订单已结束（code 100170「您没有正在使用的设备」）。 */
+internal fun showerAlreadyStoppedMessage(msg: String): Boolean {
+    if (msg.isBlank()) return false
+    return msg.contains("没有正在使用") || msg.contains("未在使用") || msg.contains("已结束")
+}
+
+/** 预约倒计时：秒数格式化为 mm:ss。 */
+internal fun formatShowerCountdown(seconds: Int): String {
+    val safe = seconds.coerceAtLeast(0)
+    return "%02d:%02d".format(safe / 60, safe % 60)
 }

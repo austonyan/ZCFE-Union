@@ -17,8 +17,10 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.CleaningServices
 import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Fingerprint
 import androidx.compose.material.icons.rounded.Grade
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.LockClock
@@ -35,32 +37,47 @@ import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.union.campus.core.AppError
+import com.union.campus.data.store.CredentialStore
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
+import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismStatus
+import com.union.campus.ui.prism.PrismStatusDot
+import com.union.campus.ui.prism.PrismSwitch
 import com.union.campus.ui.prism.PrismTextButton
+import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -68,24 +85,43 @@ import kotlinx.coroutines.flow.first
 
 // ---------------- 我的 ----------------
 
+/** 凭证快照：每次回到页面（ON_RESUME）重新读取，登录/退出后立即刷新。 */
+@Composable
+private fun rememberCredentialSnapshot(
+    store: CredentialStore,
+): Pair<CredentialStore.Credentials, () -> Unit> {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var revision by remember { mutableIntStateOf(0) }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) revision++
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    val snapshot = remember(revision) { store.load() }
+    return snapshot to { revision++ }
+}
+
 /** 我的：个人资料、三套凭证状态、一键体检、提醒与隐私入口。 */
 @Composable
 fun ProfileScreen(
     onOpenCredentials: () -> Unit,
-    onOpenAcademicAffairs: () -> Unit,
     onOpenReminders: () -> Unit,
-    onOpenPrivacy: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val credentials = ServiceLocator.credentials
-    var checkResult by remember { mutableStateOf<String?>(null) }
+    val messenger = LocalPrismMessenger.current
     var checking by remember { mutableStateOf(false) }
+    var checkStates by remember { mutableStateOf<Map<String, CheckState>>(emptyMap()) }
 
-    val cred = credentials.load()
+    val (cred, _) = rememberCredentialSnapshot(ServiceLocator.credentials)
 
     fun healthCheck() {
+        if (checking) return
         checking = true
+        checkStates = listOf("教务", "洗浴", "电费").associateWith { CheckState.Checking }
         launchUi {
             val jw = ServiceLocator.jwRepository
             val shower = ServiceLocator.showerRepository
@@ -97,23 +133,24 @@ fun ProfileScreen(
                 val electricOk = async { runCatching { electric.isBound() && electric.probe() }.getOrDefault(false) }
                 listOf("教务" to jwOk.await(), "洗浴" to showerOk.await(), "电费" to electricOk.await())
             }
-            checkResult = results.joinToString("；") { (name, ok) -> "$name：${if (ok) "正常" else "异常/未绑定"}" }
+            checkStates = results.associate { (name, ok) ->
+                name to if (ok) CheckState.Ok else CheckState.Fail
+            }
             checking = false
+            if (results.all { it.second }) {
+                messenger.success("三套凭证均正常")
+            } else {
+                messenger.warning("有账号异常或未绑定，可到凭证中心重新登录")
+            }
         }
-    }
-
-    if (checkResult != null) {
-        PrismAlertDialog(
-            title = "一键体检", body = checkResult ?: "", confirmText = "知道了", dismissText = null,
-            onConfirm = { checkResult = null }, onDismiss = { checkResult = null },
-        )
     }
 
     UnionScreenScaffold(
         title = "我的",
         modifier = modifier,
+        largeTitle = true,
         actions = {
-            IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "隐私与安全") }
+            IconButton(onClick = onOpenSettings) { Icon(Icons.Rounded.Settings, contentDescription = "设置") }
         },
     ) { padding ->
         Column(
@@ -164,23 +201,87 @@ fun ProfileScreen(
                 )
             }
 
-            PrismButton(
-                onClick = { healthCheck() },
-                filled = false,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !checking,
-            ) {
-                Icon(Icons.Rounded.Sync, null)
-                Spacer(Modifier.width(8.dp))
-                Text(if (checking) "正在体检…" else "一键体检")
+            PrismCard(modifier = Modifier.fillMaxWidth()) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("账号体检", style = headlineStyle())
+                        Text(
+                            "并行检查教务、洗浴与电费，不阻塞当前页面",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (checking) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            strokeWidth = 2.dp,
+                        )
+                    } else {
+                        PrismTextButton(onClick = { healthCheck() }) {
+                            Icon(Icons.Rounded.Sync, null)
+                            Spacer(Modifier.width(6.dp))
+                            Text("开始")
+                        }
+                    }
+                }
+                if (checkStates.isNotEmpty()) {
+                    Spacer(Modifier.height(4.dp))
+                    CheckStateRow("教务", checkStates["教务"] ?: CheckState.Idle)
+                    CheckStateRow("洗浴", checkStates["洗浴"] ?: CheckState.Idle)
+                    CheckStateRow("电费", checkStates["电费"] ?: CheckState.Idle)
+                }
             }
 
             PrismGroupedList {
-                PrismRow(title = "教务事务", subtitle = "学籍、异动、免修、预约与通知", index = 0, count = 3, leading = { IconBadge(Icons.Rounded.ListAlt) }, onClick = onOpenAcademicAffairs)
-                PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", index = 1, count = 3, leading = { IconBadge(Icons.Rounded.Notifications) }, onClick = onOpenReminders)
-                PrismRow(title = "隐私与安全", subtitle = "凭证、数据与保护设置", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Lock) }, onClick = onOpenPrivacy)
+                PrismRow(title = "凭证中心", subtitle = "教务、洗浴与电费账号", index = 0, count = 4, leading = { IconBadge(Icons.Rounded.School) }, onClick = onOpenCredentials)
+                PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", index = 1, count = 4, leading = { IconBadge(Icons.Rounded.Notifications) }, onClick = onOpenReminders)
+                PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", index = 2, count = 4, leading = { IconBadge(Icons.Rounded.Settings) }, onClick = onOpenSettings)
+                PrismRow(title = "关于", subtitle = "版本、作者与版权", index = 3, count = 4, leading = { IconBadge(Icons.Rounded.Info) }, onClick = onOpenAbout)
             }
             Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+private enum class CheckState { Idle, Checking, Ok, Fail }
+
+@Composable
+private fun CheckStateRow(name: String, state: CheckState) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(name, style = bodyStyle(), modifier = Modifier.weight(1f))
+        when (state) {
+            CheckState.Idle -> Text(
+                "未检查",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+            )
+            CheckState.Checking -> CircularProgressIndicator(
+                modifier = Modifier.size(16.dp),
+                strokeWidth = 2.dp,
+            )
+            CheckState.Ok -> {
+                Icon(
+                    Icons.Rounded.CheckCircle,
+                    contentDescription = null,
+                    tint = PrismStatus.success(),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("正常", style = footnoteStyle(), color = PrismStatus.success())
+            }
+            CheckState.Fail -> {
+                Icon(
+                    Icons.Rounded.ErrorOutline,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("异常/未绑定", style = footnoteStyle(), color = MaterialTheme.colorScheme.error)
+            }
         }
     }
 }
@@ -195,19 +296,23 @@ private fun StatusIcon(ok: Boolean) {
 
 // ---------------- 凭证中心 ----------------
 
-/** 凭证中心：三套账号状态、一键体检与全部退出。 */
+/** 凭证中心：三套账号可独立登录、重新登录或退出，互不影响。 */
 @Composable
 fun CredentialsCenterScreen(
     onBack: () -> Unit,
     onLogoutAll: () -> Unit,
+    onLoginAcademic: () -> Unit,
+    onLoginShower: () -> Unit,
+    onLoginElectric: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val credentials = ServiceLocator.credentials
+    val messenger = LocalPrismMessenger.current
+    val haptics = rememberPrismHaptics()
+    val (cred, refreshCred) = rememberCredentialSnapshot(ServiceLocator.credentials)
     var checkResult by remember { mutableStateOf<String?>(null) }
     var checking by remember { mutableStateOf(false) }
     var confirmLogout by remember { mutableStateOf(false) }
-
-    val cred = credentials.load()
+    var logoutTarget by remember { mutableStateOf<AccountTarget?>(null) }
 
     fun healthCheck() {
         checking = true
@@ -227,14 +332,21 @@ fun CredentialsCenterScreen(
     }
 
     if (checkResult != null) {
-        PrismAlertDialog(title = "体检结果", body = checkResult ?: "", confirmText = "知道了", dismissText = null,
-            onConfirm = { checkResult = null }, onDismiss = { checkResult = null })
+        PrismAlertDialog(
+            title = "体检结果",
+            body = checkResult ?: "",
+            confirmText = "知道了",
+            dismissText = null,
+            onConfirm = { checkResult = null },
+            onDismiss = { checkResult = null },
+        )
     }
     if (confirmLogout) {
         PrismAlertDialog(
             title = "全部退出",
             body = "将清除三套账号凭证与本地缓存数据，此操作不可撤销。确认退出？",
-            confirmText = "全部退出", destructive = true,
+            confirmText = "全部退出",
+            destructive = true,
             onConfirm = {
                 confirmLogout = false
                 launchUi {
@@ -248,13 +360,41 @@ fun CredentialsCenterScreen(
             onDismiss = { confirmLogout = false },
         )
     }
+    logoutTarget?.let { target ->
+        PrismAlertDialog(
+            title = "退出${target.label}登录？",
+            body = "只会退出当前${target.label}账号，其他账号和本地数据不受影响。下次使用时再登录即可。",
+            confirmText = "退出登录",
+            destructive = true,
+            onConfirm = {
+                logoutTarget = null
+                launchUi {
+                    try {
+                        when (target) {
+                            AccountTarget.Jw -> ServiceLocator.jwRepository.logout()
+                            AccountTarget.Shower -> ServiceLocator.showerRepository.logout()
+                            AccountTarget.Electric -> ServiceLocator.electricRepository.unbindAccount()
+                        }
+                        refreshCred()
+                        haptics.success()
+                        messenger.info("已退出${target.label}账号")
+                    } catch (e: Exception) {
+                        messenger.error("退出失败：${e.message ?: "请稍后重试"}")
+                    }
+                }
+            },
+            onDismiss = { logoutTarget = null },
+        )
+    }
 
     UnionScreenScaffold(
         title = "凭证中心",
         onBack = onBack,
         modifier = modifier,
         actions = {
-            IconButton(onClick = { healthCheck() }) { Icon(Icons.Rounded.Sync, contentDescription = "体检") }
+            IconButton(onClick = { healthCheck() }) {
+                Icon(Icons.Rounded.Sync, contentDescription = "体检")
+            }
         },
     ) { padding ->
         Column(
@@ -265,32 +405,80 @@ fun CredentialsCenterScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("三套账号独立绑定，互不影响", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                "三套账号独立登录、独立退出。点击卡片登录；已登录时点击卡片可退出当前账号。",
+                style = subheadlineStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
-            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                Text("教务", style = headlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    (if (cred.jwStudentNo.isNotBlank()) "已连接 · 学号 ${cred.jwStudentNo.take(4)}****" else "未绑定") + "\n会话以教务系统为准",
-                    style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
-            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.tertiaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                Text("洗浴", style = headlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    (if (cred.showerToken.isNotBlank()) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定") + "\nToken 保存在本机加密存储",
-                    style = subheadlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer,
-                )
-            }
-            com.union.campus.ui.prism.PrismCard(modifier = Modifier.fillMaxWidth(), containerColor = MaterialTheme.colorScheme.secondaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                Text("电费", style = headlineStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    (if (cred.electricAccount.isNotBlank()) "已绑定学号 ${cred.electricAccount.take(4)}**** · 学校编码 ${cred.electricCustomerCode}" else "未绑定") + "\n只查询本人房间",
-                    style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-            }
+            val jwBound = cred.jwStudentNo.isNotBlank()
+            CredentialAccountCard(
+                title = "教务",
+                subtitle = if (jwBound) {
+                    "已连接 · 学号 ${cred.jwStudentNo.take(4)}****"
+                } else {
+                    "未登录 · 点击卡片登录"
+                },
+                detail = if (jwBound) {
+                    "用于课表、成绩、考试与评教 · 点击卡片退出"
+                } else {
+                    "使用学号与教务系统密码登录"
+                },
+                bound = jwBound,
+                container = MaterialTheme.colorScheme.primaryContainer,
+                onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
+                actionLabel = if (jwBound) "重新登录" else "去登录",
+                onClick = {
+                    if (jwBound) logoutTarget = AccountTarget.Jw else onLoginAcademic()
+                },
+                onAction = onLoginAcademic,
+            )
+
+            val showerBound = cred.showerToken.isNotBlank()
+            CredentialAccountCard(
+                title = "洗浴",
+                subtitle = if (showerBound) {
+                    "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}"
+                } else {
+                    "未登录 · 点击卡片登录"
+                },
+                detail = if (showerBound) {
+                    "Token 保存在本机加密存储 · 点击卡片退出"
+                } else {
+                    "使用大白U帮手机号与密码登录"
+                },
+                bound = showerBound,
+                container = MaterialTheme.colorScheme.tertiaryContainer,
+                onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
+                actionLabel = if (showerBound) "重新登录" else "去登录",
+                onClick = {
+                    if (showerBound) logoutTarget = AccountTarget.Shower else onLoginShower()
+                },
+                onAction = onLoginShower,
+            )
+
+            val electricBound = cred.electricAccount.isNotBlank()
+            CredentialAccountCard(
+                title = "电费",
+                subtitle = if (electricBound) {
+                    "已绑定 · 学号 ${cred.electricAccount.take(4)}**** · 学校编码 ${cred.electricCustomerCode}"
+                } else {
+                    "未绑定 · 点击卡片登录"
+                },
+                detail = if (electricBound) {
+                    "只查询本人房间 · 点击卡片退出"
+                } else {
+                    "绑定完美校园账号后查看余额与用量"
+                },
+                bound = electricBound,
+                container = MaterialTheme.colorScheme.secondaryContainer,
+                onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
+                actionLabel = if (electricBound) "重新登录" else "去登录",
+                onClick = {
+                    if (electricBound) logoutTarget = AccountTarget.Electric else onLoginElectric()
+                },
+                onAction = onLoginElectric,
+            )
 
             PrismButton(
                 onClick = { healthCheck() },
@@ -301,6 +489,11 @@ fun CredentialsCenterScreen(
                 Spacer(Modifier.width(8.dp))
                 Text(if (checking) "正在体检…" else "一键体检")
             }
+            Text(
+                "「重新登录」只刷新当前账号，不会清除其他账号；「全部退出」才会清除三套凭证与本地缓存。",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             PrismTextButton(
                 onClick = { confirmLogout = true },
                 modifier = Modifier.fillMaxWidth(),
@@ -310,6 +503,57 @@ fun CredentialsCenterScreen(
                 Text("全部退出")
             }
             Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+private enum class AccountTarget(val label: String) {
+    Jw("教务"),
+    Shower("洗浴"),
+    Electric("电费"),
+}
+
+@Composable
+private fun CredentialAccountCard(
+    title: String,
+    subtitle: String,
+    detail: String,
+    bound: Boolean,
+    container: Color,
+    onContainer: Color,
+    actionLabel: String,
+    onClick: () -> Unit,
+    onAction: () -> Unit,
+) {
+    PrismCard(
+        modifier = Modifier.fillMaxWidth(),
+        onClick = onClick,
+        containerColor = container,
+        contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            PrismStatusDot(
+                color = if (bound) PrismStatus.success() else onContainer.copy(alpha = 0.32f),
+                size = 8,
+            )
+            Spacer(Modifier.width(8.dp))
+            Text(title, style = headlineStyle(), color = onContainer)
+            Spacer(Modifier.weight(1f))
+            Text(
+                if (bound) "已登录" else "未登录",
+                style = footnoteStyle(),
+                color = onContainer.copy(alpha = 0.72f),
+            )
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(subtitle, style = subheadlineStyle(), color = onContainer)
+        Spacer(Modifier.height(2.dp))
+        Text(detail, style = footnoteStyle(), color = onContainer.copy(alpha = 0.72f))
+        Spacer(Modifier.height(6.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            PrismTextButton(onClick = onAction) {
+                Text(actionLabel)
+            }
         }
     }
 }
@@ -411,7 +655,7 @@ private fun ToggleRow(
         title = title, subtitle = subtitle,
         index = index, count = count,
         leading = { IconBadge(icon) },
-        trailing = { Switch(checked = checked, onCheckedChange = onChange) },
+        trailing = { PrismSwitch(checked = checked, onCheckedChange = onChange) },
     )
 }
 

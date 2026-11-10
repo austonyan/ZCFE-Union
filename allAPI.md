@@ -787,10 +787,13 @@ UserApi/loginWidthPwd {mobile, pwd}
   -> DeviceAreaApi/getBuildings {orgAreaId}
   -> DeviceAreaApi/getDeviceArea {orgAreaId, buildingId}
   -> DeviceAreaApi/selectDevicesByAreaId {deviceAreaId, deviceTypeKey:"faucet"}
+  -> (need_reserve=1 时) DeviceApi/reserve {uuid, version:"55"}
   -> DeviceApi/turnOn {uuid, deviceType:"faucet"}
   -> BusApi/exchangeMsgGz {deviceAreaId, deviceTypeKey:"faucet", lastId, isManual:0, usingMqtt:"1"}
   -> DeviceApi/turnOff {uuid, deviceType:"faucet"}
 ```
+
+> `uuid` 用设备列表里的 `device_key`（每台唯一，如 `<controller_key>_faucet_01`）；`controller_key` 是整层共用。`need_reserve=1` 的设备未预约直接 turnOn 会返回 code 130，即使处于正常服务时段。预约倒计时以 `DeviceAreaApi/getStateByDeviceType` 的 `remainTime` 为准（`userState=reserved` 时每秒递减），不要写死 5/8 分钟。
 
 排队：
 
@@ -824,6 +827,8 @@ KailuApi/bathBeginOrder {kailuOrder}
 | 139 | 设备不存在: device area ID: x | `queueUp` / `selectDevicesByAreaId` 传不存在区域 |
 | 271 | 订单不存在 | `bathEndOrder` / `getSoundInfo` 传不存在订单 |
 | 298 | 校区不存在 | `selectDeviceAreasWithDeviceState` 传不存在校区 |
+| 130 | 您尚未预约任何设备 | `need_reserve=1` 的设备未 `reserve` 直接 `turnOn` |
+| 100170 | 您没有正在使用的设备 | 无进行中订单时 `turnOff` |
 | 100287 | 支付方式设置错误，请联系管理员 | `bathBeginOrder` 无有效支付方式 |
 | 200 | 操作成功 | `cancelQueue` 有效请求 |
 

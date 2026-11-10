@@ -196,6 +196,8 @@ data class ShowerDevice(
     val name: String, // 设备号
     val state: Int, // 0 空闲 / 1 使用中 / 2 已预约 / 3 故障
     val remainingText: String = "", // 使用中剩余/预约时间
+    // 上游 need_reserve=1：先 DeviceApi/reserve 预约，再 DeviceApi/turnOn，否则返回 code 130
+    val needReserve: Boolean = false,
 )
 
 @Serializable
@@ -223,6 +225,19 @@ data class ShowerSessionState(
     val buildingName: String,
     val startedAt: Long,
     val orderSn: String = "",
+)
+
+/**
+ * 当前预约（不落盘，服务端状态为准）。
+ * `expiresAt` 来自 `getStateByDeviceType` 的 `remainTime`（实时剩余秒数），
+ * 或 `deviceInfo.reserve_time + reserve_expires`，用于本地每秒递减显示。
+ */
+data class ShowerReservation(
+    val deviceUuid: String,
+    val deviceName: String,
+    val areaName: String,
+    val maxWaitSeconds: Int,
+    val expiresAt: Long,
 )
 
 // ---------------- 电费 ----------------

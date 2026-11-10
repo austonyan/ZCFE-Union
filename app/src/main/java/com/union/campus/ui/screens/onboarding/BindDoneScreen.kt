@@ -1,5 +1,7 @@
 package com.union.campus.ui.screens.onboarding
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -18,11 +21,8 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Shower
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -32,6 +32,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -39,8 +40,11 @@ import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
+import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSwitch
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
@@ -56,10 +60,18 @@ fun BindDoneScreen(
     val settings = ServiceLocator.settings
     val credentials = ServiceLocator.credentials
     var remindOn by remember { mutableStateOf(true) }
+    var shown by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         remindOn = settings.remindEnabled.first()
+        shown = true
     }
+
+    val checkScale by animateFloatAsState(
+        targetValue = if (shown) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.7f, stiffness = 320f),
+        label = "bind-done-check",
+    )
 
     val cred = credentials.load()
     val jwBound = cred.jwStudentNo.isNotBlank()
@@ -78,10 +90,22 @@ fun BindDoneScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            LinearProgressIndicator(
-                progress = { 1f },
-                modifier = Modifier.fillMaxWidth(),
-                trackColor = MaterialTheme.colorScheme.secondaryContainer,
+            PrismProgressRail(
+                step = 4,
+                total = 4,
+                labels = listOf("欢迎", "教务", "洗浴", "电费"),
+            )
+            Icon(
+                Icons.Rounded.CheckCircle,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .size(52.dp)
+                    .graphicsLayer {
+                        scaleX = checkScale
+                        scaleY = checkScale
+                        alpha = checkScale
+                    },
             )
             Text("设置完成", style = headlineStyle().copy(fontSize = 32.sp, lineHeight = 38.sp))
             Text("您的所有账号数据已就绪", style = subheadlineStyle())
@@ -116,13 +140,13 @@ fun BindDoneScreen(
                     Text("开启提醒", style = bodyStyle())
                     Text("上课、考试、低电费", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
-                Switch(checked = remindOn, onCheckedChange = {
+                PrismSwitch(checked = remindOn, onCheckedChange = {
                     remindOn = it
                     launchUi { settings.setRemindEnabled(it) }
                 })
             }
 
-            Button(
+            PrismButton(
                 onClick = {
                     launchUi {
                         settings.setOnboardingDone()
@@ -132,7 +156,7 @@ fun BindDoneScreen(
                 },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(56.dp),
+                    .height(52.dp),
             ) {
                 Text("进入应用")
                 Spacer(Modifier.width(8.dp))

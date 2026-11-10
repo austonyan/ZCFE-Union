@@ -205,18 +205,16 @@ class JwRepository constructor(
     }
 
     private fun defaultSectionTimes(): List<SectionTime> = listOf(
-        SectionTime(1, "08:00", "08:45"),
-        SectionTime(2, "08:50", "09:35"),
-        SectionTime(3, "10:10", "10:55"),
-        SectionTime(4, "11:00", "11:45"),
-        SectionTime(5, "14:00", "14:45"),
-        SectionTime(6, "14:50", "15:35"),
-        SectionTime(7, "16:00", "16:45"),
-        SectionTime(8, "16:50", "17:35"),
-        SectionTime(9, "19:00", "19:45"),
-        SectionTime(10, "19:50", "20:35"),
-        SectionTime(11, "20:40", "21:25"),
-        SectionTime(12, "21:30", "22:15"),
+        SectionTime(1, "08:20", "09:05"),
+        SectionTime(2, "09:15", "10:00"),
+        SectionTime(3, "10:20", "11:05"),
+        SectionTime(4, "11:15", "12:00"),
+        SectionTime(5, "14:30", "15:15"),
+        SectionTime(6, "15:25", "16:10"),
+        SectionTime(7, "16:30", "17:15"),
+        SectionTime(8, "17:25", "18:10"),
+        SectionTime(9, "18:30", "19:15"),
+        SectionTime(10, "19:25", "20:10"),
     )
 
     // ---------------- 课表 ----------------
