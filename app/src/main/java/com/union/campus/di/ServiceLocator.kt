@@ -29,7 +29,7 @@ object ServiceLocator {
     val electricClient by lazy { ElectricClient() }
 
     val jwRepository by lazy {
-        JwRepository(jwClient, entities, credentials)
+        JwRepository(jwClient, entities, credentials, settings)
     }
     val showerRepository by lazy {
         ShowerRepository(showerClient, entities, credentials, settings)

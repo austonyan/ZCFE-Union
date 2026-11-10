@@ -5,9 +5,18 @@ import kotlinx.serialization.Serializable
 // ---------------- 教务 ----------------
 
 @Serializable
-data class Semester(val dm: String, val name: String) {
+data class Semester(val dm: String, val name: String, val isCurrent: Boolean = false) {
     val year: String get() = dm.take(4)
     val term: String get() = dm.drop(4)
+    val shortLabel: String
+        get() {
+            val y = year.toIntOrNull() ?: 0
+            return when (term) {
+                "0" -> "$year 秋"
+                "1" -> "${y + 1} 春"
+                else -> "${y + 1} 夏"
+            }
+        }
 }
 
 @Serializable
@@ -37,6 +46,9 @@ data class TimetableData(
     val week: Int,
     val days: List<DayCourses>,
     val fetchedAt: Long,
+    val maxWeek: Int = 25,
+    val weekStart: String = "",
+    val semesterName: String = "",
 )
 
 @Serializable
@@ -112,6 +124,26 @@ data class StudentRecord(
     val raw: Map<String, String> = emptyMap(),
 )
 
+/** 教学楼列表：dm 是接口需要的楼栋代码，name 用于展示。 */
+@Serializable
+data class TeachingBuilding(
+    val dm: String,
+    val name: String,
+    val campus: String = "",
+)
+
+/** 空闲教室（getJsxx）：freeSections 为各节次是否空闲的标记串。 */
+@Serializable
+data class FreeClassroom(
+    val name: String,
+    val type: String = "",
+    val capacity: String = "",
+    val freeSections: String = "",
+) {
+    val freeCount: Int get() = freeSections.split(',').count { it.trim() == "1" }
+    val sectionCount: Int get() = freeSections.split(',').count { it.isNotBlank() }
+}
+
 @Serializable
 data class JwNotice(
     val id: String,
@@ -128,7 +160,11 @@ data class JwNotice(
 data class ShowerOrg(val id: String, val name: String)
 
 @Serializable
-data class ShowerBuilding(val id: String, val name: String)
+data class ShowerBuilding(
+    val id: String,
+    val name: String,
+    val orgAreaId: String = "",
+)
 
 @Serializable
 data class ShowerArea(
@@ -139,6 +175,19 @@ data class ShowerArea(
     val queueNum: Int,
     val serviceTime: String = "",
     val maintenance: String = "",
+    val buildingId: String = "",
+    val floor: String = "",
+    val genderLimit: String = "",
+)
+
+/** 我的排队信息；未排队时为空。 */
+@Serializable
+data class ShowerQueue(
+    val areaId: String,
+    val areaName: String,
+    val position: Int,
+    val queueNum: Int,
+    val waitMinutes: Int,
 )
 
 @Serializable

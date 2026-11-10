@@ -37,7 +37,7 @@ import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.Grade
 import com.union.campus.domain.GradesData
-import com.union.campus.domain.SemesterCalc
+import com.union.campus.domain.Semester
 import com.union.campus.ui.common.StateContent
 import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.dataOrNull
@@ -63,10 +63,9 @@ fun GradesScreen(
     modifier: Modifier = Modifier,
 ) {
     val jw = ServiceLocator.jwRepository
-    val settings = ServiceLocator.settings
     val entities = ServiceLocator.entities
 
-    var semesters by remember { mutableStateOf<List<String>>(emptyList()) }
+    var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
     var semesterDm by remember { mutableStateOf("") }
     var effective by remember { mutableStateOf(true) }
     var state by remember { mutableStateOf<UiState<GradesData>>(UiState.Loading) }
@@ -95,16 +94,15 @@ fun GradesScreen(
     }
 
     LaunchedEffect(Unit) {
-        semesterDm = settings.currentSemesterDm.first().ifBlank { SemesterCalc.guessSemesterDm() }
-        semesters = listOf(semesterDm) // 教务学期列表在登录后可刷新
+        semesterDm = jw.currentSemesterDm()
         if (jw.isBound()) {
-            runCatching {
-                val list = jw.semesterList()
-                if (list.isNotEmpty()) {
-                    semesters = list.map { it.dm }.reversed()
-                    if (!semesters.contains(semesterDm)) semesterDm = semesters.first()
-                }
+            val list = runCatching { jw.semesterList() }.getOrDefault(emptyList())
+            semesters = if (list.isNotEmpty()) list else listOf(Semester(semesterDm, semesterDm, true))
+            if (semesters.none { it.dm == semesterDm }) {
+                semesterDm = semesters.firstOrNull { it.isCurrent }?.dm ?: semesters.first().dm
             }
+        } else {
+            semesters = listOf(Semester(semesterDm, semesterDm, true))
         }
         load()
     }
@@ -136,11 +134,11 @@ fun GradesScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    semesters.take(8).forEach { dm ->
+                    semesters.take(8).forEach { sem ->
                         FilterChip(
-                            selected = semesterDm == dm,
-                            onClick = { semesterDm = dm; load() },
-                            label = { Text(dm.substring(0, 4) + (if (dm.drop(4) == "1") " 秋" else " 春")) },
+                            selected = semesterDm == sem.dm,
+                            onClick = { semesterDm = sem.dm; load() },
+                            label = { Text(sem.shortLabel) },
                         )
                     }
                 }

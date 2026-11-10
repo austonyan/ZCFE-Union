@@ -78,7 +78,11 @@ fun LifeScreen(
         }
         runCatching {
             val orgArea = settings.lastShowerOrgArea.first()
-            if (orgArea.isNotBlank()) area = shower.areasWithState(orgArea).firstOrNull()
+            val areaId = settings.lastShowerAreaId.first()
+            if (orgArea.isNotBlank()) {
+                val list = shower.areasWithState(orgArea)
+                area = list.firstOrNull { it.id == areaId } ?: list.firstOrNull()
+            }
         }
     }
 

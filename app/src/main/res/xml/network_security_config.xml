@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+   大白U帮原生接口（lz.hydream.cn）只有 HTTP，登录响应的 service_host
+   也可能把后续请求切到 hydream.cn 下的校区域名，因此仅对该域放行明文；
+   其余域名仍按 Android 默认策略禁止明文。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">hydream.cn</domain>
+    </domain-config>
+</network-security-config>

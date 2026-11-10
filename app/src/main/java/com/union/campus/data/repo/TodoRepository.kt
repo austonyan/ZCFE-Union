@@ -5,6 +5,7 @@ import com.union.campus.data.store.SettingsStore
 import kotlinx.coroutines.flow.first
 import com.union.campus.domain.TodoItem
 import java.text.SimpleDateFormat
+import java.time.LocalDate
 import java.util.Date
 import java.util.Locale
 
@@ -20,6 +21,7 @@ class TodoRepository constructor(
     suspend fun localTodos(): List<TodoItem> {
         val todos = mutableListOf<TodoItem>()
         val fmt = SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.CHINA)
+        val today = LocalDate.now()
 
         // 评教：待评数（来自评教页最近拉取）
         jw.let {
@@ -43,10 +45,13 @@ class TodoRepository constructor(
 
         // 考试倒计时
         runCatching {
-            val sem = settings.currentSemesterDm.first()
+            val sem = jw.currentSemesterDm()
             if (sem.isNotBlank()) {
                 val exams = jw.exams(sem)
-                val upcoming = exams.exams.firstOrNull()
+                // 只保留今天及以后的考试；没有日期的保留（无法判断）
+                val upcoming = exams.exams
+                    .filter { examDate(it.time)?.isBefore(today) != true }
+                    .minByOrNull { examDate(it.time) ?: LocalDate.MAX }
                 if (upcoming != null) {
                     todos += TodoItem(
                         id = "exam_countdown",
@@ -79,6 +84,23 @@ class TodoRepository constructor(
                 }
             }
         }
-        return todos
+        return todos.filterNot { isTodoExpired(it, today) }
     }
 }
+
+/** 待办是否已过期：dueText 或考试日期早于今天。 */
+internal fun isTodoExpired(todo: TodoItem, today: LocalDate = LocalDate.now()): Boolean {
+    val due = parseDate(todo.dueText)
+    val exam = if (todo.type == "exam") parseDate(todo.subtitle) else null
+    return (due != null && due.isBefore(today)) || (exam != null && exam.isBefore(today))
+}
+
+/** 从文本中提取 yyyy-MM-dd；解析不到返回 null（不误删无日期待办）。 */
+private fun parseDate(text: String): LocalDate? {
+    val m = Regex("(\\d{4})-(\\d{2})-(\\d{2})").find(text) ?: return null
+    return runCatching {
+        LocalDate.of(m.groupValues[1].toInt(), m.groupValues[2].toInt(), m.groupValues[3].toInt())
+    }.getOrNull()
+}
+
+private fun examDate(text: String): LocalDate? = parseDate(text)

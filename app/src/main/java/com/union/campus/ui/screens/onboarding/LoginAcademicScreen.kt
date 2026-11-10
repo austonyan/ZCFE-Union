@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.graphics.asImageBitmap
 import com.union.campus.ui.common.launchUi
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.HelpOutline
@@ -34,6 +36,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -45,7 +48,6 @@ import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
-import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.footnoteStyle
@@ -58,7 +60,6 @@ fun LoginAcademicScreen(
     modifier: Modifier = Modifier,
 ) {
     val jw = ServiceLocator.jwRepository
-    val settings = ServiceLocator.settings
 
     var studentNo by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -66,6 +67,25 @@ fun LoginAcademicScreen(
     var needCaptcha by rememberSaveable { mutableStateOf(false) }
     var loading by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
+    var captchaBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
+    var captchaLoading by remember { mutableStateOf(false) }
+
+    fun refreshCaptcha() {
+        if (studentNo.isBlank()) return
+        captchaLoading = true
+        launchUi {
+            try {
+                val bytes = jw.captchaImage(studentNo.trim())
+                captchaBitmap = android.graphics.BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+            } catch (e: AppError) {
+                error = e.userMessage
+            } catch (e: Exception) {
+                error = "验证码加载失败：${e.message}"
+            } finally {
+                captchaLoading = false
+            }
+        }
+    }
 
     fun validate(): Boolean {
         if (studentNo.isBlank()) { error = "请输入学号"; return false }
@@ -79,13 +99,19 @@ fun LoginAcademicScreen(
         error = null
         launchUi {
             try {
-                jw.login(studentNo.trim(), password)
+                // 验证码（如需要）必须随表单提交，否则服务端会一直要求验证码
+                jw.login(studentNo.trim(), password, captcha.trim())
                 loading = false
                 onNext()
             } catch (e: AppError) {
                 loading = false
-                error = e.userMessage
-                if (e is AppError.Validation && e.reason.contains("验证码")) needCaptcha = true
+                val detail = e.debugDetail?.takeIf { it.isNotBlank() }?.take(140)
+                error = if (detail != null) "${e.userMessage}（$detail）" else e.userMessage
+                if (e is AppError.Validation && e.reason.contains("验证码")) {
+                    needCaptcha = true
+                    captcha = ""
+                    refreshCaptcha()
+                }
             } catch (e: Exception) {
                 loading = false
                 error = "登录失败：${e.message}"
@@ -93,22 +119,11 @@ fun LoginAcademicScreen(
         }
     }
 
-    if (needCaptcha) {
-        PrismAlertDialog(
-            title = "需要验证码",
-            body = "当前环境需要图形验证码。教务系统在校园网内可达，请先在校园网环境登录一次；或稍后绑定。",
-            confirmText = "知道了",
-            dismissText = null,
-            onConfirm = { needCaptcha = false },
-            onDismiss = { needCaptcha = false },
-        )
-    }
-
     UnionScreenScaffold(
         title = "登录教务系统",
         onBack = onBack,
         actions = {
-            IconButton(onClick = { error = "教务系统仅限校园网访问；密码即教务系统密码。" }) {
+            IconButton(onClick = { error = "使用学号与教务系统密码；如提示验证码，请按图片输入。" }) {
                 Icon(Icons.Rounded.HelpOutline, contentDescription = "帮助")
             }
         },
@@ -152,10 +167,35 @@ fun LoginAcademicScreen(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (needCaptcha) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    val bmp = captchaBitmap
+                    if (bmp != null) {
+                        Image(
+                            bitmap = bmp.asImageBitmap(),
+                            contentDescription = "图形验证码",
+                            modifier = Modifier.height(48.dp).width(120.dp),
+                        )
+                    } else {
+                        Text(
+                            if (captchaLoading) "验证码加载中…" else "验证码加载失败",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton(onClick = { refreshCaptcha() }, enabled = !captchaLoading) {
+                        Text("换一张")
+                    }
+                }
+            }
             OutlinedTextField(
                 value = captcha,
                 onValueChange = { captcha = it },
-                label = { Text("验证码（如需要）") },
+                label = { Text(if (needCaptcha) "验证码" else "验证码（如需要）") },
                 leadingIcon = { Icon(Icons.Rounded.VerifiedUser, null) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),

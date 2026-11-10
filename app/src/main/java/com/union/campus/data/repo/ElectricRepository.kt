@@ -78,27 +78,35 @@ class ElectricRepository constructor(
 
     // ---------------- 房间 ----------------
 
+    /**
+     * 已绑定房间。
+     * existflag=1：单房间，房间信息在顶层（roomverify/roomfullname）；
+     * existflag=2：多房间，房间在 roomlist[]；
+     * existflag=0：未绑定。
+     */
     suspend fun rooms(forceRefresh: Boolean = false): List<ElectricRoom> {
-        val cacheKey = "electric.rooms"
+        val cacheKey = "electric.rooms.${client.account}"
         if (!forceRefresh) {
             store.read(cacheKey, ListSerializer(ElectricRoom.serializer()))?.let { return it.data }
         }
-        val body = client.getBindRooms()
-        val existFlag = parse.str(body, "existflag")
-        if (existFlag != "2") return emptyList()
-        val list = parse.objects(body["roomlist"] as? kotlinx.serialization.json.JsonArray ?: parse.array(body)).map { r ->
-            val verify = parse.str(r, "roomverify", "roomVerify")
-            ElectricRoom(
-                roomVerify = verify,
-                fullName = parse.str(r, "roomfullname", "room_fullname", "name").ifBlank { verify },
-                zoneId = parse.str(r, "zoneid", "zone_id"),
-                buildingId = parse.str(r, "buildid", "build_id"),
-                floorId = parse.str(r, "floorid", "floor_id"),
-                roomNum = parse.str(r, "roomnum", "room_num"),
-            )
-        }
+        val list = parseBoundRooms(client.getBindRooms())
         if (list.isNotEmpty()) {
             store.write(cacheKey, ListSerializer(ElectricRoom.serializer()), list)
+        } else {
+            store.remove(cacheKey)
+        }
+        return list
+    }
+
+    /** 绑定向导用：先按学号查询该账号已绑定的房间（不写入凭证/不改变客户端账号）。 */
+    suspend fun boundRooms(account: String): List<ElectricRoom> {
+        val a = account.trim()
+        if (a.isBlank()) return emptyList()
+        val list = parseBoundRooms(client.getBindRoomsFor(a))
+        if (list.isNotEmpty()) {
+            store.write("electric.rooms.$a", ListSerializer(ElectricRoom.serializer()), list)
+        } else {
+            store.remove("electric.rooms.$a")
         }
         return list
     }
@@ -108,31 +116,48 @@ class ElectricRepository constructor(
     suspend fun balance(roomVerify: String, forceRefresh: Boolean = false): ElectricBalance? {
         val cacheKey = "electric.balance.$roomVerify"
         if (!forceRefresh) {
-            store.read(cacheKey, ElectricBalance.serializer())?.let { return it.data }
+            store.read(cacheKey, ElectricBalance.serializer())?.let {
+                if (fresh(it.updatedAt, CacheTtl.ELECTRIC_BALANCE)) return it.data
+            }
         }
         val body = client.getIndexPage(roomVerify)
-        val mods = parse.objects(body["modlist"] as? kotlinx.serialization.json.JsonArray ?: parse.array(body))
-            .filter { parse.str(it, "businesstype") == "0" }
-        val mod = mods.firstOrNull() ?: return null
+        val mod = selectElectricMod(body) ?: return null
         val weekList = parse.objects(mod["weekuselist"] as? kotlinx.serialization.json.JsonArray).map {
             ElectricDayUse(
-                date = parse.str(it, "date"),
-                use = parse.str(it, "use"),
+                date = parse.str(it, "date", "daydate"),
+                use = parse.str(it, "use", "dayuse"),
                 weekday = parse.int(it, "weekday"),
             )
         }
         val monthList = parse.objects(mod["monthuselist"] as? kotlinx.serialization.json.JsonArray).map {
             ElectricMonthUse(
                 yearMonth = parse.str(it, "yearmonth").replace('.', '-'),
-                use = parse.str(it, "use"),
+                use = parse.str(it, "monthuse", "use"),
             )
+        }
+        val todayShort = SimpleDateFormat("MM-dd", Locale.CHINA).format(Date())
+        val todayFull = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA).format(Date())
+        var todayUse = parse.str(mod, "todayuse", "todayUse").ifBlank {
+            weekList.firstOrNull { it.date == todayShort || it.date == todayFull }?.use ?: ""
+        }
+        if (todayUse.isBlank()) {
+            // 首页接口今天还没出数时，用本月明细补一次“今日用量”
+            todayUse = runCatching {
+                val monthBody = client.getUsageMonth(roomVerify, todayFull.take(7))
+                parse.objects(monthBody["dayuselist"] as? kotlinx.serialization.json.JsonArray)
+                    .firstOrNull { parse.str(it, "date") == todayFull }
+                    ?.let { parse.str(it, "use", "dayuse") }
+                    .orEmpty()
+            }.getOrDefault("")
         }
         val data = ElectricBalance(
             roomVerify = roomVerify,
-            fullName = parse.str(mod, "roomfullname", "room_full_name", "name").ifBlank { roomVerify },
-            kwh = parse.str(mod, "odd", "balance"),
+            fullName = parse.str(
+                mod, "roomfullname", "room_full_name", "name",
+            ).ifBlank { parse.str(body, "roomfullname", "room_full_name") }.ifBlank { roomVerify },
+            kwh = parse.str(mod, "odd", "balance").ifBlank { parse.str(body, "odd", "balance") },
             price = parse.str(mod, "price"),
-            todayUse = parse.str(mod, "todayuse"),
+            todayUse = todayUse,
             weekUseList = weekList,
             monthUseList = monthList,
             lineStatus = parse.objects(mod["linestatus"] as? kotlinx.serialization.json.JsonArray)
@@ -226,7 +251,7 @@ class ElectricRepository constructor(
     /** 绑定房间（写，不重试）。 */
     suspend fun bindRoom(zoneId: String, buildId: String, floorId: String, roomNum: String): ElectricRoom {
         val body = client.bindRoom(zoneId, buildId, floorId, roomNum)
-        store.remove("electric.rooms")
+        store.removeByPrefix("electric.rooms")
         return ElectricRoom(
             roomVerify = parse.str(body, "roomverify"),
             fullName = parse.str(body, "roomfullname").ifBlank { parse.str(body, "roomverify") },
@@ -240,7 +265,7 @@ class ElectricRepository constructor(
     /** 解绑房间（写，二次确认后调用）。 */
     suspend fun unbindRooms(roomVerifies: List<String>) {
         client.unbindRooms(roomVerifies)
-        store.remove("electric.rooms")
+        store.removeByPrefix("electric.rooms")
         val last = settings.lastElectricRoom.let { "" }
         settings.setLastElectricRoom(last)
     }
@@ -248,4 +273,48 @@ class ElectricRepository constructor(
     suspend fun clearModuleCache() {
         store.removeByPrefix("electric.")
     }
+
+    private fun fresh(updatedAt: Long, ttl: Long) = System.currentTimeMillis() - updatedAt < ttl
+}
+
+/**
+ * 从 `h5_getstuindexpage` 的 `modlist` 里选电费模块。
+ * 上游拼写不稳定：`businesstype` / `bussnesstype` 都出现过；没有类型字段时取第一条。
+ */
+internal fun selectElectricMod(body: JsonObject): JsonObject? {
+    val mods = Parse.objects(
+        body["modlist"] as? kotlinx.serialization.json.JsonArray ?: Parse.array(body),
+    )
+    return mods.firstOrNull {
+        Parse.str(it, "businesstype", "bussnesstype", "businessType") in listOf("", "0")
+    } ?: mods.firstOrNull()
+}
+
+/**
+ * 解析 `getbindroom` 的已绑定房间。
+ * existflag=1：单房间，房间信息在顶层（roomverify/roomfullname）；
+ * existflag=2：多房间，房间在 roomlist[]；
+ * existflag=0：未绑定。
+ */
+internal fun parseBoundRooms(body: JsonObject): List<ElectricRoom> {
+    return when (Parse.str(body, "existflag")) {
+        "1" -> listOfNotNull(parseBoundRoom(body))
+        "2" -> Parse.objects(
+            body["roomlist"] as? kotlinx.serialization.json.JsonArray ?: Parse.array(body),
+        ).mapNotNull { parseBoundRoom(it) }
+        else -> emptyList()
+    }
+}
+
+private fun parseBoundRoom(r: JsonObject): ElectricRoom? {
+    val verify = Parse.str(r, "roomverify", "roomVerify")
+    if (verify.isBlank()) return null
+    return ElectricRoom(
+        roomVerify = verify,
+        fullName = Parse.str(r, "roomfullname", "room_fullname", "name").ifBlank { verify },
+        zoneId = Parse.str(r, "zoneid", "zone_id"),
+        buildingId = Parse.str(r, "buildid", "build_id"),
+        floorId = Parse.str(r, "floorid", "floor_id"),
+        roomNum = Parse.str(r, "roomnum", "room_num"),
+    )
 }

@@ -154,6 +154,17 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onNext = { navController.navigate(Screen.BindDone.route) },
                 )
             }
+            composable(Screen.BindElectricAdd.route) {
+                BindElectricScreen(
+                    onBack = { navController.popBackStack() },
+                    onNext = {
+                        // 从电费页进入：加完房间回到电费页并重新加载
+                        navController.navigate(Screen.Electric.route) {
+                            popUpTo(Screen.Electric.route) { inclusive = true }
+                        }
+                    },
+                )
+            }
             composable(Screen.BindDone.route) {
                 BindDoneScreen(
                     onEnter = {
@@ -370,7 +381,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onBack = { navController.popBackStack() },
                     onOpenUsage = { navController.navigate(Screen.UsageDetail.route) },
                     onOpenTopUp = { navController.navigate(Screen.ElectricTopUp.route) },
-                    onOpenBind = { navController.navigate(Screen.BindElectric.route) },
+                    onOpenBind = { navController.navigate(Screen.BindElectricAdd.route) },
                 )
             }
             composable(Screen.UsageDetail.route) {
