@@ -33,6 +33,7 @@ import com.union.campus.ui.prism.SurfaceLevel
 fun UnionTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    presetColor: String = "teal",
     content: @Composable () -> Unit,
 ) {
     val context = LocalContext.current
@@ -45,8 +46,8 @@ fun UnionTheme(
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= 31 ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        darkTheme -> DarkColors
-        else -> LightColors
+        else -> PresetPalettes.scheme(presetColor, darkTheme)
+            ?: if (darkTheme) DarkColors else LightColors
     }
 
     CompositionLocalProvider(

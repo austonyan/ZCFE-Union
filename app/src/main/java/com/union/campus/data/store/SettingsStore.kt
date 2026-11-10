@@ -58,6 +58,8 @@ class SettingsStore(private val context: Context) {
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
         val themeMode = stringPreferencesKey("theme_mode") // system/light/dark
         val dynamicColor = booleanPreferencesKey("dynamic_color")
+        val themeColorPreset = stringPreferencesKey("theme_color_preset") // teal/blue/...
+        val timetableSemesterDm = stringPreferencesKey("timetable_semester_dm")
     }
 
     val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[K.onboardingDone] ?: false }
@@ -99,6 +101,8 @@ class SettingsStore(private val context: Context) {
     val keepScreenOn: Flow<Boolean> = context.dataStore.data.map { it[K.keepScreenOn] ?: true }
     val themeMode: Flow<String> = context.dataStore.data.map { it[K.themeMode] ?: "system" }
     val dynamicColor: Flow<Boolean> = context.dataStore.data.map { it[K.dynamicColor] ?: false }
+    val themeColorPreset: Flow<String> = context.dataStore.data.map { it[K.themeColorPreset] ?: "teal" }
+    val timetableSemesterDm: Flow<String> = context.dataStore.data.map { it[K.timetableSemesterDm] ?: "" }
 
     suspend fun setOnboardingDone() = context.dataStore.edit { it[K.onboardingDone] = true }
     suspend fun setBoundDone(done: Boolean) = context.dataStore.edit { it[K.boundDone] = done }
@@ -156,6 +160,10 @@ class SettingsStore(private val context: Context) {
         it[K.themeMode] = if (v in setOf("system", "light", "dark")) v else "system"
     }
     suspend fun setDynamicColor(v: Boolean) = context.dataStore.edit { it[K.dynamicColor] = v }
+    suspend fun setThemeColorPreset(v: String) = context.dataStore.edit {
+        it[K.themeColorPreset] = v.ifBlank { "teal" }
+    }
+    suspend fun setTimetableSemesterDm(v: String) = context.dataStore.edit { it[K.timetableSemesterDm] = v }
 
     /** 清除全部设置（含引导与绑定标记），用于“清除全部数据”。 */
     suspend fun clearAll() = context.dataStore.edit { it.clear() }

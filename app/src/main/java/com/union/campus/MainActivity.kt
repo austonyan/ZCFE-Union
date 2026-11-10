@@ -42,12 +42,17 @@ class MainActivity : FragmentActivity() {
             }
             val themeMode by ServiceLocator.settings.themeMode.collectAsState(initial = "system")
             val dynamicColor by ServiceLocator.settings.dynamicColor.collectAsState(initial = false)
+            val presetColor by ServiceLocator.settings.themeColorPreset.collectAsState(initial = "teal")
             val darkTheme = when (themeMode) {
                 "light" -> false
                 "dark" -> true
                 else -> isSystemInDarkTheme()
             }
-            UnionTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
+            UnionTheme(
+                darkTheme = darkTheme,
+                dynamicColor = dynamicColor,
+                presetColor = presetColor,
+            ) {
                 UnionApp()
             }
         }

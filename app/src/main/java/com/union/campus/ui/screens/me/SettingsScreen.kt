@@ -1,12 +1,22 @@
 package com.union.campus.ui.screens.me
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
@@ -14,12 +24,18 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
@@ -35,6 +51,7 @@ import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismToggleRow
+import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.subheadlineStyle
 
@@ -51,6 +68,7 @@ fun SettingsScreen(
     val settings = ServiceLocator.settings
     val themeMode by settings.themeMode.collectAsState(initial = "system")
     val dynamicColor by settings.dynamicColor.collectAsState(initial = false)
+    val themeColorPreset by settings.themeColorPreset.collectAsState(initial = "teal")
     val jLate by settings.timetableJLate.collectAsState(initial = true)
     val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
     val config = TimetableScheduleConfig(
@@ -117,11 +135,30 @@ fun SettingsScreen(
                             launchUi { settings.setThemeMode(mode) }
                         },
                     )
+                    Spacer(Modifier.height(14.dp))
+                    if (dynamicColor) {
+                        Text(
+                            "已开启莫奈取色，颜色跟随系统壁纸；关闭后可选择预设主题色。",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        Text(
+                            "预设主题色",
+                            style = subheadlineStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        ThemeColorPicker(
+                            selectedId = themeColorPreset,
+                            onSelect = { id -> launchUi { settings.setThemeColorPreset(id) } },
+                        )
+                    }
                 }
                 PrismGroupedList {
                     PrismToggleRow(
-                        title = "动态取色",
-                        subtitle = "默认品牌青；开启后跟随系统壁纸配色",
+                        title = "动态取色（莫奈）",
+                        subtitle = "开启后跟随系统壁纸配色；关闭后使用所选预设主题色",
                         leading = { IconBadge(Icons.Outlined.Palette) },
                         checked = dynamicColor,
                         onCheckedChange = { on -> launchUi { settings.setDynamicColor(on) } },
@@ -176,5 +213,86 @@ fun SettingsScreen(
             )
             Spacer(Modifier.height(12.dp))
         }
+    }
+}
+
+/** 预设主题色：种子色取自 FlClash，选中后整页即时换色。 */
+private data class ThemePresetOption(val id: String, val label: String, val seed: Color)
+
+private val themePresetOptions = listOf(
+    ThemePresetOption("teal", "品牌青", Color(0xFF0B4F52)),
+    ThemePresetOption("blue", "海蓝", Color(0xFF007AFF)),
+    ThemePresetOption("purple", "品紫", Color(0xFFCB30E0)),
+    ThemePresetOption("pink", "玫粉", Color(0xFFFF2D55)),
+    ThemePresetOption("red", "赤红", Color(0xFFFF383C)),
+    ThemePresetOption("orange", "暖橙", Color(0xFFFF8D28)),
+    ThemePresetOption("yellow", "明黄", Color(0xFFFFCC00)),
+    ThemePresetOption("green", "草绿", Color(0xFF34C759)),
+    ThemePresetOption("gray", "岩灰", Color(0xFF8E8E93)),
+)
+
+@Composable
+private fun ThemeColorPicker(
+    selectedId: String,
+    onSelect: (String) -> Unit,
+) {
+    val selectedLabel = themePresetOptions.firstOrNull { it.id == selectedId }?.label ?: "品牌青"
+    Column {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            themePresetOptions.forEach { option ->
+                val selected = option.id == selectedId
+                Column(
+                    Modifier
+                        .width(52.dp)
+                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
+                        .clickable { if (!selected) onSelect(option.id) }
+                        .padding(vertical = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(
+                        Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(option.seed)
+                            .then(
+                                if (selected) Modifier.border(
+                                    width = 2.dp,
+                                    color = MaterialTheme.colorScheme.onSurface,
+                                    shape = CircleShape,
+                                ) else Modifier,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        if (selected) {
+                            Icon(
+                                Icons.Rounded.Check,
+                                contentDescription = null,
+                                tint = if (option.seed.luminance() > 0.55f) Color.Black else Color.White,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(3.dp))
+                    Text(
+                        option.label,
+                        style = caption2Style(),
+                        color = if (selected) MaterialTheme.colorScheme.onSurface
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text(
+            "当前：$selectedLabel",
+            style = footnoteStyle(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }

@@ -1,6 +1,7 @@
 package com.union.campus.ui.screens.study
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,20 +23,26 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.MorningSlot
+import com.union.campus.domain.Semester
 import com.union.campus.domain.TimetableSchedule
 import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.TimetableSchedulePicker
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.SectionHeader
 import com.union.campus.ui.prism.caption1Style
 import com.union.campus.ui.prism.footnoteStyle
@@ -49,6 +56,21 @@ fun TimetableSettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val settings = ServiceLocator.settings
+    val jw = ServiceLocator.jwRepository
+    val savedSemesterDm by settings.timetableSemesterDm.collectAsState(initial = "")
+    var currentSemesterDm by remember { mutableStateOf("") }
+    var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
+    val activeSemesterDm = savedSemesterDm.ifBlank { currentSemesterDm }
+    val activeSemesterLabel = semesters.firstOrNull { it.dm == activeSemesterDm }?.name
+        ?: activeSemesterDm.ifBlank { "未同步" }
+    LaunchedEffect(Unit) {
+        currentSemesterDm = jw.currentSemesterDm()
+        semesters = if (jw.isBound()) {
+            runCatching { jw.semesterList() }.getOrDefault(emptyList())
+        } else {
+            emptyList()
+        }
+    }
     val jLate by settings.timetableJLate.collectAsState(initial = true)
     val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
     val fallbackGroup = if (fallbackValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6
@@ -65,7 +87,7 @@ fun TimetableSettingsScreen(
     val (dinnerStart, dinnerEnd) = TimetableSchedule.dinnerRange()
 
     UnionScreenScaffold(
-        title = "课表设置",
+        title = "课程表设置",
         onBack = onBack,
         modifier = modifier,
     ) { padding ->
@@ -77,6 +99,58 @@ fun TimetableSettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            SectionHeader("学期")
+            Text(
+                "只切换课程表显示的学期，不影响成绩、考试等其他页面。",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (semesters.isEmpty()) {
+                PrismCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
+                ) {
+                    Text(
+                        "登录教务后可选择学期。当前：$activeSemesterLabel",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Row(
+                    Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    PrismChip(
+                        label = "跟随教务",
+                        selected = savedSemesterDm.isBlank(),
+                        onClick = {
+                            if (savedSemesterDm.isNotBlank()) {
+                                launchUi { settings.setTimetableSemesterDm("") }
+                            }
+                        },
+                    )
+                    semesters.take(8).forEach { sem ->
+                        PrismChip(
+                            label = sem.shortLabel,
+                            selected = savedSemesterDm.isNotBlank() && sem.dm == activeSemesterDm,
+                            onClick = {
+                                if (savedSemesterDm != sem.dm) {
+                                    launchUi { settings.setTimetableSemesterDm(sem.dm) }
+                                }
+                            },
+                        )
+                    }
+                }
+                Text(
+                    "当前：$activeSemesterLabel${if (savedSemesterDm.isBlank()) "（跟随教务）" else ""}",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+
             SectionHeader("教学楼作息")
             Text(
                 "学校同时运行两套作息：S1–S6、J7 一套，J1–J6 一套。两套都按正常课表运行，只有第 3、4 节时间不同。",

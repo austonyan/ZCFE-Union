@@ -65,7 +65,7 @@ fun PrismSegmented(
         )
         Box(
             Modifier
-                .align(Alignment.Center)
+                .align(Alignment.CenterStart)
                 .offset(x = offset)
                 .height(40.dp)
                 .fillMaxWidth(1f / options.size)
