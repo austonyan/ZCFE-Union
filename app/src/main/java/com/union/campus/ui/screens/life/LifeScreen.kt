@@ -2,55 +2,53 @@ package com.union.campus.ui.screens.life
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.MeetingRoom
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ElectricBalance
+import com.union.campus.domain.ElectricLowState
 import com.union.campus.domain.ElectricStats
 import com.union.campus.domain.ShowerArea
 import com.union.campus.ui.common.launchUi
-import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.MetaChip
-import com.union.campus.ui.prism.PrismAnimatedText
-import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismAlpha
+import com.union.campus.ui.prism.PrismEntryCard
+import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismMetricCard
 import com.union.campus.ui.prism.PrismPageHeader
+import com.union.campus.ui.prism.PrismSection
+import com.union.campus.ui.prism.PrismSpace
 import com.union.campus.ui.prism.PrismStatus
-import com.union.campus.ui.prism.PrismSwitch
-import com.union.campus.ui.prism.bodyStyle
-import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.rememberPrismHaptics
-import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 
 /** 生活：洗浴、电费与空闲教室的生活总览，含低余额提醒开关。 */
@@ -66,6 +64,7 @@ fun LifeScreen(
     val shower = ServiceLocator.showerRepository
     val settings = ServiceLocator.settings
     val haptics = rememberPrismHaptics()
+    val lowThreshold by settings.lowElectricThreshold.collectAsState(initial = ElectricLowState.DefaultThreshold)
 
     var balance by remember { mutableStateOf<ElectricBalance?>(null) }
     var area by remember { mutableStateOf<ShowerArea?>(null) }
@@ -114,16 +113,18 @@ fun LifeScreen(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(start = 16.dp, end = 16.dp, top = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(start = PrismSpace.Page, end = PrismSpace.Page, top = 4.dp),
+            verticalArrangement = Arrangement.spacedBy(PrismSpace.Item),
         ) {
             PrismPageHeader(
                 title = "生活",
                 subtitle = "电费、洗浴与空闲教室",
                 actions = {
-                    IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Rounded.MoreVert, contentDescription = "更多")
-                    }
+                    PrismIconButton(
+                        icon = Icons.Outlined.MoreVert,
+                        contentDescription = "更多",
+                        onClick = { menuOpen = true },
+                    )
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; refresh() })
                         DropdownMenuItem(text = { Text("设置") }, onClick = { menuOpen = false; onOpenSettings() })
@@ -131,139 +132,88 @@ fun LifeScreen(
                 },
             )
 
-            val roomName = balance?.fullName?.takeIf { it.isNotBlank() } ?: "电费未绑定"
-
-            val low = balance?.kwh?.toDoubleOrNull()?.let { it < 20.0 } == true
+            val b = balance
+            val a = area
+            val low = ElectricLowState.isLow(b, lowThreshold)
             val electricContainer = if (low) PrismStatus.warningContainer() else MaterialTheme.colorScheme.secondaryContainer
             val electricOn = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSecondaryContainer
+            val roomName = b?.fullName?.takeIf { it.isNotBlank() } ?: "电费未绑定"
+            val days = b?.let { estimateDays(it) } ?: "—"
+            val todayCost = b?.let {
+                ElectricStats.cost(ElectricStats.useValue(it.todayUse), ElectricStats.unitPrice(it))
+            }
 
-            PrismCard(
-                modifier = Modifier.fillMaxWidth(),
+            PrismMetricCard(
+                label = "电费",
+                value = b?.let { "${it.kwh} 度" } ?: "—",
+                subtitle = if (b != null) {
+                    buildString {
+                        append(roomName)
+                        append(" · 预计可用 $days 天")
+                        append(" · 今日 ${b.todayUse.ifBlank { "—" }} 度")
+                        if (todayCost != null) append(" · 约 ¥${ElectricStats.formatMoney(todayCost)}")
+                        if (b.price.isNotBlank()) append(" · 单价 ${b.price} 元/度")
+                    }
+                } else {
+                    "绑定房间后查看余额与用量"
+                },
+                icon = Icons.Rounded.Bolt,
+                trailing = if (low) {
+                    { MetaChip("余额偏低", color = electricOn.withAlpha(PrismAlpha.ContainerTint)) }
+                } else {
+                    null
+                },
                 onClick = onOpenElectric,
                 containerColor = electricContainer,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Bolt, null, tint = electricOn)
-                    Spacer(Modifier.width(8.dp))
-                    Text("电费", style = headlineStyle(), color = electricOn)
-                    Spacer(Modifier.weight(1f))
-                    if (low) {
-                        MetaChip("余额偏低", color = electricOn.copy(alpha = 0.14f))
-                    }
-                }
-                Spacer(Modifier.height(4.dp))
-                Text(roomName, style = footnoteStyle(), color = electricOn.copy(alpha = 0.72f))
-                Spacer(Modifier.height(8.dp))
-                if (balance != null) {
-                    val b = balance!!
-                    val days = estimateDays(b)
-                    val price = ElectricStats.unitPrice(b)
-                    val todayCost = ElectricStats.cost(ElectricStats.useValue(b.todayUse), price)
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        PrismAnimatedText(
-                            text = "${b.kwh}",
-                            style = headlineStyle().copy(fontSize = 34.sp, lineHeight = 38.sp),
-                            color = electricOn,
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("度", style = subheadlineStyle(), color = electricOn.copy(alpha = 0.8f))
-                    }
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        buildString {
-                            append("预计可用 $days 天 · 今日 ${b.todayUse.ifBlank { "—" }} 度")
-                            if (todayCost != null) append(" · 约 ¥${ElectricStats.formatMoney(todayCost)}")
-                            if (b.price.isNotBlank()) append("\n单价 ${b.price} 元/度")
-                        },
-                        style = footnoteStyle(),
-                        color = electricOn.copy(alpha = 0.78f),
-                    )
-                } else {
-                    Text("绑定房间后查看余额与用量", style = subheadlineStyle(), color = electricOn)
-                }
-            }
-
-            PrismCard(
+                contentColor = electricOn,
+                accent = electricOn,
                 modifier = Modifier.fillMaxWidth(),
+            )
+
+            PrismMetricCard(
+                label = "洗浴",
+                value = a?.let { "${it.idleNum} / ${it.totalNum}" } ?: "—",
+                subtitle = if (a != null) {
+                    "${a.name} · 排队 ${a.queueNum} 人"
+                } else {
+                    "登录大白U帮后查看空闲与排队"
+                },
+                icon = Icons.Rounded.WaterDrop,
+                trailing = if (a != null) {
+                    { MetaChip("空闲 ${a.idleNum}/${a.totalNum}", color = PrismStatus.success().withAlpha(PrismAlpha.ContainerTint)) }
+                } else {
+                    null
+                },
                 onClick = onOpenShower,
                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.WaterDrop, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
-                    Spacer(Modifier.width(8.dp))
-                    Text("洗浴", style = headlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
-                    Spacer(Modifier.weight(1f))
-                    if (area != null) {
-                        MetaChip(
-                            "空闲 ${area?.idleNum}/${area?.totalNum}",
-                            color = PrismStatus.success().copy(alpha = 0.14f),
-                        )
-                    }
-                }
-                Spacer(Modifier.height(8.dp))
-                if (area != null) {
-                    Row(verticalAlignment = Alignment.Bottom) {
-                        PrismAnimatedText(
-                            text = "${area?.idleNum ?: 0} / ${area?.totalNum ?: 0}",
-                            style = headlineStyle().copy(fontSize = 28.sp, lineHeight = 32.sp),
-                            color = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text("空闲", style = footnoteStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.78f))
-                    }
-                    Spacer(Modifier.height(2.dp))
-                    Text(
-                        "${area?.name ?: ""} · 排队 ${area?.queueNum ?: 0} 人",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f),
-                    )
-                } else {
-                    Text("登录大白U帮后查看空闲与排队", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
-                }
-            }
-
-            PrismCard(
+                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                accent = MaterialTheme.colorScheme.onTertiaryContainer,
                 modifier = Modifier.fillMaxWidth(),
+            )
+
+            PrismEntryCard(
+                title = "空闲教室",
+                subtitle = "今天 14:00–16:00 按教学楼查询",
+                icon = Icons.Rounded.MeetingRoom,
                 onClick = onOpenFreeClassrooms,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.MeetingRoom, null, tint = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.width(8.dp))
-                    Column {
-                        Text("空闲教室", style = headlineStyle())
-                        Text("今天 14:00–16:00 按教学楼查询", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-
-            PrismCard(
                 modifier = Modifier.fillMaxWidth(),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 4.dp, vertical = 4.dp),
-            ) {
-                CardHeader("提醒")
-                Row(
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(Icons.Rounded.Notifications, null)
-                    Spacer(Modifier.width(12.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text("低余额提醒", style = bodyStyle())
-                        Text("低于 20 度时每天 20:00 提醒", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    PrismSwitch(
+            )
+
+            PrismSection(title = "提醒") {
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "低余额提醒",
+                        subtitle = ElectricLowState.thresholdText(lowThreshold),
                         checked = lowElectricOn,
                         onCheckedChange = {
                             lowElectricOn = it
                             launchUi { settings.setRemindLowElectric(it) }
                         },
+                        leading = { Icon(Icons.Rounded.Notifications, contentDescription = null) },
                     )
                 }
             }
-            Spacer(Modifier.height(24.dp))
+            Spacer(Modifier.height(PrismSpace.Bottom))
         }
     }
 }

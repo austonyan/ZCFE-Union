@@ -21,7 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material.icons.rounded.Info
@@ -34,7 +34,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,10 +52,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.core.AppError
 import com.union.campus.data.remote.shower.formatShowerCountdown
 import com.union.campus.data.repo.isShowerQueueTurn
@@ -74,11 +71,15 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismCheckMark
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismNoticeBanner
+import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.LocalPrismMessenger
@@ -89,13 +90,17 @@ import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismStatusDot
 import com.union.campus.ui.prism.PrismSwitch
 import com.union.campus.ui.prism.PrismTextButton
+import com.union.campus.ui.prism.SectionHeader
 import com.union.campus.ui.prism.bodyStyle
+import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.metricStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
+import com.union.campus.ui.prism.withAlpha
 import com.union.campus.ui.prism.SurfaceLevel
 
 // ---------------- 洗浴首页 ----------------
@@ -139,7 +144,9 @@ fun ShowerScreen(
     var cancelQueueConfirm by remember { mutableStateOf(false) }
     var queueBusy by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
-    val activeSession by shower.activeSession.collectAsState(initial = shower.activeSession.value)
+    // StateFlow 直接在组合中 .value 会触发 lint 的 StateFlowValueCalledInComposition；
+// collectAsState() 会订阅并在值变化时重组。
+    val activeSession by shower.activeSession.collectAsState()
     val hasActiveSession = activeSession != null
     var reservation by remember { mutableStateOf<ShowerReservation?>(null) }
     var reservationBusy by remember { mutableStateOf(false) }
@@ -726,7 +733,11 @@ fun ShowerScreen(
         onBack = onBack,
         modifier = modifier,
         actions = {
-            IconButton(onClick = onOpenWallet) { Icon(Icons.Rounded.AccountBalanceWallet, contentDescription = "钱包") }
+            PrismIconButton(
+                icon = Icons.Outlined.AccountBalanceWallet,
+                contentDescription = "钱包",
+                onClick = onOpenWallet,
+            )
         },
     ) { padding ->
         Column(
@@ -791,17 +802,14 @@ fun ShowerScreen(
             // 已在其他区域排队时给出提示，避免重复排队
             if (!loading && error == null && reservation == null && queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId) {
                 val q = queueInfo!!
-                PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                    Text(
-                        "已在 ${q.areaName.ifBlank { "其他区域" }} 排队" +
-                            if (q.position > 0) " · 第 ${q.position} 位" else "",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                    PrismTextButton(onClick = { cancelQueueConfirm = true }, enabled = !queueBusy) {
-                        Text("取消排队")
-                    }
-                }
+                PrismNoticeBanner(
+                    title = "已在 ${q.areaName.ifBlank { "其他区域" }} 排队" +
+                        if (q.position > 0) " · 第 ${q.position} 位" else "",
+                    tone = PrismNoticeTone.Warning,
+                    icon = Icons.Rounded.Schedule,
+                    actionLabel = "取消排队",
+                    onAction = { if (!queueBusy) cancelQueueConfirm = true },
+                )
             }
 
             // 无空闲设备时提供排队入口；已排队时显示进度
@@ -912,7 +920,7 @@ fun ShowerScreen(
                             com.union.campus.ui.prism.MetaChip("排队 $queueNumAtArea")
                         }
                     }
-                    Text("设备", style = headlineStyle())
+                    SectionHeader("设备")
                     Text(
                         "点击空闲设备先预约，预约成功后在倒计时内启动；超时会自动取消。",
                         style = footnoteStyle(),
@@ -1059,15 +1067,13 @@ private fun ShowerLocationSheet(
                 )
             }
             if (orgs.isNotEmpty()) {
-                item { Text("学校", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item { SectionHeader("学校") }
                 item {
                     PrismGroupedList {
-                        orgs.forEachIndexed { index, org ->
+                        orgs.forEach { org ->
                             LocationOption(
                                 title = org.name,
                                 selected = org.id == selectedOrgId,
-                                index = index,
-                                count = orgs.size,
                                 onClick = { haptics.select(); onSelectOrg(org.id) },
                             )
                         }
@@ -1075,15 +1081,13 @@ private fun ShowerLocationSheet(
                 }
             }
             if (orgAreas.isNotEmpty()) {
-                item { Text("校区", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item { SectionHeader("校区") }
                 item {
                     PrismGroupedList {
-                        orgAreas.forEachIndexed { index, item ->
+                        orgAreas.forEach { item ->
                             LocationOption(
                                 title = item.name,
                                 selected = item.id == selectedOrgAreaId,
-                                index = index,
-                                count = orgAreas.size,
                                 onClick = { haptics.select(); onSelectOrgArea(item.id) },
                             )
                         }
@@ -1091,15 +1095,13 @@ private fun ShowerLocationSheet(
                 }
             }
             if (buildings.isNotEmpty()) {
-                item { Text("楼栋", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item { SectionHeader("楼栋") }
                 item {
                     PrismGroupedList {
-                        buildings.forEachIndexed { index, building ->
+                        buildings.forEach { building ->
                             LocationOption(
                                 title = buildingLabel(building.name),
                                 selected = building.id == selectedBuildingId,
-                                index = index,
-                                count = buildings.size,
                                 onClick = { haptics.select(); onSelectBuilding(building.id) },
                             )
                         }
@@ -1107,16 +1109,14 @@ private fun ShowerLocationSheet(
                 }
             }
             if (areas.isNotEmpty()) {
-                item { Text("区域", style = headlineStyle(), modifier = Modifier.padding(top = 10.dp)) }
+                item { SectionHeader("区域") }
                 item {
                     PrismGroupedList {
-                        areas.forEachIndexed { index, area ->
+                        areas.forEach { area ->
                             LocationOption(
                                 title = areaLabel(area),
                                 subtitle = "空闲 ${area.idleNum}/${area.totalNum} · 排队 ${area.queueNum} 人",
                                 selected = area.id == selectedAreaId,
-                                index = index,
-                                count = areas.size,
                                 onClick = { haptics.select(); onSelectArea(area.id) },
                             )
                         }
@@ -1131,16 +1131,12 @@ private fun ShowerLocationSheet(
 private fun LocationOption(
     title: String,
     selected: Boolean,
-    index: Int,
-    count: Int,
     subtitle: String? = null,
     onClick: () -> Unit,
 ) {
     PrismRow(
         title = title,
         subtitle = subtitle,
-        index = index,
-        count = count,
         onClick = onClick,
         trailing = if (selected) {
             {
@@ -1286,7 +1282,7 @@ private fun ReservationCard(
                     val stroke = 5.dp.toPx()
                     val inset = stroke / 2f
                     drawArc(
-                        color = onContainer.copy(alpha = 0.16f),
+                        color = onContainer.withAlpha(PrismAlpha.Track),
                         startAngle = -90f,
                         sweepAngle = 360f,
                         useCenter = false,
@@ -1306,8 +1302,7 @@ private fun ReservationCard(
                 }
                 Text(
                     text = "%d:%02d".format(remaining / 60, remaining % 60),
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight(600),
+                    style = caption2Style(),
                     color = onContainer,
                 )
             }
@@ -1322,13 +1317,13 @@ private fun ReservationCard(
                         "预约已过期，正在自动取消，请重新预约"
                     },
                     style = footnoteStyle(),
-                    color = onContainer.copy(alpha = 0.78f),
+                    color = onContainer.withAlpha(PrismAlpha.Secondary),
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     "预约不会自动开启设备，需在倒计时内手动启动。",
                     style = footnoteStyle(),
-                    color = onContainer.copy(alpha = 0.72f),
+                    color = onContainer.withAlpha(PrismAlpha.Secondary),
                 )
             }
         }
@@ -1506,23 +1501,21 @@ fun DeviceDetailScreen(
                 )
             }
             if (activeSession != null) {
-                PrismCard(containerColor = MaterialTheme.colorScheme.tertiaryContainer) {
-                    Text(
-                        "已有正在进行的洗浴，请先在洗浴页结束当前洗浴再预约。",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onTertiaryContainer,
-                    )
-                }
+                PrismNoticeBanner(
+                    title = "已有正在进行的洗浴",
+                    message = "请先在洗浴页结束当前洗浴再预约。",
+                    tone = PrismNoticeTone.Warning,
+                    icon = Icons.Rounded.WaterDrop,
+                )
             }
             val otherReservation = reservation
             if (!reservedHere && otherReservation != null) {
-                PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                    Text(
-                        "已在 ${otherReservation.deviceName} 预约，请先启动或取消该预约，再预约当前设备。",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
+                PrismNoticeBanner(
+                    title = "已在 ${otherReservation.deviceName} 预约",
+                    message = "请先启动或取消该预约，再预约当前设备。",
+                    tone = PrismNoticeTone.Info,
+                    icon = Icons.Rounded.Schedule,
+                )
             }
             if (reservedHere && activeSession == null) {
                 ReservationCard(
@@ -1533,7 +1526,7 @@ fun DeviceDetailScreen(
                     onExpired = ::reservationExpired,
                 )
             }
-            Text("设备状态", style = headlineStyle())
+            SectionHeader("设备状态")
             PrismGroupedList {
                 PrismRow(title = "当前状态", subtitle = when {
                     reservedHere -> "已预约 · 请在倒计时内启动"
@@ -1541,9 +1534,9 @@ fun DeviceDetailScreen(
                     device.state == 1 -> "使用中"
                     device.state == 2 -> "已预约"
                     else -> "故障"
-                }, index = 0, count = 3, leading = { IconBadge(Icons.Rounded.WaterDrop) })
-                PrismRow(title = "最近使用", subtitle = device.remainingText.ifBlank { "—" }, index = 1, count = 3, leading = { IconBadge(Icons.Rounded.History) })
-                PrismRow(title = "故障码", subtitle = "无", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Info) })
+                }, leading = { IconBadge(Icons.Rounded.WaterDrop) })
+                PrismRow(title = "最近使用", subtitle = device.remainingText.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.History) })
+                PrismRow(title = "故障码", subtitle = "无", leading = { IconBadge(Icons.Rounded.Info) })
             }
             when {
                 reservedHere -> PrismButton(
@@ -1677,7 +1670,7 @@ fun ShowerSessionScreen(
                 Spacer(Modifier.height(4.dp))
                 Text("${session.buildingName} ${session.areaName}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-            Text("本次洗浴", style = headlineStyle())
+            SectionHeader("本次洗浴")
             val minutes = elapsedSec / 60
             val secs = elapsedSec % 60
             val progressTarget = (elapsedSec / (40f * 60f)).coerceIn(0f, 1f)
@@ -1716,15 +1709,8 @@ fun ShowerSessionScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
                                 text = String.format("%02d:%02d", minutes, secs),
-                                fontSize = 32.sp,
-                                lineHeight = 38.sp,
-                                fontWeight = FontWeight(700),
+                                style = metricStyle(),
                                 color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.headlineSmall.copy(
-                                    fontSize = 32.sp,
-                                    lineHeight = 38.sp,
-                                    fontFeatureSettings = "tnum",
-                                ),
                             )
                             Text(
                                 "已使用",
@@ -1768,10 +1754,10 @@ fun ShowerSessionScreen(
             }
             Text("预计费用以结束后的账单为准（按实际使用时长计费）", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
-            Text("计费提示", style = headlineStyle())
+            SectionHeader("计费提示")
             PrismGroupedList {
-                PrismRow(title = "已使用时长", subtitle = "按实际使用时长计费", index = 0, count = 2, leading = { IconBadge(Icons.Rounded.Info) })
-                PrismRow(title = "结束提醒", subtitle = "离开前请确认关闭设备", index = 1, count = 2, leading = { IconBadge(Icons.Rounded.Info) })
+                PrismRow(title = "已使用时长", subtitle = "按实际使用时长计费", leading = { IconBadge(Icons.Rounded.Info) })
+                PrismRow(title = "结束提醒", subtitle = "离开前请确认关闭设备", leading = { IconBadge(Icons.Rounded.Info) })
             }
 
             PrismButton(
@@ -1785,7 +1771,7 @@ fun ShowerSessionScreen(
                 Text("结束洗浴")
             }
             PrismTextButton(onClick = onOpenWallet, modifier = Modifier.fillMaxWidth()) {
-                Icon(Icons.Rounded.AccountBalanceWallet, null)
+                Icon(Icons.Outlined.AccountBalanceWallet, null)
                 Spacer(Modifier.width(8.dp))
                 Text("查看账单")
             }

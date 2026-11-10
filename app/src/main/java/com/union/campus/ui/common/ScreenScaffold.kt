@@ -10,12 +10,9 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.rounded.Inbox
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -27,8 +24,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.union.campus.ui.prism.NullStatus
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSkeletonList
+import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
 
@@ -47,12 +46,14 @@ fun UnionScreenScaffold(
         containerColor = surfaceColorOf(SurfaceLevel.Page),
         topBar = {
             TopAppBar(
-                title = { Text(title, style = MaterialTheme.typography.titleMedium) },
+                title = { Text(title, style = headlineStyle()) },
                 navigationIcon = {
                     if (onBack != null) {
-                        IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "返回")
-                        }
+                        PrismIconButton(
+                            icon = Icons.AutoMirrored.Outlined.ArrowBack,
+                            contentDescription = "返回",
+                            onClick = onBack,
+                        )
                     }
                 },
                 actions = actions,

@@ -49,8 +49,8 @@ fun PrismSkeleton(
         remember { mutableFloatStateOf(0.5f) }
     }
     val shimmer = shimmerState.value
-    val base = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.055f)
-    val highlight = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.11f)
+    val base = MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Skeleton)
+    val highlight = MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.SkeletonHighlight)
     val brush: Brush = if (enabled) {
         Brush.linearGradient(
             colors = listOf(base, highlight, base),

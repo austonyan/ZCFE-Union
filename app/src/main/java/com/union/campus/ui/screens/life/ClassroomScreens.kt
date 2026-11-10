@@ -37,8 +37,8 @@ import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.CardHeader
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import java.text.SimpleDateFormat
@@ -132,7 +132,7 @@ fun FreeClassroomsScreen(
                     if (!jw.isBound()) "登录教务后按日期/教学楼查询" else "该楼栋当前没有返回空闲教室",
                 )
                 else -> PrismGroupedList {
-                    rooms.forEachIndexed { i, room ->
+                    rooms.forEach { room ->
                         val detail = buildString {
                             if (room.type.isNotBlank()) append(room.type)
                             if (room.capacity.isNotBlank()) {
@@ -147,7 +147,6 @@ fun FreeClassroomsScreen(
                         PrismRow(
                             title = room.name,
                             subtitle = detail.ifBlank { "空闲教室" },
-                            index = i, count = rooms.size,
                             leading = { IconBadge(Icons.Rounded.MeetingRoom) },
                         )
                     }
@@ -183,13 +182,14 @@ fun ClassroomDetailScreen(
                 Spacer(Modifier.height(4.dp))
                 Text("容量与设备信息以教务数据为准", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-            Text("今日空闲时段", style = headlineStyle())
-            // 时段以教务 getJsxx 返回为准；上游未返回明细时不编造数据
-            NullStatus(
-                Icons.Rounded.CalendarMonth,
-                "暂无分时段数据",
-                "空闲时段以上游返回为准；可在空闲教室页按日期/教学楼重新查询",
-            )
+            PrismSection(title = "今日空闲时段") {
+                // 时段以教务 getJsxx 返回为准；上游未返回明细时不编造数据
+                NullStatus(
+                    Icons.Rounded.CalendarMonth,
+                    "暂无分时段数据",
+                    "空闲时段以上游返回为准；可在空闲教室页按日期/教学楼重新查询",
+                )
+            }
             PrismCard {
                 CardHeader("说明")
                 Spacer(Modifier.height(6.dp))

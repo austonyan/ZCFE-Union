@@ -31,7 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
@@ -48,6 +47,7 @@ import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSlider
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
@@ -128,21 +128,21 @@ fun CourseSelectScreen(
                 )
                 is UiState.Empty -> NullStatus(Icons.Rounded.HowToVote, "选课未开放", s.hint)
                 is UiState.Ready -> {
-                    Text("可选课程", style = headlineStyle())
-                    PrismGroupedList {
-                        s.data.forEachIndexed { i, c ->
-                            PrismRow(
-                                title = c.name,
-                                subtitle = "${c.credit} 学分 · ${c.teacher.ifBlank { "—" }} · ${c.time.ifBlank { "时间待定" }}",
-                                index = i, count = s.data.size,
-                                leading = { IconBadge(when (i % 3) { 0 -> Icons.Rounded.Storage; 1 -> Icons.Rounded.SmartToy; else -> Icons.Rounded.Movie }) },
-                                trailing = {
-                                    PrismCheckMark(checked = selected.contains(c))
-                                },
-                                onClick = {
-                                    selected = if (selected.contains(c)) selected - c else selected + c
-                                },
-                            )
+                    PrismSection(title = "可选课程") {
+                        PrismGroupedList {
+                            s.data.forEachIndexed { i, c ->
+                                PrismRow(
+                                    title = c.name,
+                                    subtitle = "${c.credit} 学分 · ${c.teacher.ifBlank { "—" }} · ${c.time.ifBlank { "时间待定" }}",
+                                    leading = { IconBadge(when (i % 3) { 0 -> Icons.Rounded.Storage; 1 -> Icons.Rounded.SmartToy; else -> Icons.Rounded.Movie }) },
+                                    trailing = {
+                                        PrismCheckMark(checked = selected.contains(c))
+                                    },
+                                    onClick = {
+                                        selected = if (selected.contains(c)) selected - c else selected + c
+                                    },
+                                )
+                            }
                         }
                     }
                     if (selected.isNotEmpty()) {
@@ -236,11 +236,12 @@ fun ConfirmSelectionScreen(
                 Spacer(Modifier.height(4.dp))
                 Text("${course.credit} 学分 · ${course.teacher}\n${course.time.ifBlank { "时间待定" }}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-            Text("提交前检查", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(title = "课程冲突", subtitle = "以教务校验结果为准", index = 0, count = 3, leading = { IconBadge(Icons.Rounded.Check) })
-                PrismRow(title = "学分上限", subtitle = "本门 ${course.credit} 学分", index = 1, count = 3, leading = { IconBadge(Icons.Rounded.Storage) })
-                PrismRow(title = "选课轮次", subtitle = "以教务当前开放轮次为准", index = 2, count = 3, leading = { IconBadge(Icons.Rounded.HowToVote) })
+            PrismSection(title = "提交前检查") {
+                PrismGroupedList {
+                    PrismRow(title = "课程冲突", subtitle = "以教务校验结果为准", leading = { IconBadge(Icons.Rounded.Check) })
+                    PrismRow(title = "学分上限", subtitle = "本门 ${course.credit} 学分", leading = { IconBadge(Icons.Rounded.Storage) })
+                    PrismRow(title = "选课轮次", subtitle = "以教务当前开放轮次为准", leading = { IconBadge(Icons.Rounded.HowToVote) })
+                }
             }
             PrismButton(
                 onClick = { submit() },

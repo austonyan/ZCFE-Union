@@ -68,7 +68,7 @@ fun PrismTextField(
             focusedContainerColor = container,
             unfocusedContainerColor = container,
             errorBorderColor = MaterialTheme.colorScheme.error,
-            errorContainerColor = MaterialTheme.colorScheme.errorContainer.copy(alpha = 0.24f),
+            errorContainerColor = MaterialTheme.colorScheme.errorContainer.withAlpha(PrismAlpha.ErrorFill),
             cursorColor = MaterialTheme.colorScheme.primary,
         ),
     )

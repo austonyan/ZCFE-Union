@@ -31,6 +31,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -65,7 +66,7 @@ fun PrismChip(
     val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
     val container by animateColorAsState(
         targetValue = when {
-            !enabled -> surfaceColorOf(SurfaceLevel.Inset).copy(alpha = 0.5f)
+            !enabled -> surfaceColorOf(SurfaceLevel.Inset).withAlpha(PrismAlpha.Hint)
             selected -> MaterialTheme.colorScheme.primary
             else -> surfaceColorOf(SurfaceLevel.Inset)
         },
@@ -74,7 +75,7 @@ fun PrismChip(
     )
     val content by animateColorAsState(
         targetValue = when {
-            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+            !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled)
             selected -> MaterialTheme.colorScheme.onPrimary
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
@@ -90,7 +91,7 @@ fun PrismChip(
                 }
             },
             enabled = enabled,
-            modifier = modifier,
+            modifier = modifier.minimumInteractiveComponentSize(),
             shape = pill,
             color = container,
         ) {
@@ -128,7 +129,7 @@ fun PrismSlider(
         colors = SliderDefaults.colors(
             thumbColor = MaterialTheme.colorScheme.primary,
             activeTrackColor = MaterialTheme.colorScheme.primary,
-            activeTickColor = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.6f),
+            activeTickColor = MaterialTheme.colorScheme.onPrimary.withAlpha(PrismAlpha.Grip),
             inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
             inactiveTickColor = MaterialTheme.colorScheme.outlineVariant,
         ),
@@ -192,7 +193,7 @@ fun PrismErrorState(
         Icon(
             Icons.Rounded.ErrorOutline,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+            tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
             modifier = Modifier.size(38.dp),
         )
         Text(
@@ -271,12 +272,10 @@ fun PrismOptionSheet(
                 )
             }
             PrismGroupedList {
-                options.forEachIndexed { index, option ->
+                options.forEach { option ->
                     PrismRow(
                         title = option.label,
                         subtitle = option.subtitle,
-                        index = index,
-                        count = options.size,
                         onClick = {
                             haptics.select()
                             onSelect(option.key)
@@ -372,7 +371,7 @@ fun PrismCheckMark(
     Icon(
         Icons.Rounded.Check,
         contentDescription = if (checked) "已选择" else null,
-        tint = MaterialTheme.colorScheme.primary.copy(alpha = alpha),
+        tint = MaterialTheme.colorScheme.primary.withAlpha(alpha),
         modifier = modifier.size(20.dp).scale(scale),
     )
 }

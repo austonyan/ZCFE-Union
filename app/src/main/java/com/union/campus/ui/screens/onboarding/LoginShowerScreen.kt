@@ -12,16 +12,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Login
 import androidx.compose.material.icons.rounded.Phone
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Sms
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -42,6 +41,7 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
@@ -116,9 +116,11 @@ fun LoginShowerScreen(
         title = "登录大白U帮",
         onBack = onBack,
         actions = {
-            IconButton(onClick = { info = "洗浴账号是大白U帮 App 的手机号与密码；仅用于本人查询与开关设备。" }) {
-                Icon(Icons.Rounded.HelpOutline, contentDescription = "帮助")
-            }
+            PrismIconButton(
+                icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                contentDescription = "帮助",
+                onClick = { info = "洗浴账号是大白U帮 App 的手机号与密码；仅用于本人查询与开关设备。" },
+            )
         },
     ) { padding ->
         Column(
@@ -163,12 +165,11 @@ fun LoginShowerScreen(
                         PasswordVisualTransformation()
                     },
                     trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                                contentDescription = if (passwordVisible) "隐藏密码" else "显示密码",
-                            )
-                        }
+                        PrismIconButton(
+                            icon = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码",
+                            onClick = { passwordVisible = !passwordVisible },
+                        )
                     },
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Password,

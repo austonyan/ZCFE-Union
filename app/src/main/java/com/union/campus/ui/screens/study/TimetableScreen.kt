@@ -9,7 +9,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,14 +28,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ChevronLeft
-import androidx.compose.material.icons.rounded.ChevronRight
-import androidx.compose.material.icons.rounded.Grade
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Grade
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.MenuBook
-import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -54,12 +51,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.CourseCell
@@ -72,8 +71,10 @@ import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.NullStatus
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismChip
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismPageHeader
@@ -81,16 +82,19 @@ import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.caption1Style
+import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
+import com.union.campus.ui.prism.prismCoursePalette
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.surfaceColorOf
+import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.abs
 
 /** 课表：页头、周次切换、网格课表；作息在右上角设置，空教室入口留在生活与教务页。 */
+@Suppress("UnusedContentLambdaTargetStateParameter")
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TimetableScreen(
@@ -209,16 +213,20 @@ fun TimetableScreen(
         PrismPageHeader(
             title = "课程表",
             subtitle = listOfNotNull(
-                semesterLabel.takeIf { it.isNotBlank() },
                 weekRange.takeIf { it.isNotBlank() },
+                semesterLabel.takeIf { it.isNotBlank() },
             ).joinToString(" · "),
             actions = {
-                IconButton(onClick = onOpenTimetableSettings) {
-                    Icon(Icons.Rounded.Settings, contentDescription = "作息设置")
-                }
-                IconButton(onClick = onOpenGrades) {
-                    Icon(Icons.Rounded.Grade, contentDescription = "成绩")
-                }
+                PrismIconButton(
+                    icon = Icons.Outlined.Settings,
+                    contentDescription = "作息设置",
+                    onClick = onOpenTimetableSettings,
+                )
+                PrismIconButton(
+                    icon = Icons.Outlined.Grade,
+                    contentDescription = "成绩",
+                    onClick = onOpenGrades,
+                )
             },
         )
 
@@ -317,19 +325,26 @@ private fun WeekSwitcher(
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Surface(shape = pill, color = surfaceColorOf(SurfaceLevel.Inset)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = onPrevious, enabled = week > 1) {
-                    Icon(Icons.Rounded.ChevronLeft, contentDescription = "上一周")
-                }
+                PrismIconButton(
+                    icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
+                    contentDescription = "上一周",
+                    onClick = onPrevious,
+                    enabled = week > 1,
+                )
                 Text(
                     text = "第 $week 周",
                     style = caption1Style(),
                     color = MaterialTheme.colorScheme.onSurface,
                     textAlign = TextAlign.Center,
+                    maxLines = 1,
                     modifier = Modifier.widthIn(min = 52.dp),
                 )
-                IconButton(onClick = onNext, enabled = week < maxWeek) {
-                    Icon(Icons.Rounded.ChevronRight, contentDescription = "下一周")
-                }
+                PrismIconButton(
+                    icon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
+                    contentDescription = "下一周",
+                    onClick = onNext,
+                    enabled = week < maxWeek,
+                )
             }
         }
         Spacer(Modifier.weight(1f))
@@ -356,6 +371,7 @@ private fun TimetableGrid(
     }
 
     val density = LocalDensity.current
+    val fontScale = density.fontScale.coerceIn(0.8f, 1.4f)
     val dayShape = remember(density.density) { PrismShape(8f * density.density) }
     val blockShape = remember(density.density) { PrismShape(10f * density.density) }
     val tagShape = remember(density.density) { PrismShape(4f * density.density) }
@@ -375,8 +391,8 @@ private fun TimetableGrid(
     val jTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.J1ToJ6))
         .associateBy { it.section }
 
-    val rowHeight = 58.dp
-    val breakHeight = 26.dp
+    val rowHeight = 58.dp * fontScale
+    val breakHeight = 26.dp * fontScale
     val timeWidth = 50.dp
 
     fun isBreakAfter(section: Int): Boolean =
@@ -436,7 +452,7 @@ private fun TimetableGrid(
                         .padding(horizontal = 2.dp)
                         .clip(dayShape)
                         .background(
-                            if (isToday) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                            if (isToday) MaterialTheme.colorScheme.primaryContainer.withAlpha(PrismAlpha.ContainerTint)
                             else Color.Transparent,
                         )
                         .padding(vertical = 3.dp),
@@ -447,6 +463,8 @@ private fun TimetableGrid(
                         style = footnoteStyle(),
                         fontWeight = if (isToday) FontWeight(700) else FontWeight(500),
                         color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
                     )
                     val date = weekStart?.plusDays((day - 1).toLong())
                     if (date != null) {
@@ -455,6 +473,8 @@ private fun TimetableGrid(
                             style = footnoteStyle(),
                             color = if (isToday) MaterialTheme.colorScheme.primary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -471,42 +491,44 @@ private fun TimetableGrid(
                                 .offset(y = sectionTop(section))
                                 .height(rowHeight)
                                 .fillMaxWidth()
-                                .padding(horizontal = 2.dp),
+                                .padding(horizontal = 2.dp)
+                                .clearAndSetSemantics { },
                             verticalArrangement = Arrangement.Center,
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
                             Text(
                                 "$section",
-                                fontSize = 13.sp,
+                                style = footnoteStyle(),
                                 fontWeight = FontWeight(700),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
                             )
                             if (section == 3 || section == 4) {
                                 Text(
                                     "S ${sTimes[section]?.start ?: ""}",
-                                    fontSize = 8.sp,
-                                    lineHeight = 10.sp,
+                                    style = caption2Style(),
                                     color = MaterialTheme.colorScheme.tertiary,
+                                    maxLines = 1,
                                 )
                                 Text(
                                     "J ${jTimes[section]?.start ?: ""}",
-                                    fontSize = 8.sp,
-                                    lineHeight = 10.sp,
+                                    style = caption2Style(),
                                     color = MaterialTheme.colorScheme.primary,
+                                    maxLines = 1,
                                 )
                             } else {
                                 times[section]?.let { time ->
                                     Text(
                                         time.start,
-                                        fontSize = 8.sp,
-                                        lineHeight = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.78f),
+                                        style = caption2Style(),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+                                        maxLines = 1,
                                     )
                                     Text(
                                         time.end,
-                                        fontSize = 8.sp,
-                                        lineHeight = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.55f),
+                                        style = caption2Style(),
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                                        maxLines = 1,
                                     )
                                 }
                             }
@@ -523,8 +545,8 @@ private fun TimetableGrid(
                                 .fillMaxHeight()
                                 .background(
                                     when {
-                                        day == today -> MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f)
-                                        day % 2 == 0 -> MaterialTheme.colorScheme.surfaceContainerLow.copy(alpha = 0.45f)
+                                        day == today -> MaterialTheme.colorScheme.primaryContainer.withAlpha(PrismAlpha.Track)
+                                        day % 2 == 0 -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Border)
                                         else -> Color.Transparent
                                     },
                                 ),
@@ -535,7 +557,7 @@ private fun TimetableGrid(
                                         .offset(y = sectionTop(section))
                                         .fillMaxWidth()
                                         .height(1.dp)
-                                        .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.30f)),
+                                        .background(MaterialTheme.colorScheme.outlineVariant.withAlpha(PrismAlpha.Divider)),
                                 )
                             }
                             Box(
@@ -543,14 +565,23 @@ private fun TimetableGrid(
                                     .align(Alignment.CenterEnd)
                                     .width(1.dp)
                                     .fillMaxHeight()
-                                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)),
+                                    .background(MaterialTheme.colorScheme.outlineVariant.withAlpha(PrismAlpha.Border)),
                             )
                             cells.forEach { cell ->
                                 if (cell.startSection > maxSection || cell.endSection < 1) return@forEach
                                 if (cell.startSection > visibleEnd) return@forEach
                                 val start = cell.startSection.coerceIn(1, visibleEnd)
                                 val end = cell.endSection.coerceIn(start, visibleEnd)
-                                val (bg, onBg) = coursePalette(cell.name)
+                                val (bg, onBg) = prismCoursePalette(cell.name)
+                                val scheduleInfo = TimetableSchedule.courseSchedule(cell, config)
+                                val sectionLabel = if (end > start) "第 $start–$end 节" else "第 $start 节"
+                                // TalkBack 一句读完：课名、节次、地点、时间。
+                                val spoken = listOfNotNull(
+                                    cell.name.takeIf { it.isNotBlank() },
+                                    sectionLabel,
+                                    cell.location.takeIf { it.isNotBlank() }?.let { "地点 $it" },
+                                    scheduleInfo?.let { "${it.start} 至 ${it.end}" },
+                                ).joinToString("，")
                                 Box(
                                     Modifier
                                         .offset(y = sectionTop(start))
@@ -559,6 +590,14 @@ private fun TimetableGrid(
                                         .padding(horizontal = 2.dp, vertical = 1.dp)
                                         .clip(blockShape)
                                         .background(bg)
+                                        // 先清空内部所有语义，再挂一条完整描述；触摸仍由 clickable 处理。
+                                        .clearAndSetSemantics {
+                                            contentDescription = spoken
+                                            onClick(label = "查看课程") {
+                                                onOpenCourse(cell)
+                                                true
+                                            }
+                                        }
                                         .clickable { onOpenCourse(cell) },
                                 ) {
                                     Row(Modifier.fillMaxSize()) {
@@ -566,50 +605,42 @@ private fun TimetableGrid(
                                             Modifier
                                                 .width(3.dp)
                                                 .fillMaxHeight()
-                                                .background(onBg.copy(alpha = 0.20f)),
+                                                .background(onBg.withAlpha(PrismAlpha.ContainerTint)),
                                         )
-                                        Column(Modifier.padding(horizontal = 5.dp, vertical = 4.dp)) {
+                                        Column(Modifier.padding(horizontal = 5.dp, vertical = 2.dp)) {
                                             Text(
                                                 cell.name,
-                                                fontSize = 12.sp,
-                                                lineHeight = 14.sp,
-                                                fontWeight = FontWeight(600),
+                                                style = caption1Style(),
                                                 color = onBg,
-                                                maxLines = if (end == start) 2 else 3,
+                                                maxLines = 2,
                                                 overflow = TextOverflow.Ellipsis,
                                             )
                                             if (cell.location.isNotBlank()) {
                                                 Text(
                                                     "@${cell.location}",
-                                                    fontSize = 9.sp,
-                                                    lineHeight = 11.sp,
-                                                    color = onBg.copy(alpha = 0.82f),
-                                                    maxLines = if (end == start) 1 else 2,
+                                                    style = caption2Style(),
+                                                    color = onBg.withAlpha(PrismAlpha.Secondary),
+                                                    maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                 )
                                             }
                                             if (cell.teacher.isNotBlank() && end > start) {
                                                 Text(
                                                     cell.teacher,
-                                                    fontSize = 9.sp,
-                                                    lineHeight = 11.sp,
-                                                    color = onBg.copy(alpha = 0.82f),
+                                                    style = caption2Style(),
+                                                    color = onBg.withAlpha(PrismAlpha.Secondary),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                 )
                                             }
-                                            if (end > start) {
-                                                val info = TimetableSchedule.courseSchedule(cell, config)
-                                                if (info != null) {
-                                                    Text(
-                                                        "${info.start}–${info.end}",
-                                                        fontSize = 8.sp,
-                                                        lineHeight = 10.sp,
-                                                        color = onBg.copy(alpha = 0.72f),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
+                                            if (end > start && scheduleInfo != null) {
+                                                Text(
+                                                    "${scheduleInfo.start}–${scheduleInfo.end}",
+                                                    style = caption2Style(),
+                                                    color = onBg.withAlpha(PrismAlpha.Hint),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
                                             }
                                         }
                                     }
@@ -644,7 +675,7 @@ private fun TimetableGrid(
                         .offset(y = y)
                         .fillMaxWidth()
                         .height(1.5.dp)
-                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.88f)),
+                        .background(MaterialTheme.colorScheme.primary),
                 )
                 Box(
                     Modifier
@@ -655,17 +686,17 @@ private fun TimetableGrid(
                 )
                 Box(
                     Modifier
-                        .offset(x = timeWidth + 3.dp, y = y - 11.dp)
+                        .offset(x = timeWidth + 3.dp, y = y - 9.dp)
                         .clip(tagShape)
                         .background(MaterialTheme.colorScheme.primary)
                         .padding(horizontal = 4.dp, vertical = 1.dp),
                 ) {
                     Text(
                         "现在",
-                        fontSize = 8.sp,
-                        lineHeight = 10.sp,
+                        style = caption2Style(),
                         fontWeight = FontWeight(700),
                         color = MaterialTheme.colorScheme.onPrimary,
+                        maxLines = 1,
                     )
                 }
             }
@@ -680,13 +711,15 @@ private fun BreakBand(label: String, y: Dp, height: Dp) {
             .offset(y = y)
             .fillMaxWidth()
             .height(height)
-            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f)),
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+            .clearAndSetSemantics { },
         contentAlignment = Alignment.Center,
     ) {
         Text(
             label,
-            fontSize = 10.sp,
+            style = caption2Style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
         )
     }
 }
@@ -705,26 +738,4 @@ private fun parseMinutesOfDay(text: String): Int? {
     val hour = parts[0].toIntOrNull() ?: return null
     val minute = parts[1].toIntOrNull() ?: return null
     return hour * 60 + minute
-}
-
-@Composable
-private fun coursePalette(name: String): Pair<Color, Color> {
-    val light = listOf(
-        Color(0xFFDDF3E4) to Color(0xFF145C3A),
-        Color(0xFFE7E2FA) to Color(0xFF3F347F),
-        Color(0xFFFCE7D6) to Color(0xFF7A431D),
-        Color(0xFFF9DEE8) to Color(0xFF7D2C4E),
-        Color(0xFFDDF1FA) to Color(0xFF15546E),
-        Color(0xFFF3EAD6) to Color(0xFF5E4A20),
-    )
-    val dark = listOf(
-        Color(0xFF1F3A2B) to Color(0xFFC9F2DC),
-        Color(0xFF2E2A4A) to Color(0xFFDCD6FF),
-        Color(0xFF3A2A1C) to Color(0xFFF7D9BD),
-        Color(0xFF3A2330) to Color(0xFFF7CBDD),
-        Color(0xFF1B3440) to Color(0xFFC9ECFA),
-        Color(0xFF33301F) to Color(0xFFEFE2BE),
-    )
-    val palette = if (isSystemInDarkTheme()) dark else light
-    return palette[abs(name.hashCode()) % palette.size]
 }

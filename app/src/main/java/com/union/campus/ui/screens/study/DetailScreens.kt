@@ -12,19 +12,17 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.union.campus.UnionApplicationHolder
 import com.union.campus.domain.CourseCell
@@ -37,11 +35,16 @@ import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismLoadingBlock
+import com.union.campus.ui.prism.PrismNoticeBanner
+import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
+import com.union.campus.ui.prism.prismCourseContainer
+import com.union.campus.ui.prism.prismCourseOnContainer
 import com.union.campus.ui.prism.subheadlineStyle
 
 // ---------------- 课程详情 ----------------
@@ -68,24 +71,27 @@ fun CourseDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                Text(cell.name, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
+            PrismCard(
+                containerColor = prismCourseContainer(cell.name),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+            ) {
+                Text(cell.name, style = pageTitleStyle(), color = prismCourseOnContainer(cell.name))
                 Spacer(Modifier.height(4.dp))
                 Text(
                     "${cell.teacher} · ${cell.weeks.ifBlank { "本学期" }}\n${cell.sections} · ${cell.location}",
                     style = subheadlineStyle(),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = prismCourseOnContainer(cell.name),
                 )
             }
 
-            Text("本周安排", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = cell.sections,
-                    subtitle = "${cell.location} · ${cell.teacher}",
-                    leading = { IconBadge(Icons.Rounded.CalendarMonth) },
-                    index = 0, count = 1,
-                )
+            PrismSection(title = "本周安排") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = cell.sections,
+                        subtitle = "${cell.location} · ${cell.teacher}",
+                        leading = { IconBadge(Icons.Rounded.CalendarMonth) },
+                    )
+                }
             }
 
             if (cell.note.isNotBlank()) {
@@ -142,10 +148,14 @@ fun GradeDetailScreen(
         onBack = onBack,
         modifier = modifier,
         actions = {
-            IconButton(onClick = {
-                val text = "${grade.courseName}: ${grade.score} 分 / ${grade.credits} 学分（学号已隐藏）— 来自 郑财校园"
-                UnionApplicationHolder.clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("union", text))
-            }) { Icon(Icons.Rounded.Share, "分享") }
+            PrismIconButton(
+                icon = Icons.Outlined.Share,
+                contentDescription = "分享",
+                onClick = {
+                    val text = "${grade.courseName}: ${grade.score} 分 / ${grade.credits} 学分（学号已隐藏）— 来自 郑财校园"
+                    UnionApplicationHolder.clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("union", text))
+                },
+            )
         },
     ) { padding ->
         Column(
@@ -167,7 +177,7 @@ fun GradeDetailScreen(
             }
 
             PrismGroupedList {
-                PrismRow(title = "课程性质", subtitle = grade.category.ifBlank { "—" }, index = 0, count = 1)
+                PrismRow(title = "课程性质", subtitle = grade.category.ifBlank { "—" })
             }
 
             PrismCard {
@@ -181,10 +191,12 @@ fun GradeDetailScreen(
             }
 
             if (grade.score.toDoubleOrNull()?.let { it < 60 } == true) {
-                PrismCard(containerColor = MaterialTheme.colorScheme.errorContainer) {
-                    Text("该课程低于 60 分", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onErrorContainer)
-                    Text("如需补考/重修，请到教务事务中查看申请入口", style = footnoteStyle(), color = MaterialTheme.colorScheme.onErrorContainer)
-                }
+                PrismNoticeBanner(
+                    title = "该课程低于 60 分",
+                    message = "如需补考/重修，请到教务事务中查看申请入口",
+                    tone = PrismNoticeTone.Error,
+                    icon = Icons.Rounded.Info,
+                )
             }
             Spacer(Modifier.height(12.dp))
         }
@@ -221,14 +233,11 @@ fun ExamsScreen(
         ) {
             val conflict = findExamConflict(exams)
             if (conflict != null) {
-                PrismCard(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                    Text("冲突提醒", style = headlineStyle(), color = MaterialTheme.colorScheme.onSecondaryContainer)
-                    Text(
-                        "$conflict 请与教务确认",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
-                }
+                PrismNoticeBanner(
+                    title = "冲突提醒",
+                    message = "$conflict 请与教务确认",
+                    tone = PrismNoticeTone.Warning,
+                )
             }
 
             when {
@@ -254,16 +263,16 @@ fun ExamsScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
-                    Text("全部考试", style = headlineStyle())
-                    PrismGroupedList {
-                        exams.forEachIndexed { i, exam ->
-                            PrismRow(
-                                title = exam.courseName,
-                                subtitle = "${exam.time} · ${exam.location}",
-                                index = i, count = exams.size,
-                                leading = { IconBadge(Icons.Rounded.Event) },
-                                onClick = { onOpenExam(exam) },
-                            )
+                    PrismSection(title = "全部考试") {
+                        PrismGroupedList {
+                            exams.forEach { exam ->
+                                PrismRow(
+                                    title = exam.courseName,
+                                    subtitle = "${exam.time} · ${exam.location}",
+                                    leading = { IconBadge(Icons.Rounded.Event) },
+                                    onClick = { onOpenExam(exam) },
+                                )
+                            }
                         }
                     }
                     PrismButton(
@@ -318,11 +327,12 @@ fun ExamDetailScreen(
                 Spacer(Modifier.height(4.dp))
                 Text("${exam.time}\n${exam.location}" + (if (exam.seatNo.isNotBlank()) " · 座位 ${exam.seatNo}" else ""), style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-            Text("考试信息", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(title = "考试地点", subtitle = exam.location, index = 0, count = 3, leading = { IconBadge(Icons.Rounded.Info) })
-                PrismRow(title = "考试性质", subtitle = exam.note.ifBlank { "以教务通知为准" }, index = 1, count = 3, leading = { IconBadge(Icons.Rounded.Info) })
-                PrismRow(title = "座位号", subtitle = exam.seatNo.ifBlank { "—" }, index = 2, count = 3, leading = { IconBadge(Icons.Rounded.Info) })
+            PrismSection(title = "考试信息") {
+                PrismGroupedList {
+                    PrismRow(title = "考试地点", subtitle = exam.location, leading = { IconBadge(Icons.Rounded.Info) })
+                    PrismRow(title = "考试性质", subtitle = exam.note.ifBlank { "以教务通知为准" }, leading = { IconBadge(Icons.Rounded.Info) })
+                    PrismRow(title = "座位号", subtitle = exam.seatNo.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.Info) })
+                }
             }
             PrismCard {
                 CardHeader("考试提醒")

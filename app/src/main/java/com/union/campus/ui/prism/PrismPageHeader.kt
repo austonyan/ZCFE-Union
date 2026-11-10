@@ -9,9 +9,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.sp
 
 /**
  * Tab 页统一页头：大标题 + 一行说明，作为首个内容项随页面滚动。
@@ -32,8 +30,7 @@ fun PrismPageHeader(
         Column(Modifier.weight(1f)) {
             Text(
                 text = title,
-                style = pageTitleStyle().copy(fontSize = 28.sp, lineHeight = 34.sp),
-                fontWeight = FontWeight(700),
+                style = pageTitleStyle(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )

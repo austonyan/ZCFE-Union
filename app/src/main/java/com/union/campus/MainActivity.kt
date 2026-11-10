@@ -7,6 +7,7 @@ import androidx.activity.compose.setContent
 import androidx.fragment.app.FragmentActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.content.ContextCompat
@@ -39,7 +40,14 @@ class MainActivity : FragmentActivity() {
             } else {
                 window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
             }
-            UnionTheme {
+            val themeMode by ServiceLocator.settings.themeMode.collectAsState(initial = "system")
+            val dynamicColor by ServiceLocator.settings.dynamicColor.collectAsState(initial = false)
+            val darkTheme = when (themeMode) {
+                "light" -> false
+                "dark" -> true
+                else -> isSystemInDarkTheme()
+            }
+            UnionTheme(darkTheme = darkTheme, dynamicColor = dynamicColor) {
                 UnionApp()
             }
         }

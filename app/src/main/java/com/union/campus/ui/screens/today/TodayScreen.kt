@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.MenuBook
@@ -25,8 +26,6 @@ import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -46,11 +45,11 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.ElectricBalance
+import com.union.campus.domain.ElectricLowState
 import com.union.campus.domain.MorningSlot
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.ShowerArea
@@ -61,20 +60,31 @@ import com.union.campus.domain.TodoItem
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.MetaChip
-import com.union.campus.ui.prism.PrismAnimatedText
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismMetricCard
+import com.union.campus.ui.prism.PrismNoticeBanner
+import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismSkeletonList
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.bodyStyle
+import com.union.campus.ui.prism.caption1Style
+import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.metricStyle
+import com.union.campus.ui.prism.prismCourseContainer
+import com.union.campus.ui.prism.prismCourseOnContainer
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
+import com.union.campus.ui.prism.withAlpha
 import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.screens.life.estimateDays
 import kotlinx.coroutines.delay
@@ -238,17 +248,26 @@ fun TodayScreen(
                     title = "今天",
                     subtitle = "${SemesterCalc.dateText(nowTick)} · 第 ${timetable?.week ?: 1} 周",
                     actions = {
-                        IconButton(onClick = onOpenReminders) {
-                            Icon(Icons.Rounded.Notifications, contentDescription = "提醒中心")
-                        }
+                        PrismIconButton(
+                            icon = Icons.Outlined.Notifications,
+                            contentDescription = "提醒中心",
+                            onClick = onOpenReminders,
+                        )
                     },
                 )
             }
             classReminder?.let { (cell, minutes) ->
                 item {
-                    ClassReminderBanner(
-                        cell = cell,
-                        minutes = minutes,
+                    PrismNoticeBanner(
+                        title = if (minutes <= 0) "马上上课" else "还有 $minutes 分钟上课",
+                        message = listOfNotNull(
+                            cell.name,
+                            cell.location.takeIf { it.isNotBlank() },
+                        ).joinToString(" · "),
+                        tone = PrismNoticeTone.Info,
+                        icon = Icons.Rounded.Notifications,
+                        actionLabel = "看课表",
+                        onAction = onOpenTimetable,
                         onClick = onOpenTimetable,
                     )
                 }
@@ -263,122 +282,113 @@ fun TodayScreen(
                 )
             }
             item {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                PrismSection(
+                    title = "今日课程",
+                    action = {
+                        Text(
+                            if (todayCells.isEmpty()) "没有课" else "${todayCells.size} 节课",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
                 ) {
-                    Text("今日课程", style = headlineStyle())
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        if (todayCells.isEmpty()) "没有课" else "${todayCells.size} 节课",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            if (todayCells.isEmpty()) {
-                item {
-                    PrismCard(
-                        modifier = Modifier.fillMaxWidth(),
-                        containerColor = surfaceColorOf(SurfaceLevel.Card),
-                    ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            IconBadge(Icons.Rounded.MenuBook)
-                            Spacer(Modifier.width(12.dp))
-                            Column(Modifier.weight(1f)) {
-                                Text("今天没有课", style = bodyStyle())
-                                Text("可以去自习，或看看生活速览", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (todayCells.isEmpty()) {
+                        PrismCard(
+                            modifier = Modifier.fillMaxWidth(),
+                            containerColor = surfaceColorOf(SurfaceLevel.Card),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconBadge(Icons.Rounded.MenuBook)
+                                Spacer(Modifier.width(12.dp))
+                                Column(Modifier.weight(1f)) {
+                                    Text("今天没有课", style = bodyStyle())
+                                    Text("可以去自习，或看看生活速览", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
                             }
                         }
+                    } else {
+                        TodayCourseRail(
+                            cells = todayCells,
+                            config = scheduleConfig,
+                            nowTick = nowTick,
+                            current = current,
+                            next = next,
+                            onOpenCourse = onOpenCourse,
+                        )
                     }
-                }
-            } else {
-                item {
-                    TodayCourseRail(
-                        cells = todayCells,
-                        config = scheduleConfig,
-                        nowTick = nowTick,
-                        current = current,
-                        next = next,
-                        onOpenCourse = onOpenCourse,
-                    )
                 }
             }
 
             item {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
+                PrismSection(
+                    title = "生活",
+                    action = {
+                        Text(
+                            "点卡片查看详情",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
                 ) {
-                    Text("生活", style = headlineStyle())
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        "点卡片查看详情",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            }
-            item {
-                Row(
-                    Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    val days = electricBalance?.let { estimateDays(it) } ?: "—"
-                    val low = electricBalance?.kwh?.toDoubleOrNull()?.let { it < lowElectricThreshold } == true
-                    LifeMetricCard(
-                        label = "电费",
-                        value = electricBalance?.let { "${it.kwh} 度" } ?: "未绑定",
-                        subtitle = electricBalance?.let { "约 $days 天 · 今日 ${it.todayUse.ifBlank { "—" }} 度" }
-                            ?: "绑定后查看余额与用量",
-                        icon = Icons.Rounded.Bolt,
-                        accent = if (low) PrismStatus.warning() else PrismStatus.info(),
-                        container = if (low) PrismStatus.warningContainer() else surfaceColorOf(SurfaceLevel.Card),
-                        onContainer = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface,
-                        onClick = onOpenElectric,
-                        modifier = Modifier.weight(1f),
-                    )
-                    LifeMetricCard(
-                        label = "洗浴",
-                        value = showerArea?.let { "${it.idleNum} / ${it.totalNum}" } ?: "未绑定",
-                        subtitle = showerArea?.let { "空闲 · 排队 ${it.queueNum} 人" } ?: "登录大白U帮后查看",
-                        icon = Icons.Rounded.WaterDrop,
-                        accent = PrismStatus.success(),
-                        container = surfaceColorOf(SurfaceLevel.Card),
-                        onContainer = MaterialTheme.colorScheme.onSurface,
-                        onClick = onOpenShower,
-                        modifier = Modifier.weight(1f),
-                    )
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        val days = electricBalance?.let { estimateDays(it) } ?: "—"
+                        val low = ElectricLowState.isLow(electricBalance, lowElectricThreshold)
+                        PrismMetricCard(
+                            label = "电费",
+                            value = electricBalance?.let { "${it.kwh} 度" } ?: "未绑定",
+                            subtitle = electricBalance?.let { "约 $days 天 · 今日 ${it.todayUse.ifBlank { "—" }} 度" }
+                                ?: "绑定后查看余额与用量",
+                            icon = Icons.Rounded.Bolt,
+                            accent = if (low) PrismStatus.warning() else PrismStatus.info(),
+                            containerColor = if (low) PrismStatus.warningContainer() else surfaceColorOf(SurfaceLevel.Card),
+                            contentColor = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface,
+                            compact = true,
+                            onClick = onOpenElectric,
+                            modifier = Modifier.weight(1f),
+                        )
+                        PrismMetricCard(
+                            label = "洗浴",
+                            value = showerArea?.let { "${it.idleNum} / ${it.totalNum}" } ?: "未绑定",
+                            subtitle = showerArea?.let { "空闲 · 排队 ${it.queueNum} 人" } ?: "登录大白U帮后查看",
+                            icon = Icons.Rounded.WaterDrop,
+                            accent = PrismStatus.success(),
+                            containerColor = surfaceColorOf(SurfaceLevel.Card),
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            compact = true,
+                            onClick = onOpenShower,
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
                 }
             }
 
             if (todos.isNotEmpty()) {
                 item {
-                    Text("待办 · ${todos.size}", style = headlineStyle())
-                }
-                item {
-                    PrismGroupedList {
-                        todos.forEachIndexed { index, todo ->
-                            val icon = when (todo.type) {
-                                "evaluation" -> Icons.Rounded.RateReview
-                                "exam" -> Icons.Rounded.Event
-                                "lowElectric" -> Icons.Rounded.WaterDrop
-                                else -> Icons.Rounded.Event
+                    PrismSection(title = "待办 · ${todos.size}") {
+                        PrismGroupedList {
+                            todos.forEach { todo ->
+                                val icon = when (todo.type) {
+                                    "evaluation" -> Icons.Rounded.RateReview
+                                    "exam" -> Icons.Rounded.Event
+                                    "lowElectric" -> Icons.Rounded.WaterDrop
+                                    else -> Icons.Rounded.Event
+                                }
+                                PrismRow(
+                                    title = todo.title,
+                                    subtitle = todo.subtitle,
+                                    leading = { IconBadge(icon) },
+                                    onClick = {
+                                        when (todo.deepLink) {
+                                            "evaluation" -> onOpenEvaluation()
+                                            "exams" -> onOpenExams()
+                                            "electric" -> onOpenElectric()
+                                        }
+                                    },
+                                )
                             }
-                            PrismRow(
-                                title = todo.title,
-                                subtitle = todo.subtitle,
-                                index = index,
-                                count = todos.size,
-                                leading = { IconBadge(icon) },
-                                onClick = {
-                                    when (todo.deepLink) {
-                                        "evaluation" -> onOpenEvaluation()
-                                        "exams" -> onOpenExams()
-                                        "electric" -> onOpenElectric()
-                                    }
-                                },
-                            )
                         }
                     }
                 }
@@ -393,7 +403,7 @@ fun TodayScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text("全部生活入口", style = bodyStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.weight(1f))
-                        Text("去生活", style = footnoteStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer.copy(alpha = 0.8f))
+                        Text("去生活", style = footnoteStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer.withAlpha(PrismAlpha.Secondary))
                     }
                 }
             }
@@ -410,49 +420,6 @@ fun TodayScreen(
 }
 
 @Composable
-private fun ClassReminderBanner(
-    cell: CourseCell,
-    minutes: Int,
-    onClick: () -> Unit,
-) {
-    PrismCard(
-        modifier = Modifier.fillMaxWidth(),
-        onClick = onClick,
-        containerColor = MaterialTheme.colorScheme.secondaryContainer,
-        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
-    ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconBadge(Icons.Rounded.Notifications)
-            Spacer(Modifier.width(12.dp))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    if (minutes <= 0) "马上上课" else "还有 $minutes 分钟上课",
-                    style = bodyStyle(),
-                    fontWeight = FontWeight(600),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                Text(
-                    listOfNotNull(
-                        cell.name,
-                        cell.location.takeIf { it.isNotBlank() },
-                    ).joinToString(" · "),
-                    style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.78f),
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(
-                "看课表",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-        }
-    }
-}
-
-@Composable
 private fun NextClassHero(
     current: CourseCell?,
     next: CourseCell?,
@@ -462,11 +429,10 @@ private fun NextClassHero(
 ) {
     val cell = current ?: next
     val info = cell?.let { TimetableSchedule.courseSchedule(it, config) }
-    val hasClass = cell != null
     val density = LocalDensity.current
     val railShape = remember(density.density) { PrismShape(2f * density.density) }
-    val container = if (hasClass) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondaryContainer
-    val onContainer = if (hasClass) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSecondaryContainer
+    val container = cell?.let { prismCourseContainer(it.name) } ?: MaterialTheme.colorScheme.secondaryContainer
+    val onContainer = cell?.let { prismCourseOnContainer(it.name) } ?: MaterialTheme.colorScheme.onSecondaryContainer
 
     PrismCard(
         modifier = Modifier.fillMaxWidth(),
@@ -479,7 +445,7 @@ private fun NextClassHero(
                 Modifier
                     .size(7.dp)
                     .clip(CircleShape)
-                    .background(onContainer.copy(alpha = 0.9f)),
+                    .background(onContainer.withAlpha(PrismAlpha.Primary)),
             )
             Spacer(Modifier.width(8.dp))
             Text(
@@ -490,7 +456,7 @@ private fun NextClassHero(
                 },
                 style = footnoteStyle(),
                 fontWeight = FontWeight(600),
-                color = onContainer.copy(alpha = 0.88f),
+                color = onContainer.withAlpha(PrismAlpha.Secondary),
             )
             Spacer(Modifier.weight(1f))
             if (current != null) {
@@ -502,7 +468,7 @@ private fun NextClassHero(
         Spacer(Modifier.height(8.dp))
         Text(
             text = cell?.name ?: "去课表看看本周安排",
-            style = headlineStyle().copy(fontSize = 22.sp, lineHeight = 28.sp),
+            style = headlineStyle(),
             color = onContainer,
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
@@ -520,7 +486,7 @@ private fun NextClassHero(
                 "今天暂时没有课程，可以去自习或看看生活速览"
             },
             style = subheadlineStyle(),
-            color = onContainer.copy(alpha = 0.82f),
+            color = onContainer.withAlpha(PrismAlpha.Secondary),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -531,18 +497,11 @@ private fun NextClassHero(
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
                         text = countdown ?: "即将开始",
-                        fontSize = 30.sp,
-                        lineHeight = 34.sp,
-                        fontWeight = FontWeight(700),
+                        style = metricStyle(),
                         color = onContainer,
-                        style = MaterialTheme.typography.headlineSmall.copy(
-                            fontFeatureSettings = "tnum",
-                            fontSize = 30.sp,
-                            lineHeight = 34.sp,
-                        ),
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("后开始", style = footnoteStyle(), color = onContainer.copy(alpha = 0.78f))
+                    Text("后开始", style = footnoteStyle(), color = onContainer.withAlpha(PrismAlpha.Secondary))
                 }
             } else if (current != null) {
                 Text(
@@ -559,14 +518,14 @@ private fun NextClassHero(
                     .fillMaxWidth()
                     .height(4.dp)
                     .clip(railShape)
-                    .background(onContainer.copy(alpha = 0.18f)),
+                    .background(onContainer.withAlpha(PrismAlpha.ContainerTint)),
             ) {
                 Box(
                     Modifier
                         .fillMaxWidth(progress.coerceIn(0f, 1f))
                         .fillMaxHeight()
                         .clip(railShape)
-                        .background(onContainer.copy(alpha = 0.9f)),
+                        .background(onContainer.withAlpha(PrismAlpha.Primary)),
                 )
             }
         }
@@ -580,7 +539,7 @@ private fun HeroChip(text: String, contentColor: Color) {
     Box(
         Modifier
             .clip(pill)
-            .background(contentColor.copy(alpha = 0.14f))
+            .background(contentColor.withAlpha(PrismAlpha.ContainerTint))
             .padding(horizontal = 9.dp, vertical = 4.dp),
     ) {
         Text(text, style = footnoteStyle(), fontWeight = FontWeight(600), color = contentColor)
@@ -630,17 +589,14 @@ private fun TodayCourseRail(
                 ) {
                     Text(
                         info?.start ?: "—",
-                        fontSize = 12.sp,
-                        lineHeight = 16.sp,
-                        fontWeight = FontWeight(600),
+                        style = caption1Style(),
                         color = if (isCurrent || isNext) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         info?.end.orEmpty(),
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.62f),
+                        style = caption2Style(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
                     )
                 }
                 Box(Modifier.width(18.dp).fillMaxHeight()) {
@@ -649,7 +605,7 @@ private fun TodayCourseRail(
                             .align(Alignment.TopCenter)
                             .fillMaxHeight()
                             .width(1.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
+                            .background(MaterialTheme.colorScheme.outlineVariant.withAlpha(PrismAlpha.Divider)),
                     )
                     Box(
                         Modifier
@@ -693,63 +649,13 @@ private fun TodayCourseRail(
                             cell.location.takeIf { it.isNotBlank() },
                         ).joinToString(" · "),
                         style = footnoteStyle(),
-                        color = onContainer.copy(alpha = 0.72f),
+                        color = onContainer.withAlpha(PrismAlpha.Secondary),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun LifeMetricCard(
-    label: String,
-    value: String,
-    subtitle: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    accent: Color,
-    container: Color,
-    onContainer: Color,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    PrismCard(
-        modifier = modifier,
-        onClick = onClick,
-        containerColor = container,
-        contentPadding = PaddingValues(14.dp),
-    ) {
-        val density = LocalDensity.current
-        val badgeShape = remember(density.density) { PrismShape(9f * density.density) }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(
-                Modifier
-                    .size(28.dp)
-                    .clip(badgeShape)
-                    .background(accent.copy(alpha = 0.13f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(icon, contentDescription = null, tint = accent, modifier = Modifier.size(17.dp))
-            }
-            Spacer(Modifier.width(8.dp))
-            Text(label, style = footnoteStyle(), color = onContainer.copy(alpha = 0.72f))
-        }
-        Spacer(Modifier.height(8.dp))
-        PrismAnimatedText(
-            text = value,
-            style = headlineStyle().copy(fontSize = 20.sp, lineHeight = 24.sp),
-            color = onContainer,
-        )
-        Spacer(Modifier.height(2.dp))
-        Text(
-            subtitle,
-            style = footnoteStyle(),
-            color = onContainer.copy(alpha = 0.66f),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
     }
 }
 

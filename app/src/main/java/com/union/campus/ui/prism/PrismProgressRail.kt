@@ -42,7 +42,7 @@ fun PrismProgressRail(
                 val active = index < step
                 val color by animateColorAsState(
                     targetValue = if (active) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    else MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
                     animationSpec = PrismMotion.tween(PrismMotion.Standard),
                     label = "progress-segment",
                 )
@@ -65,7 +65,7 @@ fun PrismProgressRail(
                         text = label,
                         style = footnoteStyle(),
                         color = if (index < step) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
+                        else MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
                         modifier = Modifier.weight(1f),
                     )
                 }

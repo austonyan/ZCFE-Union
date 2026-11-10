@@ -23,9 +23,9 @@ import kotlinx.coroutines.launch
  */
 enum class PressLook { Ink, Tint }
 
-private const val INK_ALPHA = 0.10f
-private const val TINT_FADE = 0.25f
-private const val TINT_LIFT = 0.2f
+private const val INK_ALPHA = PrismAlpha.PressInk
+private const val TINT_FADE = PrismAlpha.PressTint
+private const val TINT_LIFT = PrismAlpha.PressLift
 
 val LocalPressLook = compositionLocalOf { PressLook.Ink }
 val LocalPrismDark = compositionLocalOf { false }
@@ -72,14 +72,14 @@ private class PressNode(private val interactionSource: InteractionSource) :
             PressLook.Tint -> {
                 if (dark) {
                     drawContent()
-                    if (p > 0f) drawRect(Color.White.copy(alpha = TINT_LIFT * p))
+                    if (p > 0f) drawRect(Color.White.withAlpha(TINT_LIFT * p))
                 } else {
                     drawWithAlpha(1f - TINT_FADE * p) { drawContent() }
                 }
             }
             PressLook.Ink -> {
                 drawContent()
-                if (p > 0f) drawRect(onSurface.copy(alpha = INK_ALPHA * p))
+                if (p > 0f) drawRect(onSurface.withAlpha(INK_ALPHA * p))
             }
         }
     }

@@ -31,12 +31,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.domain.ElectricStats
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismShape
+import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
+import com.union.campus.ui.prism.withAlpha
 
 /** 柱状图上的一个数据点。 */
 data class ElectricBar(val label: String, val value: Double)
@@ -72,9 +74,9 @@ fun ElectricBarChart(
         bars.size <= 31 -> 5
         else -> 7
     }
-    val gridColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f)
+    val gridColor = MaterialTheme.colorScheme.outlineVariant.withAlpha(PrismAlpha.Hint)
     val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val valueColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f)
+    val valueColor = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary)
     val haptics = rememberPrismHaptics()
     val density = LocalDensity.current
     val barShape = remember(density.density) {
@@ -150,7 +152,7 @@ fun ElectricBarChart(
                         if (showValueLabels) {
                             Text(
                                 if (bar.value > 0.0) valueFormat(bar.value) else "",
-                                fontSize = 8.sp,
+                                style = caption2Style(),
                                 color = valueColor,
                                 maxLines = 1,
                                 overflow = TextOverflow.Clip,
@@ -161,7 +163,7 @@ fun ElectricBarChart(
                                 .weight(1f)
                                 .fillMaxWidth()
                                 .background(
-                                    if (activeIndex == index) barColor.copy(alpha = 0.07f)
+                                    if (activeIndex == index) barColor.withAlpha(PrismAlpha.Border)
                                     else Color.Transparent,
                                 ),
                             contentAlignment = Alignment.BottomCenter,
@@ -184,13 +186,13 @@ fun ElectricBarChart(
                                     .clip(barShape)
                                     .background(
                                         if (activeIndex == index) barColor
-                                        else barColor.copy(alpha = 0.5f),
+                                        else barColor.withAlpha(PrismAlpha.Hint),
                                     ),
                             )
                         }
                         Text(
                             if (index % labelStep == 0 || index == bars.lastIndex) bar.label else "",
-                            fontSize = 8.sp,
+                            style = caption2Style(),
                             color = labelColor,
                             maxLines = 1,
                             overflow = TextOverflow.Clip,

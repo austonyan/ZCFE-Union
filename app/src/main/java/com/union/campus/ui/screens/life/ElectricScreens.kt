@@ -15,11 +15,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.MoreVert
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Link
-import androidx.compose.material.icons.rounded.MoreVert
 import androidx.compose.material.icons.rounded.Payment
 import androidx.compose.material.icons.rounded.ReceiptLong
 import androidx.compose.material.icons.rounded.WarningAmber
@@ -27,7 +27,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,14 +40,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.UnionApplicationHolder
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ElectricBalance
+import com.union.campus.domain.ElectricLowState
 import com.union.campus.domain.ElectricRoom
 import com.union.campus.domain.ElectricStats
 import com.union.campus.domain.ElectricUsage
@@ -65,13 +63,16 @@ import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismMetricCard
+import com.union.campus.ui.prism.PrismNoticeBanner
+import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.LocalPrismMessenger
-import com.union.campus.ui.prism.PrismAnimatedText
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismSkeletonList
-import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
@@ -147,18 +148,18 @@ fun WalletScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                     }
-                    Text("最近订单", style = headlineStyle())
-                    if (orders.isEmpty()) {
-                        NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后账单会显示在这里")
-                    } else {
-                        PrismGroupedList {
-                            orders.forEachIndexed { i, o ->
-                                PrismRow(
-                                    title = o.time,
-                                    subtitle = "${o.deviceName} · ${o.durationText.ifBlank { "时长 —" }} · ¥ ${o.amount}",
-                                    index = i, count = orders.size,
-                                    leading = { IconBadge(Icons.Rounded.ReceiptLong) },
-                                )
+                    PrismSection(title = "最近订单") {
+                        if (orders.isEmpty()) {
+                            NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后账单会显示在这里")
+                        } else {
+                            PrismGroupedList {
+                                orders.forEach { o ->
+                                    PrismRow(
+                                        title = o.time,
+                                        subtitle = "${o.deviceName} · ${o.durationText.ifBlank { "时长 —" }} · ¥ ${o.amount}",
+                                        leading = { IconBadge(Icons.Rounded.ReceiptLong) },
+                                    )
+                                }
                             }
                         }
                     }
@@ -197,7 +198,7 @@ fun ElectricScreen(
     val electric = ServiceLocator.electricRepository
     val settings = ServiceLocator.settings
     val messenger = LocalPrismMessenger.current
-    val lowThreshold by settings.lowElectricThreshold.collectAsState(initial = 20)
+    val lowThreshold by settings.lowElectricThreshold.collectAsState(initial = ElectricLowState.DefaultThreshold)
     var rooms by remember { mutableStateOf<List<ElectricRoom>>(emptyList()) }
     var currentRoom by remember { mutableStateOf<ElectricRoom?>(null) }
     var balance by remember { mutableStateOf<ElectricBalance?>(null) }
@@ -259,7 +260,11 @@ fun ElectricScreen(
         onBack = onBack,
         modifier = modifier,
         actions = {
-            IconButton(onClick = { menuOpen = true }) { Icon(Icons.Rounded.MoreVert, contentDescription = "更多") }
+            PrismIconButton(
+                icon = Icons.Outlined.MoreVert,
+                contentDescription = "更多",
+                onClick = { menuOpen = true },
+            )
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; load(true) })
                 DropdownMenuItem(text = { Text("添加房间") }, onClick = { menuOpen = false; onOpenBind() })
@@ -342,70 +347,35 @@ fun ElectricScreen(
                     val weekCost = ElectricStats.totalCost(weekDays, price)?.takeIf { weekDays.isNotEmpty() }
                     val projectedCost = ElectricStats.projectedMonthlyCost(weekDays, price)?.takeIf { weekDays.isNotEmpty() }
                     val remainingValue = ElectricStats.remainingValue(b)
-                    val isLow = b.kwh.toDoubleOrNull()?.let { it < lowThreshold } == true
+                    val isLow = ElectricLowState.isLow(b, lowThreshold)
                     var metric by rememberSaveable { mutableStateOf("use") }
                     val effectiveMetric = if (price == null) "use" else metric
 
-                    PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer, contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp)) {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text(
-                                "剩余",
-                                style = subheadlineStyle(),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                            )
-                            Spacer(Modifier.width(6.dp))
-                            PrismAnimatedText(
-                                text = b.kwh,
-                                style = pageTitleStyle().copy(fontSize = 34.sp, lineHeight = 40.sp),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                "度",
-                                style = subheadlineStyle(),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.78f),
-                            )
-                        }
-                        Spacer(Modifier.height(4.dp))
-                        Text(
-                            buildString {
-                                append("预计可用 $days 天 · 今日 ${b.todayUse.ifBlank { "—" }} 度")
-                                if (price != null && remainingValue != null) {
-                                    append("\n单价 ¥${ElectricStats.formatMoney(price)}/度 · 剩余估值 ¥${ElectricStats.formatMoney(remainingValue)}")
-                                } else {
-                                    append("\n电价未返回 · 暂不估算费用")
-                                }
-                            },
-                            style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
+                    PrismMetricCard(
+                        label = "剩余",
+                        value = "${b.kwh} 度",
+                        subtitle = buildString {
+                            append("预计可用 $days 天 · 今日 ${b.todayUse.ifBlank { "—" }} 度")
+                            if (price != null && remainingValue != null) {
+                                append("\n单价 ¥${ElectricStats.formatMoney(price)}/度 · 剩余估值 ¥${ElectricStats.formatMoney(remainingValue)}")
+                            } else {
+                                append("\n电价未返回 · 暂不估算费用")
+                            }
+                        },
+                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
 
                     if (isLow) {
-                        PrismCard(
+                        PrismNoticeBanner(
+                            title = "余额低于 $lowThreshold 度，建议及时充值",
+                            tone = PrismNoticeTone.Warning,
+                            icon = Icons.Rounded.WarningAmber,
+                            actionLabel = "去充值",
+                            onAction = onOpenTopUp,
                             modifier = Modifier.fillMaxWidth(),
-                            containerColor = PrismStatus.warningContainer(),
-                            contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 16.dp, vertical = 12.dp),
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    Icons.Rounded.WarningAmber,
-                                    contentDescription = null,
-                                    tint = PrismStatus.warning(),
-                                    modifier = Modifier.width(20.dp),
-                                )
-                                Spacer(Modifier.width(8.dp))
-                                Text(
-                                    "余额低于 $lowThreshold 度，建议及时充值",
-                                    style = subheadlineStyle(),
-                                    color = PrismStatus.onWarningContainer(),
-                                    modifier = Modifier.weight(1f),
-                                )
-                                PrismTextButton(onClick = onOpenTopUp) {
-                                    Text("去充值", color = PrismStatus.warning())
-                                }
-                            }
-                        }
+                        )
                     }
 
                     if (price != null) {
@@ -429,76 +399,78 @@ fun ElectricScreen(
                         }
                     }
 
-                    Text("用量趋势", style = headlineStyle())
-                    PrismCard(modifier = Modifier.fillMaxWidth()) {
-                        Text(
-                            if (effectiveMetric == "cost") "近 7 天费用" else "近 7 天用量",
-                            style = headlineStyle(),
-                        )
-                        if (price != null) {
-                            Spacer(Modifier.height(8.dp))
-                            PrismSegmented(
-                                options = listOf("用量", "费用"),
-                                selectedIndex = if (effectiveMetric == "cost") 1 else 0,
-                                onSelect = { index -> metric = if (index == 0) "use" else "cost" },
-                                modifier = Modifier.width(168.dp),
-                            )
-                        }
-                        Spacer(Modifier.height(6.dp))
-                        if (weekDays.isEmpty()) {
-                            Text("暂无每日用量数据", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        } else {
-                            ElectricBarChart(
-                                bars = weekDays.map { day ->
-                                    val use = ElectricStats.useValue(day.use)
-                                    ElectricBar(
-                                        label = day.date.takeLast(5),
-                                        value = if (effectiveMetric == "cost") ElectricStats.cost(use, price) ?: 0.0 else use,
-                                    )
-                                },
-                                valueSuffix = if (effectiveMetric == "cost") "元" else "度",
-                                valueFormat = if (effectiveMetric == "cost") {
-                                    { ElectricStats.formatMoney(it) }
-                                } else {
-                                    { ElectricStats.formatKwh(it) }
-                                },
-                                barColor = if (effectiveMetric == "cost") MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.primary,
-                                highlightIndex = weekDays.lastIndex,
-                            )
-                        }
-                        if (weekTotal > 0 && price != null) {
-                            Spacer(Modifier.height(6.dp))
+                    PrismSection(title = "用量趋势") {
+                        PrismCard(modifier = Modifier.fillMaxWidth()) {
                             Text(
-                                "近 7 天合计 ${ElectricStats.formatKwh(weekTotal)} 度 · 约 ¥${ElectricStats.formatMoney(weekCost ?: 0.0)}",
-                                style = footnoteStyle(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                if (effectiveMetric == "cost") "近 7 天费用" else "近 7 天用量",
+                                style = headlineStyle(),
                             )
+                            if (price != null) {
+                                Spacer(Modifier.height(8.dp))
+                                PrismSegmented(
+                                    options = listOf("用量", "费用"),
+                                    selectedIndex = if (effectiveMetric == "cost") 1 else 0,
+                                    onSelect = { index -> metric = if (index == 0) "use" else "cost" },
+                                    modifier = Modifier.width(168.dp),
+                                )
+                            }
+                            Spacer(Modifier.height(6.dp))
+                            if (weekDays.isEmpty()) {
+                                Text("暂无每日用量数据", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            } else {
+                                ElectricBarChart(
+                                    bars = weekDays.map { day ->
+                                        val use = ElectricStats.useValue(day.use)
+                                        ElectricBar(
+                                            label = day.date.takeLast(5),
+                                            value = if (effectiveMetric == "cost") ElectricStats.cost(use, price) ?: 0.0 else use,
+                                        )
+                                    },
+                                    valueSuffix = if (effectiveMetric == "cost") "元" else "度",
+                                    valueFormat = if (effectiveMetric == "cost") {
+                                        { ElectricStats.formatMoney(it) }
+                                    } else {
+                                        { ElectricStats.formatKwh(it) }
+                                    },
+                                    barColor = if (effectiveMetric == "cost") MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.primary,
+                                    highlightIndex = weekDays.lastIndex,
+                                )
+                            }
+                            if (weekTotal > 0 && price != null) {
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    "近 7 天合计 ${ElectricStats.formatKwh(weekTotal)} 度 · 约 ¥${ElectricStats.formatMoney(weekCost ?: 0.0)}",
+                                    style = footnoteStyle(),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
                         }
                     }
 
                     val months = b.monthUseList.sortedBy { it.yearMonth }.takeLast(6)
                     if (months.isNotEmpty()) {
-                        Text("近 6 个月", style = headlineStyle())
-                        PrismCard(modifier = Modifier.fillMaxWidth()) {
-                            ElectricBarChart(
-                                bars = months.map { month ->
-                                    val use = ElectricStats.useValue(month.use)
-                                    ElectricBar(
-                                        label = month.yearMonth.substringAfter('-').ifBlank { month.yearMonth } + "月",
-                                        value = if (effectiveMetric == "cost") ElectricStats.cost(use, price) ?: 0.0 else use,
-                                    )
-                                },
-                                valueSuffix = if (effectiveMetric == "cost") "元" else "度",
-                                valueFormat = if (effectiveMetric == "cost") {
-                                    { ElectricStats.formatMoney(it) }
-                                } else {
-                                    { ElectricStats.formatKwh(it) }
-                                },
-                                barColor = if (effectiveMetric == "cost") MaterialTheme.colorScheme.tertiary
-                                else MaterialTheme.colorScheme.primary,
-                                highlightIndex = months.lastIndex,
-                            )
+                        PrismSection(title = "近 6 个月") {
+                            PrismCard(modifier = Modifier.fillMaxWidth()) {
+                                ElectricBarChart(
+                                    bars = months.map { month ->
+                                        val use = ElectricStats.useValue(month.use)
+                                        ElectricBar(
+                                            label = month.yearMonth.substringAfter('-').ifBlank { month.yearMonth } + "月",
+                                            value = if (effectiveMetric == "cost") ElectricStats.cost(use, price) ?: 0.0 else use,
+                                        )
+                                    },
+                                    valueSuffix = if (effectiveMetric == "cost") "元" else "度",
+                                    valueFormat = if (effectiveMetric == "cost") {
+                                        { ElectricStats.formatMoney(it) }
+                                    } else {
+                                        { ElectricStats.formatKwh(it) }
+                                    },
+                                    barColor = if (effectiveMetric == "cost") MaterialTheme.colorScheme.tertiary
+                                    else MaterialTheme.colorScheme.primary,
+                                    highlightIndex = months.lastIndex,
+                                )
+                            }
                         }
                     }
 
@@ -506,7 +478,6 @@ fun ElectricScreen(
                         PrismRow(
                             title = "查看用量明细",
                             subtitle = "近 30 天每日用量与费用估算",
-                            index = 0, count = 1,
                             leading = { IconBadge(Icons.Rounded.BarChart) },
                             onClick = onOpenUsage,
                         )
@@ -708,39 +679,40 @@ fun UsageDetailScreen(
                         )
                     }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("每日明细", style = headlineStyle())
-                        Spacer(Modifier.weight(1f))
-                        if (u.days.size > 7) {
-                            PrismTextButton(onClick = { showAll = !showAll }) {
-                                Text(if (showAll) "收起" else "展开全部")
+                    PrismSection(
+                        title = "每日明细",
+                        action = {
+                            if (u.days.size > 7) {
+                                PrismTextButton(onClick = { showAll = !showAll }) {
+                                    Text(if (showAll) "收起" else "展开全部")
+                                }
+                            }
+                        },
+                    ) {
+                        val sorted = u.days.sortedByDescending { it.date }
+                        val visible = if (showAll) sorted else sorted.take(7)
+                        PrismGroupedList {
+                            visible.forEach { d ->
+                                val dayCost = ElectricStats.cost(ElectricStats.useValue(d.use), price)
+                                val subtitle = buildString {
+                                    append("${d.use} 度")
+                                    if (dayCost != null) append(" · ¥${ElectricStats.formatMoney(dayCost)}")
+                                    if (d.balance.isNotBlank()) append(" · 余额 ${d.balance} 度")
+                                }
+                                PrismRow(
+                                    title = d.date,
+                                    subtitle = subtitle,
+                                    leading = { IconBadge(Icons.Rounded.BarChart) },
+                                )
                             }
                         }
-                    }
-                    val sorted = u.days.sortedByDescending { it.date }
-                    val visible = if (showAll) sorted else sorted.take(7)
-                    PrismGroupedList {
-                        visible.forEachIndexed { i, d ->
-                            val dayCost = ElectricStats.cost(ElectricStats.useValue(d.use), price)
-                            val subtitle = buildString {
-                                append("${d.use} 度")
-                                if (dayCost != null) append(" · ¥${ElectricStats.formatMoney(dayCost)}")
-                                if (d.balance.isNotBlank()) append(" · 余额 ${d.balance} 度")
-                            }
-                            PrismRow(
-                                title = d.date,
-                                subtitle = subtitle,
-                                index = i, count = visible.size,
-                                leading = { IconBadge(Icons.Rounded.BarChart) },
+                        if (!showAll && sorted.size > 7) {
+                            Text(
+                                "默认显示最近 7 天，点「展开全部」查看全部明细",
+                                style = footnoteStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                    }
-                    if (!showAll && sorted.size > 7) {
-                        Text(
-                            "默认显示最近 7 天，点「展开全部」查看全部明细",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
                     }
                     Text(
                         if (price != null) {

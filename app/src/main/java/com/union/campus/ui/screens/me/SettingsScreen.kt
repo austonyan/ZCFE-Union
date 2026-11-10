@@ -9,10 +9,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -25,16 +26,19 @@ import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.MorningSlot
 import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
+import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
+import com.union.campus.ui.prism.PrismSegmented
+import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 
-/** 设置总页：学习、提醒、隐私与数据的统一入口。 */
+/** 设置总页：外观、学习、提醒、隐私与数据的统一入口。 */
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -45,6 +49,8 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val settings = ServiceLocator.settings
+    val themeMode by settings.themeMode.collectAsState(initial = "system")
+    val dynamicColor by settings.dynamicColor.collectAsState(initial = false)
     val jLate by settings.timetableJLate.collectAsState(initial = true)
     val fallbackValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
     val config = TimetableScheduleConfig(
@@ -76,54 +82,91 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("学习与课表", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = "课表设置",
-                    subtitle = "教学楼作息 · J1–J6 ${jSlot.startLabel} · S1–S6、J7 ${sSlot.startLabel}",
-                    index = 0, count = 1,
-                    leading = { IconBadge(Icons.Rounded.Schedule) },
-                    onClick = onOpenTimetableSettings,
-                )
+            PrismSection("学习与课表") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "课表设置",
+                        subtitle = "教学楼作息 · J1–J6 ${jSlot.startLabel} · S1–S6、J7 ${sSlot.startLabel}",
+                        leading = { IconBadge(Icons.Outlined.Schedule) },
+                        onClick = onOpenTimetableSettings,
+                    )
+                }
             }
 
-            Text("通知与提醒", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = "提醒中心",
-                    subtitle = reminderSummary,
-                    index = 0, count = 1,
-                    leading = { IconBadge(Icons.Rounded.Notifications) },
-                    onClick = onOpenReminders,
-                )
+            PrismSection("外观") {
+                PrismCard {
+                    Text(
+                        "主题",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    PrismSegmented(
+                        options = listOf("跟随系统", "浅色", "深色"),
+                        selectedIndex = when (themeMode) {
+                            "light" -> 1
+                            "dark" -> 2
+                            else -> 0
+                        },
+                        onSelect = { index ->
+                            val mode = when (index) {
+                                1 -> "light"
+                                2 -> "dark"
+                                else -> "system"
+                            }
+                            launchUi { settings.setThemeMode(mode) }
+                        },
+                    )
+                }
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "动态取色",
+                        subtitle = "默认品牌青；开启后跟随系统壁纸配色",
+                        leading = { IconBadge(Icons.Outlined.Palette) },
+                        checked = dynamicColor,
+                        onCheckedChange = { on -> launchUi { settings.setDynamicColor(on) } },
+                    )
+                }
             }
 
-            Text("隐私与安全", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = "隐私与安全",
-                    subtitle = "生物识别、自动锁定、防截屏与数据清理",
-                    index = 0, count = 1,
-                    leading = { IconBadge(Icons.Rounded.Lock) },
-                    onClick = onOpenPrivacy,
-                )
+            PrismSection("通知与提醒") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "提醒中心",
+                        subtitle = reminderSummary,
+                        leading = { IconBadge(Icons.Outlined.Notifications) },
+                        onClick = onOpenReminders,
+                    )
+                }
             }
 
-            Text("关于", style = headlineStyle())
-            PrismCard(onClick = onOpenAbout) {
-                CardHeader("郑财校园", icon = Icons.Rounded.Info)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "教务、洗浴与电费合并入口；登录状态仅保存在本机，只使用本人账号。",
-                    style = subheadlineStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "查看版本、作者与版权",
-                    style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.primary,
-                )
+            PrismSection("隐私与安全") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "隐私与安全",
+                        subtitle = "生物识别、自动锁定、防截屏与数据清理",
+                        leading = { IconBadge(Icons.Outlined.Lock) },
+                        onClick = onOpenPrivacy,
+                    )
+                }
+            }
+
+            PrismSection("关于") {
+                PrismCard(onClick = onOpenAbout) {
+                    CardHeader("郑财校园", icon = Icons.Outlined.Info)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "教务、洗浴与电费合并入口；登录状态仅保存在本机，只使用本人账号。",
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        "查看版本、作者与版权",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
 
             Text(

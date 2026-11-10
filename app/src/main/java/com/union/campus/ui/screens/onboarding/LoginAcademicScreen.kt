@@ -14,16 +14,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Login
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.VerifiedUser
-import androidx.compose.material.icons.rounded.Visibility
-import androidx.compose.material.icons.rounded.VisibilityOff
+import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -46,6 +45,7 @@ import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
@@ -132,9 +132,11 @@ fun LoginAcademicScreen(
         title = "登录教务系统",
         onBack = onBack,
         actions = {
-            IconButton(onClick = { error = "使用学号与教务系统密码；如提示验证码，请按图片输入。" }) {
-                Icon(Icons.Rounded.HelpOutline, contentDescription = "帮助")
-            }
+            PrismIconButton(
+                icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                contentDescription = "帮助",
+                onClick = { error = "使用学号与教务系统密码；如提示验证码，请按图片输入。" },
+            )
         },
     ) { padding ->
         Column(
@@ -181,12 +183,11 @@ fun LoginAcademicScreen(
                     PasswordVisualTransformation()
                 },
                 trailingIcon = {
-                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Icon(
-                            if (passwordVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
-                            contentDescription = if (passwordVisible) "隐藏密码" else "显示密码",
-                        )
-                    }
+                    PrismIconButton(
+                        icon = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility,
+                        contentDescription = if (passwordVisible) "隐藏密码" else "显示密码",
+                        onClick = { passwordVisible = !passwordVisible },
+                    )
                 },
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,

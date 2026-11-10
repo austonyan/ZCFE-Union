@@ -8,6 +8,7 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,13 +22,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -39,52 +43,20 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
-// ---------------- 字号角色（iOS Dynamic Type 档 × Roboto Flex） ----------------
-
-/** 页面大标题 24/30 w600 */
-@Composable
-fun pageTitleStyle() = MaterialTheme.typography.headlineSmall.copy(
-    fontSize = 24.sp, lineHeight = 30.sp, fontWeight = androidx.compose.ui.text.font.FontWeight(600),
-)
-
-/** 分组头/卡片头 17 w600 */
-@Composable
-fun headlineStyle() = MaterialTheme.typography.titleMedium.copy(
-    fontSize = 17.sp, lineHeight = 22.sp, fontWeight = androidx.compose.ui.text.font.FontWeight(600),
-)
-
-/** 列表标题 17 w400 */
-@Composable
-fun bodyStyle() = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 22.sp)
-
-/** 列表副标题/正文 15 */
-@Composable
-fun subheadlineStyle() = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 20.sp)
-
-/** footer 13 */
-@Composable
-fun footnoteStyle() = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp)
-
-/** 导航/chip 12 w600 */
-@Composable
-fun caption1Style() = MaterialTheme.typography.labelMedium.copy(
-    fontSize = 12.sp, lineHeight = 16.sp, fontWeight = androidx.compose.ui.text.font.FontWeight(600),
-)
-
-/** 仪表盘大数字 40 */
-@Composable
-fun displayStyle() = MaterialTheme.typography.displayMedium.copy(fontSize = 40.sp, lineHeight = 44.sp)
+// 字号角色已收口到 PrismTokens.kt（pageTitle / headline / body / subheadline /
+// footnote / caption1 / caption2 / display / metric / metricCompact / metricSmall）。
 
 // ---------------- 卡片 ----------------
 
@@ -144,7 +116,7 @@ fun CardHeader(title: String, icon: ImageVector? = null, modifier: Modifier = Mo
         Text(
             title,
             style = headlineStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
         )
     }
 }
@@ -152,83 +124,108 @@ fun CardHeader(title: String, icon: ImageVector? = null, modifier: Modifier = Mo
 // ---------------- 分组列表（iOS inset grouped） ----------------
 
 /**
- * 分组列表：行包在连续面里（首 top24 / 尾 bottom24 / 中 0），
- * 分隔线 hairline onSurface·α0.14 从标题端缩进 14。
+ * 分组列表：整组由容器统一裁 24 连续圆角，行之间由 Layout 画一条
+ * onSurface·α0.14 的 hairline。行不再手写 index/count，条件增删行
+ * 也不会破坏首尾圆角。
+ *
+ * 放在已带页面左右边距的 Column 里；行内容应是 PrismRow 这类整行组件。
  */
 @Composable
 fun PrismGroupedList(
     modifier: Modifier = Modifier,
-    content: @Composable ColumnScope.() -> Unit,
+    dividerStart: Dp = PrismSpace.RowHorizontal,
+    content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
     val shape = remember(density.density) { PrismShape(PrismCorner.Xl * density.density) }
-    Column(
+    val dividerColor = MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Divider)
+    val dividerStartPx = with(density) { dividerStart.toPx() }
+    val dividerWidth = with(density) { Dp.Hairline.toPx() }
+    // measure 阶段写入，draw 阶段读取；同一次布局内即可画出分隔线。
+    var rowHeights = IntArray(0)
+    Layout(
+        content = content,
         modifier = modifier
             .fillMaxWidth()
             .clip(shape)
-            .background(surfaceColorOf(SurfaceLevel.Card)),
-        content = content,
-    )
-}
-
-@Composable
-fun groupRowShape(index: Int, count: Int): PrismShape {
-    val density = LocalDensity.current
-    val d = density.density
-    return remember(index, count, d) {
-        when {
-            count <= 1 -> PrismShape(PrismCorner.Xl * d)
-            index == 0 -> PrismShape(0f, corners = floatArrayOf(PrismCorner.Xl * d, PrismCorner.Xl * d, 0f, 0f))
-            index == count - 1 -> PrismShape(0f, corners = floatArrayOf(0f, 0f, PrismCorner.Xl * d, PrismCorner.Xl * d))
-            else -> PrismShape(0f)
+            .background(surfaceColorOf(SurfaceLevel.Card))
+            .drawWithContent {
+                drawContent()
+                var y = 0f
+                for (i in rowHeights.indices) {
+                    y += rowHeights[i]
+                    if (i < rowHeights.lastIndex) {
+                        drawLine(
+                            color = dividerColor,
+                            start = androidx.compose.ui.geometry.Offset(dividerStartPx, y),
+                            end = androidx.compose.ui.geometry.Offset(size.width, y),
+                            strokeWidth = dividerWidth,
+                        )
+                    }
+                }
+            },
+    ) { measurables, constraints ->
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0)) }
+        rowHeights = placeables.map { it.height }.toIntArray()
+        val height = rowHeights.sum()
+        layout(constraints.maxWidth, height) {
+            var y = 0
+            placeables.forEach { placeable ->
+                placeable.placeRelative(0, y)
+                y += placeable.height
+            }
         }
     }
 }
 
-/** 分组行：高 ≥56、水平 16、标题 17/副标题 15、ink 按压（index/count 决定圆角）。 */
+/** 分组行：高 ≥56、水平 16、标题 17/副标题 15、ink 按压。 */
 @Composable
 fun PrismRow(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
-    index: Int = 0,
-    count: Int = 1,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-        Column(modifier = modifier.fillMaxWidth()) {
-            if (index > 0 && count > 1) GroupDivider(
-                startPadding = if (leading != null) 72.dp else 16.dp,
-            )
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(groupRowShape(index, count))
-                    .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
-                    .defaultMinSize(minHeight = 56.dp)
-                    .padding(horizontal = 16.dp, vertical = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                if (leading != null) leading()
-                Column(Modifier.weight(1f)) {
-                    Text(title, style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    if (!subtitle.isNullOrBlank()) {
-                        Text(subtitle, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                    }
-                }
-                if (trailing != null) {
-                    trailing()
-                } else if (onClick != null) {
-                    androidx.compose.material3.Icon(
-                        Icons.Rounded.ChevronRight,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f),
-                        modifier = Modifier.size(18.dp),
+        Row(
+            modifier = modifier
+                .fillMaxWidth()
+                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .defaultMinSize(minHeight = 56.dp)
+                .padding(horizontal = PrismSpace.RowHorizontal, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            if (leading != null) leading()
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = bodyStyle(),
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        subtitle,
+                        style = subheadlineStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
                     )
                 }
+            }
+            if (trailing != null) {
+                trailing()
+            } else if (onClick != null) {
+                androidx.compose.material3.Icon(
+                    Icons.Rounded.ChevronRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                    modifier = Modifier.size(PrismIconSize.Chevron),
+                )
             }
         }
     }
@@ -238,26 +235,58 @@ fun PrismRow(
 @Composable
 fun GroupDivider(
     modifier: Modifier = Modifier,
-    startPadding: Dp = 16.dp,
+    startPadding: Dp = PrismSpace.RowHorizontal,
 ) {
     Box(
         modifier = modifier
             .fillMaxWidth()
             .padding(start = startPadding)
             .height(1.dp)
-            .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.14f)),
+            .background(MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Divider)),
     )
 }
 
-/** 分组头：headline/onSurfaceVariant，T24 B8 L16 R16。 */
+/**
+ * 分区：分组头 T24 B8 + 内容区间 12。页面只写这一个节奏。
+ * 放在已带页面左右边距（16）的 Column / LazyColumn item 里。
+ */
 @Composable
-fun SectionHeader(title: String, modifier: Modifier = Modifier) {
-    Text(
-        title,
-        style = headlineStyle(),
-        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
-        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 8.dp),
-    )
+fun PrismSection(
+    title: String,
+    modifier: Modifier = Modifier,
+    action: (@Composable RowScope.() -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier.fillMaxWidth()) {
+        SectionHeader(title, action = action)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(PrismSpace.Item),
+            content = content,
+        )
+    }
+}
+
+/** 分组头：headline/onSurfaceVariant，T24 B8；action 在右侧（如“查看全部”）。 */
+@Composable
+fun SectionHeader(
+    title: String,
+    modifier: Modifier = Modifier,
+    action: (@Composable RowScope.() -> Unit)? = null,
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(PrismSectionHeaderPadding),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            title,
+            style = headlineStyle(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+            modifier = Modifier.weight(1f),
+        )
+        action?.invoke(this)
+    }
 }
 
 /** 分组 footer：footnote，T8。 */
@@ -267,23 +296,362 @@ fun SectionFooter(text: String, modifier: Modifier = Modifier) {
         text,
         style = footnoteStyle(),
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.padding(start = 16.dp, end = 16.dp, top = 8.dp),
+        modifier = modifier.padding(top = 8.dp),
     )
+}
+
+// ---------------- 统一卡片与提示 ----------------
+
+/**
+ * 指标卡：图标 + 标签 + 等宽大数字 + 脚注。
+ * 统一替代 LifeMetricCard、电费顶部卡与成绩 GPA 卡。
+ */
+@Composable
+fun PrismMetricCard(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    onClick: (() -> Unit)? = null,
+    containerColor: Color = surfaceColorOf(LocalSurfaceLevel.current.next()),
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    accent: Color = MaterialTheme.colorScheme.primary,
+    compact: Boolean = false,
+    trailing: (@Composable () -> Unit)? = null,
+) {
+    PrismCard(
+        modifier = modifier,
+        onClick = onClick,
+        containerColor = containerColor,
+        contentPadding = PaddingValues(if (compact) 14.dp else 20.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                Box(
+                    Modifier
+                        .size(if (compact) 28.dp else 40.dp)
+                        .clip(prismShape(if (compact) PrismCorner.Sm else PrismCorner.Md))
+                        .background(accent.withAlpha(PrismAlpha.ContainerTint)),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    androidx.compose.material3.Icon(
+                        icon,
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(if (compact) 17.dp else PrismIconSize.Badge),
+                    )
+                }
+                Spacer(Modifier.width(if (compact) 8.dp else 12.dp))
+            }
+            Text(
+                label,
+                style = if (compact) footnoteStyle() else subheadlineStyle(),
+                color = contentColor.withAlpha(PrismAlpha.Secondary),
+                modifier = Modifier.weight(1f),
+            )
+            trailing?.invoke()
+        }
+        Spacer(Modifier.height(if (compact) 8.dp else 10.dp))
+        PrismAnimatedText(
+            text = value,
+            style = if (compact) metricCompactStyle() else metricStyle(),
+            color = contentColor,
+        )
+        if (!subtitle.isNullOrBlank()) {
+            Spacer(Modifier.height(2.dp))
+            Text(
+                subtitle,
+                style = footnoteStyle(),
+                color = contentColor.withAlpha(PrismAlpha.Secondary),
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+/**
+ * 入口卡：整行（或双列 compact）可点，统一今天页双列卡、教务常用功能与生活页全宽入口。
+ */
+@Composable
+fun PrismEntryCard(
+    title: String,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    icon: ImageVector? = null,
+    badge: String? = null,
+    compact: Boolean = false,
+    onClick: (() -> Unit)? = null,
+    containerColor: Color = surfaceColorOf(LocalSurfaceLevel.current.next()),
+    contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    accent: Color = MaterialTheme.colorScheme.primary,
+) {
+    PrismCard(
+        modifier = modifier,
+        onClick = onClick,
+        containerColor = containerColor,
+        contentPadding = PaddingValues(if (compact) 14.dp else 16.dp),
+    ) {
+        if (compact) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Box(
+                        Modifier
+                            .size(28.dp)
+                            .clip(prismShape(PrismCorner.Sm))
+                            .background(accent.withAlpha(PrismAlpha.ContainerTint)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.material3.Icon(
+                            icon, contentDescription = null, tint = accent,
+                            modifier = Modifier.size(17.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.weight(1f))
+                if (badge != null) MetaChip(badge, color = accent.withAlpha(PrismAlpha.ContainerTint))
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(title, style = bodyStyle(), color = contentColor, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (!subtitle.isNullOrBlank()) {
+                Spacer(Modifier.height(2.dp))
+                Text(
+                    subtitle,
+                    style = footnoteStyle(),
+                    color = contentColor.withAlpha(PrismAlpha.Secondary),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        } else {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (icon != null) {
+                    Box(
+                        Modifier
+                            .size(40.dp)
+                            .clip(prismShape(PrismCorner.Md))
+                            .background(accent.withAlpha(PrismAlpha.ContainerTint)),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        androidx.compose.material3.Icon(
+                            icon, contentDescription = null, tint = accent,
+                            modifier = Modifier.size(PrismIconSize.Badge),
+                        )
+                    }
+                    Spacer(Modifier.width(12.dp))
+                }
+                Column(Modifier.weight(1f)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            title,
+                            style = bodyStyle(),
+                            fontWeight = androidx.compose.ui.text.font.FontWeight(600),
+                            color = contentColor,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (badge != null) {
+                            Spacer(Modifier.width(8.dp))
+                            MetaChip(badge, color = accent.withAlpha(PrismAlpha.ContainerTint))
+                        }
+                    }
+                    if (!subtitle.isNullOrBlank()) {
+                        Text(
+                            subtitle,
+                            style = footnoteStyle(),
+                            color = contentColor.withAlpha(PrismAlpha.Secondary),
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (onClick != null) {
+                    Spacer(Modifier.width(8.dp))
+                    androidx.compose.material3.Icon(
+                        Icons.Rounded.ChevronRight,
+                        contentDescription = null,
+                        tint = contentColor.withAlpha(PrismAlpha.Hint),
+                        modifier = Modifier.size(PrismIconSize.Chevron),
+                    )
+                }
+            }
+        }
+    }
+}
+
+enum class PrismNoticeTone { Info, Success, Warning, Error }
+
+/** 提示条：统一上课提醒、低余额、洗浴排队、电费警告四种场景。 */
+@Composable
+fun PrismNoticeBanner(
+    title: String,
+    modifier: Modifier = Modifier,
+    message: String? = null,
+    tone: PrismNoticeTone = PrismNoticeTone.Info,
+    icon: ImageVector? = Icons.Rounded.Notifications,
+    actionLabel: String? = null,
+    onAction: (() -> Unit)? = null,
+    onClick: (() -> Unit)? = null,
+) {
+    val container = when (tone) {
+        PrismNoticeTone.Info -> PrismStatus.infoContainer()
+        PrismNoticeTone.Success -> PrismStatus.successContainer()
+        PrismNoticeTone.Warning -> PrismStatus.warningContainer()
+        PrismNoticeTone.Error -> MaterialTheme.colorScheme.errorContainer
+    }
+    val content = when (tone) {
+        PrismNoticeTone.Info -> PrismStatus.onInfoContainer()
+        PrismNoticeTone.Success -> PrismStatus.onSuccessContainer()
+        PrismNoticeTone.Warning -> PrismStatus.onWarningContainer()
+        PrismNoticeTone.Error -> MaterialTheme.colorScheme.onErrorContainer
+    }
+    PrismCard(
+        modifier = modifier,
+        onClick = onClick,
+        containerColor = container,
+        contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (icon != null) {
+                IconBadge(icon, container = content.withAlpha(PrismAlpha.ContainerTint), tint = content)
+                Spacer(Modifier.width(12.dp))
+            }
+            Column(Modifier.weight(1f)) {
+                Text(
+                    title,
+                    style = bodyStyle(),
+                    fontWeight = androidx.compose.ui.text.font.FontWeight(600),
+                    color = content,
+                )
+                if (!message.isNullOrBlank()) {
+                    Text(
+                        message,
+                        style = footnoteStyle(),
+                        color = content.withAlpha(PrismAlpha.Secondary),
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            if (actionLabel != null && onAction != null) {
+                Spacer(Modifier.width(8.dp))
+                PrismTextButton(onClick = onAction) {
+                    Text(actionLabel, color = content)
+                }
+            }
+        }
+    }
+}
+
+/** 设置开关行：整行可点，开关只作指示，触控目标 ≥48dp。 */
+@Composable
+fun PrismToggleRow(
+    title: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    subtitle: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
+) {
+    val haptics = rememberPrismHaptics()
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .toggleable(
+                value = checked,
+                enabled = enabled,
+                role = androidx.compose.ui.semantics.Role.Switch,
+                onValueChange = {
+                    haptics.toggle()
+                    onCheckedChange(it)
+                },
+            )
+            .defaultMinSize(minHeight = 56.dp)
+            .padding(horizontal = PrismSpace.RowHorizontal, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (leading != null) leading()
+        Column(Modifier.weight(1f)) {
+            Text(
+                title,
+                style = bodyStyle(),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (!subtitle.isNullOrBlank()) {
+                Text(
+                    subtitle,
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
+        PrismSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled,
+            interactive = false,
+        )
+    }
+}
+
+/** 工具栏图标按钮：44 视觉 / 48 触控，contentDescription 必填。 */
+@Composable
+fun PrismIconButton(
+    icon: ImageVector,
+    contentDescription: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    enabled: Boolean = true,
+) {
+    val haptics = rememberPrismHaptics()
+    Box(
+        modifier = modifier
+            .size(48.dp)
+            .clip(androidx.compose.foundation.shape.CircleShape)
+            .clickable(enabled = enabled) {
+                haptics.tap()
+                onClick()
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        androidx.compose.material3.Icon(
+            icon,
+            contentDescription = contentDescription,
+            tint = if (enabled) tint else tint.withAlpha(PrismAlpha.Disabled),
+            modifier = Modifier.size(PrismIconSize.Toolbar),
+        )
+    }
 }
 
 // ---------------- 信息展示 ----------------
 
-/** 带图标容器的列表行 leading（40dp primaryContainer 圆 + 24dp 图标）。 */
+/** 带图标容器的列表行 leading（40dp 圆角容器 + 24dp 图标）。 */
 @Composable
-fun IconBadge(icon: ImageVector, container: Color = MaterialTheme.colorScheme.primaryContainer) {
+fun IconBadge(
+    icon: ImageVector,
+    container: Color = MaterialTheme.colorScheme.primaryContainer,
+    tint: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+) {
     Box(
-        modifier = Modifier.size(40.dp).clip(PrismShape(PrismCorner.Md)).background(container),
+        modifier = Modifier
+            .size(40.dp)
+            .clip(prismShape(PrismCorner.Md))
+            .background(container),
         contentAlignment = Alignment.Center,
     ) {
         androidx.compose.material3.Icon(
             icon, contentDescription = null,
-            tint = MaterialTheme.colorScheme.onPrimaryContainer,
-            modifier = Modifier.size(24.dp),
+            tint = tint,
+            modifier = Modifier.size(PrismIconSize.Badge),
         )
     }
 }
@@ -310,7 +678,7 @@ fun NullStatus(
         StaggerItem(shown, 0) {
             androidx.compose.material3.Icon(
                 icon, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
                 modifier = Modifier.size(44.dp),
             )
         }
@@ -382,7 +750,7 @@ fun PrismButton(
     }
     val colors = (containerColor ?: base.first) to (contentColor ?: base.second)
     val resolvedContainer = when {
-        !enabled && filled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+        !enabled && filled -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track)
         !filled -> Color.Transparent
         else -> colors.first
     }
@@ -395,13 +763,14 @@ fun PrismButton(
             enabled = enabled && !loading,
             modifier = modifier
                 .clip(pill)
-                .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp),
+                .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp)
+                .minimumInteractiveComponentSize(),
             shape = pill,
             color = resolvedContainer,
             border = if (!filled) androidx.compose.foundation.BorderStroke(
                 1.dp,
                 MaterialTheme.colorScheme.outline.takeIf { enabled }
-                    ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
             ) else null,
         ) {
             Row(
@@ -411,7 +780,7 @@ fun PrismButton(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ProvideContentColor(colors.second.takeIf { enabled }
-                    ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) {
+                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) {
                     if (loading) {
                         PrismLoadingIndicator(size = 18.dp, strokeWidth = 2.dp, color = colors.second)
                     } else {
@@ -447,7 +816,7 @@ fun PrismTextButton(
                 onClick()
             },
             enabled = enabled,
-            modifier = modifier.defaultMinSize(minHeight = 40.dp),
+            modifier = modifier.defaultMinSize(minHeight = 40.dp).minimumInteractiveComponentSize(),
             color = Color.Transparent,
         ) {
             Row(
@@ -456,7 +825,7 @@ fun PrismTextButton(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 ProvideContentColor(MaterialTheme.colorScheme.primary.takeIf { enabled }
-                    ?: MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)) { content() }
+                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) { content() }
             }
         }
     }

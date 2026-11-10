@@ -27,7 +27,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.MorningSlot
@@ -37,6 +36,8 @@ import com.union.campus.ui.common.TimetableSchedulePicker
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.SectionHeader
+import com.union.campus.ui.prism.caption1Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
@@ -76,7 +77,7 @@ fun TimetableSettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("教学楼作息", style = headlineStyle())
+            SectionHeader("教学楼作息")
             Text(
                 "学校同时运行两套作息：S1–S6、J7 一套，J1–J6 一套。两套都按正常课表运行，只有第 3、4 节时间不同。",
                 style = footnoteStyle(),
@@ -133,17 +134,19 @@ fun TimetableSettingsScreen(
                         ) {
                             Text(
                                 "${time.section}",
-                                fontSize = 12.sp,
+                                style = caption1Style(),
                                 color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                maxLines = 1,
                             )
                         }
                         Spacer(Modifier.width(12.dp))
-                        Text("第 ${time.section} 节", style = subheadlineStyle())
+                        Text("第 ${time.section} 节", style = subheadlineStyle(), maxLines = 1)
                         Spacer(Modifier.weight(1f))
                         Text(
                             "${time.start} – ${time.end}",
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
                         )
                     }
                     if (time.section == TimetableSchedule.DINNER_AFTER_SECTION) {

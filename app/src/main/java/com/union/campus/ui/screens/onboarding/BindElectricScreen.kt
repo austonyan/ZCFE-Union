@@ -14,14 +14,13 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Apartment
-import androidx.compose.material.icons.rounded.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.rounded.Link
 import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,8 +40,10 @@ import com.union.campus.domain.BindWizardNode
 import com.union.campus.domain.ElectricRoom
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismDropdownField
 import com.union.campus.ui.prism.PrismTextField
@@ -50,6 +51,7 @@ import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.footnoteStyle
+import com.union.campus.ui.prism.withAlpha
 
 /** 绑定电费：学号带入 → 园区 → 楼栋 → 楼层 → 房间（写操作，上游不校验身份，只查本人房间）。 */
 @Composable
@@ -209,9 +211,11 @@ fun BindElectricScreen(
         title = "绑定完美校园",
         onBack = onBack,
         actions = {
-            IconButton(onClick = { error = "电费只查本人房间：绑定会把目标房间挂到你的账号下。" }) {
-                Icon(Icons.Rounded.HelpOutline, contentDescription = "帮助")
-            }
+            PrismIconButton(
+                icon = Icons.AutoMirrored.Outlined.HelpOutline,
+                contentDescription = "帮助",
+                onClick = { error = "电费只查本人房间：绑定会把目标房间挂到你的账号下。" },
+            )
         },
     ) { padding ->
         Column(
@@ -270,7 +274,7 @@ fun BindElectricScreen(
                                 Text(
                                     bound.roomVerify,
                                     style = footnoteStyle(),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.7f),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer.withAlpha(PrismAlpha.Secondary),
                                 )
                             }
                             PrismTextButton(
@@ -284,7 +288,7 @@ fun BindElectricScreen(
                     Text(
                         "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
                         style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.copy(alpha = 0.8f),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer.withAlpha(PrismAlpha.Secondary),
                     )
                 }
                 Text("绑定新房间", style = headlineStyle())

@@ -17,25 +17,29 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 
-/** 52×32 胶囊开关：选中过冲回弹，点按有触感。 */
+/**
+ * 52×32 胶囊开关：选中过冲回弹，点按有触感。
+ *
+ * 触控区固定 52×48，视觉轨道仍是 52×32（上下各留 8dp）。
+ * [interactive] = false 时只作指示，由外层 PrismToggleRow 承接整行点击。
+ */
 @Composable
 fun PrismSwitch(
     checked: Boolean,
     onCheckedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    interactive: Boolean = true,
 ) {
-    val density = LocalDensity.current
     val haptics = rememberPrismHaptics()
     val interactionSource = remember { MutableInteractionSource() }
-    val pill = remember(density.density) { PrismShape(32f * density.density) }
+    val pill = prismShape(32f)
     val trackColor by animateColorAsState(
         targetValue = when {
-            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+            !enabled -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track)
             checked -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.surfaceContainerHighest
         },
@@ -44,7 +48,7 @@ fun PrismSwitch(
     )
     val thumbColor by animateColorAsState(
         targetValue = when {
-            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            !enabled -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)
             checked -> MaterialTheme.colorScheme.onPrimary
             else -> MaterialTheme.colorScheme.outline
         },
@@ -59,28 +63,40 @@ fun PrismSwitch(
 
     Box(
         modifier = modifier
-            .size(width = 52.dp, height = 32.dp)
-            .clip(pill)
-            .background(trackColor)
-            .toggleable(
-                value = checked,
-                enabled = enabled,
-                role = Role.Switch,
-                interactionSource = interactionSource,
-                indication = null,
-            ) { on ->
-                haptics.toggle()
-                onCheckedChange(on)
-            },
-        contentAlignment = Alignment.CenterStart,
+            .size(width = 52.dp, height = 48.dp)
+            .then(
+                if (interactive) {
+                    Modifier.toggleable(
+                        value = checked,
+                        enabled = enabled,
+                        role = Role.Switch,
+                        interactionSource = interactionSource,
+                        indication = null,
+                    ) { on ->
+                        haptics.toggle()
+                        onCheckedChange(on)
+                    }
+                } else {
+                    Modifier
+                },
+            ),
+        contentAlignment = Alignment.Center,
     ) {
         Box(
-            Modifier
-                .offset(x = thumbOffset)
-                .size(24.dp)
-                .shadow(2.dp, CircleShape)
-                .clip(CircleShape)
-                .background(thumbColor),
-        )
+            modifier = Modifier
+                .size(width = 52.dp, height = 32.dp)
+                .clip(pill)
+                .background(trackColor),
+            contentAlignment = Alignment.CenterStart,
+        ) {
+            Box(
+                Modifier
+                    .offset(x = thumbOffset)
+                    .size(24.dp)
+                    .shadow(2.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(thumbColor),
+            )
+        }
     }
 }

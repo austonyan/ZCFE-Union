@@ -118,7 +118,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onSelect = { tab -> navigateToTab(navController, tab) },
                     lifeActive = activeSession != null,
                     modifier = Modifier
-                        .padding(horizontal = 16.dp, vertical = 8.dp)
+                        .padding(horizontal = 21.dp, vertical = 8.dp)
                         .navigationBarsPadding(),
                 )
             }
@@ -456,7 +456,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 }
             }
             composable(Screen.ShowerSession.route) {
-                val session = showerRepo.activeSession.value
+                val session = activeSession
                 if (session == null) {
                     navController.popBackStack()
                 } else {

@@ -12,10 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Info
-import androidx.compose.material.icons.rounded.Lock
-import androidx.compose.material.icons.rounded.Person
-import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Lock
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -23,18 +23,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.BuildConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.ui.prism.withAlpha
 
 /** 关于：版本、作者、版权与数据来源。 */
 @Composable
@@ -62,7 +63,7 @@ fun AboutScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Icon(
-                        Icons.Rounded.School,
+                        Icons.Outlined.School,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onPrimaryContainer,
                         modifier = Modifier.padding(end = 12.dp),
@@ -70,13 +71,13 @@ fun AboutScreen(
                     Column(Modifier.weight(1f)) {
                         Text(
                             "郑财校园",
-                            style = pageTitleStyle().copy(fontSize = 28.sp, lineHeight = 34.sp),
+                            style = pageTitleStyle(),
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
                         Text(
                             "郑州财经学院校园生活入口",
                             style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
+                            color = MaterialTheme.colorScheme.onPrimaryContainer.withAlpha(PrismAlpha.Secondary),
                         )
                     }
                 }
@@ -88,29 +89,24 @@ fun AboutScreen(
                 )
             }
 
-            Text("应用信息", style = headlineStyle())
-            PrismGroupedList {
-                PrismRow(
-                    title = "版本",
-                    subtitle = "${BuildConfig.VERSION_NAME} · versionCode ${BuildConfig.VERSION_CODE}",
-                    index = 0,
-                    count = 3,
-                    leading = { IconBadge(Icons.Rounded.Info) },
-                )
-                PrismRow(
-                    title = "作者",
-                    subtitle = "Auston · 设计与开发",
-                    index = 1,
-                    count = 3,
-                    leading = { IconBadge(Icons.Rounded.Person) },
-                )
-                PrismRow(
-                    title = "版权",
-                    subtitle = "© 2026 Auston. 保留所有权利。",
-                    index = 2,
-                    count = 3,
-                    leading = { IconBadge(Icons.Rounded.Lock) },
-                )
+            PrismSection("应用信息") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "版本",
+                        subtitle = "${BuildConfig.VERSION_NAME} · versionCode ${BuildConfig.VERSION_CODE}",
+                        leading = { IconBadge(Icons.Outlined.Info) },
+                    )
+                    PrismRow(
+                        title = "作者",
+                        subtitle = "Auston · 设计与开发",
+                        leading = { IconBadge(Icons.Outlined.Person) },
+                    )
+                    PrismRow(
+                        title = "版权",
+                        subtitle = "© 2026 Auston. 保留所有权利。",
+                        leading = { IconBadge(Icons.Outlined.Lock) },
+                    )
+                }
             }
 
             PrismCard(modifier = Modifier.fillMaxWidth()) {

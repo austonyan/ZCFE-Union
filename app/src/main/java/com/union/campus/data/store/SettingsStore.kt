@@ -56,6 +56,8 @@ class SettingsStore(private val context: Context) {
         val lastShowerAreaId = stringPreferencesKey("last_shower_area_id")
         val lastElectricRoom = stringPreferencesKey("last_electric_room")
         val keepScreenOn = booleanPreferencesKey("keep_screen_on")
+        val themeMode = stringPreferencesKey("theme_mode") // system/light/dark
+        val dynamicColor = booleanPreferencesKey("dynamic_color")
     }
 
     val onboardingDone: Flow<Boolean> = context.dataStore.data.map { it[K.onboardingDone] ?: false }
@@ -95,6 +97,8 @@ class SettingsStore(private val context: Context) {
     val lastShowerAreaId: Flow<String> = context.dataStore.data.map { it[K.lastShowerAreaId] ?: "" }
     val lastElectricRoom: Flow<String> = context.dataStore.data.map { it[K.lastElectricRoom] ?: "" }
     val keepScreenOn: Flow<Boolean> = context.dataStore.data.map { it[K.keepScreenOn] ?: true }
+    val themeMode: Flow<String> = context.dataStore.data.map { it[K.themeMode] ?: "system" }
+    val dynamicColor: Flow<Boolean> = context.dataStore.data.map { it[K.dynamicColor] ?: false }
 
     suspend fun setOnboardingDone() = context.dataStore.edit { it[K.onboardingDone] = true }
     suspend fun setBoundDone(done: Boolean) = context.dataStore.edit { it[K.boundDone] = done }
@@ -148,6 +152,10 @@ class SettingsStore(private val context: Context) {
     }
     suspend fun setLastElectricRoom(v: String) = context.dataStore.edit { it[K.lastElectricRoom] = v }
     suspend fun setKeepScreenOn(v: Boolean) = context.dataStore.edit { it[K.keepScreenOn] = v }
+    suspend fun setThemeMode(v: String) = context.dataStore.edit {
+        it[K.themeMode] = if (v in setOf("system", "light", "dark")) v else "system"
+    }
+    suspend fun setDynamicColor(v: Boolean) = context.dataStore.edit { it[K.dynamicColor] = v }
 
     /** 清除全部设置（含引导与绑定标记），用于“清除全部数据”。 */
     suspend fun clearAll() = context.dataStore.edit { it.clear() }

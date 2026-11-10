@@ -1,15 +1,28 @@
 package com.union.campus.navigation
 
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.automirrored.rounded.MenuBook
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.School
+import androidx.compose.material.icons.outlined.WaterDrop
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.ui.graphics.vector.ImageVector
 
-/** 34 个屏幕的完整路由表。 */
-enum class Screen(val route: String, val title: String, val tabIcon: ImageVector? = null) {
+/**
+ * 34 个屏幕的完整路由表。
+ * tab 图标两套：未选中用描边，选中用实心（P4 图标语言）。
+ */
+enum class Screen(
+    val route: String,
+    val title: String,
+    val tabIcon: ImageVector? = null,
+    val tabIconOutlined: ImageVector? = null,
+) {
     // 绑定流程
     Welcome("welcome", "欢迎"),
     LoginAcademic("login-academic", "登录教务"),
@@ -19,9 +32,14 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     BindDone("bind-done", "绑定完成"),
 
     // 学习
-    Today("today", "今天", Icons.Rounded.Home),
-    Timetable("timetable", "课表", Icons.AutoMirrored.Rounded.MenuBook),
-    Academics("academics", "教务", Icons.Rounded.School),
+    Today("today", "今天", Icons.Rounded.Home, Icons.Outlined.Home),
+    Timetable(
+        "timetable",
+        "课表",
+        Icons.AutoMirrored.Rounded.MenuBook,
+        Icons.AutoMirrored.Outlined.MenuBook,
+    ),
+    Academics("academics", "教务", Icons.Rounded.School, Icons.Outlined.School),
     TimetableSettings("timetable-settings", "课表设置"),
     CourseDetail("course-detail", "课程详情"),
     Grades("grades", "成绩"),
@@ -38,7 +56,7 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     NoticeDetail("notice-detail", "通知详情"),
 
     // 生活
-    Life("life", "生活", Icons.Rounded.WaterDrop),
+    Life("life", "生活", Icons.Rounded.WaterDrop, Icons.Outlined.WaterDrop),
     Shower("shower", "洗浴"),
     ShowerSession("shower-session", "洗浴中"),
     DeviceDetail("device-detail", "设备详情"),
@@ -50,7 +68,7 @@ enum class Screen(val route: String, val title: String, val tabIcon: ImageVector
     ClassroomDetail("classroom-detail", "教室详情"),
 
     // 我的
-    Profile("profile", "我的", Icons.Rounded.Person),
+    Profile("profile", "我的", Icons.Rounded.Person, Icons.Outlined.Person),
     Credentials("credentials", "凭证中心"),
     Reminders("reminders", "提醒中心"),
     Settings("settings", "设置"),

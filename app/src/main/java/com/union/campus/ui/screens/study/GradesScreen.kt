@@ -4,19 +4,15 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.Grade
-import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,7 +22,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
@@ -39,13 +34,12 @@ import com.union.campus.ui.common.dataOrNull
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
-import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismMetricCard
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
-import com.union.campus.ui.prism.subheadlineStyle
 import kotlinx.coroutines.flow.first
 
 /** 成绩：学期 GPA、有效/原始切换、学分进度。 */
@@ -108,9 +102,11 @@ fun GradesScreen(
         title = "成绩",
         onBack = onBack,
         actions = {
-            IconButton(onClick = { /* 分享：生成脱敏成绩卡片文本 */ launchUi { shareGrades(gpa, data) } }) {
-                Icon(Icons.Rounded.Share, contentDescription = "分享")
-            }
+            PrismIconButton(
+                icon = Icons.Outlined.Share,
+                contentDescription = "分享",
+                onClick = { /* 分享：生成脱敏成绩卡片文本 */ launchUi { shareGrades(gpa, data) } },
+            )
         },
     ) { padding ->
         Column(
@@ -138,15 +134,15 @@ fun GradesScreen(
                 }
             }
 
-            PrismCard(containerColor = MaterialTheme.colorScheme.primaryContainer) {
-                Text("GPA ${gpa?.first ?: "—"}", style = headlineStyle())
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "加权平均 ${gpa?.second ?: "—"} · 已修 ${data?.grades?.size ?: 0} 门课程\n按学校规则估算，以教务为准",
-                    style = subheadlineStyle(),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-            }
+            PrismMetricCard(
+                label = "GPA",
+                value = gpa?.first ?: "—",
+                subtitle = "加权平均 ${gpa?.second ?: "—"} · 已修 ${data?.grades?.size ?: 0} 门课程\n按学校规则估算，以教务为准",
+                icon = Icons.Rounded.Grade,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                accent = MaterialTheme.colorScheme.onPrimaryContainer,
+            )
 
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 PrismChip(label = "有效成绩", selected = effective, onClick = { effective = true; load() })
@@ -160,11 +156,10 @@ fun GradesScreen(
             ) { d ->
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     PrismGroupedList {
-                        d.grades.forEachIndexed { i, g ->
+                        d.grades.forEach { g ->
                             PrismRow(
                                 title = g.courseName,
                                 subtitle = "${g.score} 分 · ${g.gpa.ifBlank { "— " }}绩点 · ${g.credits.ifBlank { "?" }} 学分",
-                                index = i, count = d.grades.size,
                                 leading = { IconBadge(Icons.Rounded.Grade) },
                                 onClick = { onOpenGrade(g) },
                             )

@@ -13,6 +13,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import com.union.campus.ui.prism.LocalPrismDark
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.LocalPressLook
@@ -35,6 +37,11 @@ fun UnionTheme(
 ) {
     val context = LocalContext.current
     val messenger = remember { PrismMessenger() }
+    // 字号缩放限制在 0.8–1.4：1.3x 下单行页头、Dock 与课表行仍完整。
+    val density = LocalDensity.current
+    val clampedDensity = remember(density) {
+        Density(density.density, density.fontScale.coerceIn(0.8f, 1.4f))
+    }
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= 31 ->
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -43,6 +50,7 @@ fun UnionTheme(
     }
 
     CompositionLocalProvider(
+        LocalDensity provides clampedDensity,
         LocalIndication provides PrismPressIndication,
         LocalRippleConfiguration provides null,
         LocalPrismDark provides darkTheme,

@@ -37,7 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.navigation.Screen
@@ -55,19 +56,33 @@ fun PrismDock(
     lifeActive: Boolean = false,
 ) {
     if (tabs.isEmpty()) return
-    val density = LocalDensity.current
     val haptics = rememberPrismHaptics()
-    val pill = remember(density.density) { PrismShape(64f * density.density) }
+    val pill = prismShape(64f)
     val selectedIndex = tabs.indexOf(current).coerceAtLeast(0)
 
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .height(62.dp),
+            .height(62.dp)
+            // 双层阴影：大范围柔光 + 贴边细影（dark 下由系统自动加深）。
+            .shadow(
+                elevation = 24.dp,
+                shape = pill,
+                clip = false,
+                ambientColor = Color.Black.withAlpha(PrismAlpha.Border),
+                spotColor = Color.Black.withAlpha(PrismAlpha.Border),
+            )
+            .shadow(
+                elevation = 3.dp,
+                shape = pill,
+                clip = false,
+                ambientColor = Color.Black.withAlpha(0.04f),
+                spotColor = Color.Black.withAlpha(0.04f),
+            ),
         shape = pill,
         color = surfaceColorOf(SurfaceLevel.Card),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)),
-        shadowElevation = 8.dp,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Border)),
+        shadowElevation = 0.dp,
         tonalElevation = 0.dp,
     ) {
         BoxWithConstraints(Modifier.fillMaxSize().padding(4.dp)) {
@@ -121,10 +136,14 @@ fun PrismDock(
                         ) {
                             Box {
                                 Icon(
-                                    imageVector = tab.tabIcon ?: Icons.Rounded.Home,
+                                    imageVector = if (selected) {
+                                        tab.tabIcon ?: Icons.Rounded.Home
+                                    } else {
+                                        tab.tabIconOutlined ?: tab.tabIcon ?: Icons.Rounded.Home
+                                    },
                                     contentDescription = tab.title,
                                     tint = contentColor,
-                                    modifier = Modifier.size(21.dp).scale(iconScale),
+                                    modifier = Modifier.size(PrismIconSize.Dock).scale(iconScale),
                                 )
                                 if (lifeActive && tab == Screen.Life) {
                                     val transition = rememberInfiniteTransition(label = "dock-live-dot")
@@ -138,8 +157,8 @@ fun PrismDock(
                                         label = "dock-live-alpha",
                                     )
                                     PrismStatusDot(
-                                        color = PrismStatus.success().copy(
-                                            alpha = if (prismAnimationsEnabled()) pulse else 1f,
+                                        color = PrismStatus.success().withAlpha(
+                                            if (prismAnimationsEnabled()) pulse else 1f,
                                         ),
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)

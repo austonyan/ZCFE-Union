@@ -2,6 +2,7 @@ package com.union.campus.data.store
 
 import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
+import android.security.keystore.KeyProperties
 import android.util.Base64
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
@@ -39,7 +40,10 @@ class CredentialStore(private val context: Context) {
         val ks = KeyStore.getInstance("AndroidKeyStore").apply { load(null) }
         (ks.getKey("union_credentials", null) as? SecretKey) ?: run {
             val gen = KeyGenerator.getInstance("AES", "AndroidKeyStore")
-            gen.init(KeyGenParameterSpec.Builder("union_credentials", 3)
+            gen.init(KeyGenParameterSpec.Builder(
+                "union_credentials",
+                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
+            )
                 .setBlockModes("GCM")
                 .setEncryptionPaddings("NoPadding")
                 .setKeySize(256)

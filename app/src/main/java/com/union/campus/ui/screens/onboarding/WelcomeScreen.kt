@@ -20,13 +20,9 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.ui.common.TimetableSchedulePicker
@@ -34,7 +30,6 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismProgressRail
-import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
@@ -48,8 +43,6 @@ fun WelcomeScreen(
     onExplore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var selectedPlatform by rememberSaveable { mutableIntStateOf(0) }
-    val platforms = listOf("教务", "洗浴", "电费")
     val settings = ServiceLocator.settings
     val jLate by settings.timetableJLate.collectAsState(initial = true)
     val fallbackGroupValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
@@ -64,7 +57,7 @@ fun WelcomeScreen(
     ) {
         Text(
             text = "郑财校园",
-            style = pageTitleStyle().copy(fontSize = 40.sp, lineHeight = 46.sp),
+            style = pageTitleStyle(),
             color = MaterialTheme.colorScheme.onSurface,
         )
 
@@ -82,15 +75,9 @@ fun WelcomeScreen(
             color = MaterialTheme.colorScheme.onSurface,
         )
         Text(
-            text = "课表、成绩、洗浴空闲与电费余额，打开应用就能看到。先选一下要绑定的平台。",
+            text = "课表、成绩、洗浴空闲与电费余额，打开应用就能看到。三个平台的账号会在接下来的步骤里依次绑定。",
             style = subheadlineStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        PrismSegmented(
-            options = platforms,
-            selectedIndex = selectedPlatform,
-            onSelect = { selectedPlatform = it },
         )
 
         PrismCard(

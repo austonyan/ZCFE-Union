@@ -137,7 +137,7 @@ fun PrismSnapSheet(
 
     Box(modifier.fillMaxSize()) {
         val scrimColor = MaterialTheme.colorScheme.scrim
-            .copy(alpha = if (LocalPrismDark.current) 0.48f else 0.20f)
+            .withAlpha(if (LocalPrismDark.current) PrismAlpha.ScrimDark else PrismAlpha.ScrimLight)
         Box(
             Modifier
                 .fillMaxSize()
@@ -187,7 +187,7 @@ fun PrismSnapSheet(
                         .width(28.dp)
                         .height(4.dp)
                         .clip(handleShape)
-                        .background(MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
+                        .background(MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Grip)),
                 )
                 Box(Modifier.weight(1f)) { content() }
             }

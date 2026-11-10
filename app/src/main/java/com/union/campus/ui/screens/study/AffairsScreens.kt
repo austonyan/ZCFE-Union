@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.Badge
@@ -23,12 +24,10 @@ import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.RateReview
-import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -58,6 +57,7 @@ import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
+import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
@@ -132,12 +132,11 @@ fun TextbooksScreen(
             if (items != null) {
                 val total = items.sumOf { it.price.toDoubleOrNull() ?: 0.0 }
                 PrismGroupedList {
-                    items.forEachIndexed { i, t ->
+                    items.forEach { t ->
                         PrismRow(
                             title = t.courseName,
                             subtitle = if (t.confirmed) "已确认 · ${t.count} 本 · ¥ ${t.price.ifBlank { "待结算" }}"
                             else "《${t.bookName}》 · ${t.count} 本 · ¥ ${t.price.ifBlank { "待结算" }}",
-                            index = i, count = items.size,
                             leading = {
                                 IconBadge(
                                     if (t.confirmed) Icons.Rounded.CheckCircle else Icons.Rounded.MenuBook,
@@ -189,7 +188,11 @@ fun AcademicAffairsScreen(
         title = "教务事务",
         onBack = onBack,
         actions = {
-            IconButton(onClick = { }) { Icon(Icons.Rounded.Search, contentDescription = "搜索") }
+            PrismIconButton(
+                icon = Icons.Outlined.Search,
+                contentDescription = "搜索",
+                onClick = { },
+            )
         },
         modifier = modifier,
     ) { padding ->
@@ -218,7 +221,6 @@ fun AcademicAffairsScreen(
                     val (subtitle, icon) = pair
                     PrismRow(
                         title = title, subtitle = subtitle,
-                        index = i, count = entries.size,
                         leading = { IconBadge(icon) },
                         onClick = { onOpen(links[i]) },
                     )
@@ -285,11 +287,11 @@ fun StudentRecordScreen(
                         }
                     }
                     PrismGroupedList {
-                        PrismRow(title = "学号", subtitle = r.studentNo.ifBlank { "—" }, index = 0, count = 5, leading = { IconBadge(Icons.Rounded.Tag) })
-                        PrismRow(title = "院系", subtitle = r.college.ifBlank { "—" }, index = 1, count = 5, leading = { IconBadge(Icons.Rounded.AccountBalance) })
-                        PrismRow(title = "专业", subtitle = r.major.ifBlank { "—" }, index = 2, count = 5, leading = { IconBadge(Icons.Rounded.School) })
-                        PrismRow(title = "学籍状态", subtitle = r.status, index = 3, count = 5, leading = { IconBadge(Icons.Rounded.CheckCircle) })
-                        PrismRow(title = "身份证", subtitle = r.idCardMasked.ifBlank { "已脱敏 · 仅本人可见" }, index = 4, count = 5, leading = { IconBadge(Icons.Rounded.Lock) })
+                        PrismRow(title = "学号", subtitle = r.studentNo.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.Tag) })
+                        PrismRow(title = "院系", subtitle = r.college.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.AccountBalance) })
+                        PrismRow(title = "专业", subtitle = r.major.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.School) })
+                        PrismRow(title = "学籍状态", subtitle = r.status, leading = { IconBadge(Icons.Rounded.CheckCircle) })
+                        PrismRow(title = "身份证", subtitle = r.idCardMasked.ifBlank { "已脱敏 · 仅本人可见" }, leading = { IconBadge(Icons.Rounded.Lock) })
                     }
                     PrismButton(
                         filled = false,
@@ -341,11 +343,10 @@ fun NoticesScreen(
             when (val s = state) {
                 is UiState.Ready -> {
                     PrismGroupedList {
-                        s.data.forEachIndexed { i, n ->
+                        s.data.forEach { n ->
                             PrismRow(
                                 title = n.title,
                                 subtitle = "${n.date} · ${n.source}",
-                                index = i, count = s.data.size,
                                 leading = {
                                     IconBadge(
                                         when (n.kind) {

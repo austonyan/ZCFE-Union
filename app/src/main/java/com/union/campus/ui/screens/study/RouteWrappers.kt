@@ -11,7 +11,6 @@ import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.Exam
 import com.union.campus.ui.common.launchUi
-import kotlinx.coroutines.flow.first
 
 /** 课表路由包装（直接复用 TimetableScreen）。 */
 @Composable

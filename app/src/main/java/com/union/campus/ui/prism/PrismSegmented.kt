@@ -13,8 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -23,11 +23,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
-/** 滑动胶囊式分段控件：用于平台选择、用量/费用切换。 */
+/**
+ * 滑动胶囊式分段控件：用于平台选择、用量/费用切换。
+ * 视觉轨道 40dp，触控区 48dp（上下各留 4dp），视觉尺寸不变。
+ */
 @Composable
 fun PrismSegmented(
     options: List<String>,
@@ -37,18 +39,15 @@ fun PrismSegmented(
     enabled: Boolean = true,
 ) {
     if (options.isEmpty()) return
-    val density = LocalDensity.current
     val haptics = rememberPrismHaptics()
-    val pill = remember(density.density) { PrismShape(40f * density.density) }
+    val pill = prismShape(40f)
     val track = surfaceColorOf(SurfaceLevel.Inset)
     val index = selectedIndex.coerceIn(0, options.lastIndex)
 
     BoxWithConstraints(
         modifier = modifier
             .fillMaxWidth()
-            .height(40.dp)
-            .clip(pill)
-            .background(track),
+            .height(48.dp),
     ) {
         val itemWidth = maxWidth / options.size.toFloat()
         val offset by animateDpAsState(
@@ -58,14 +57,23 @@ fun PrismSegmented(
         )
         Box(
             Modifier
+                .align(Alignment.Center)
+                .fillMaxWidth()
+                .height(40.dp)
+                .clip(pill)
+                .background(track),
+        )
+        Box(
+            Modifier
+                .align(Alignment.Center)
                 .offset(x = offset)
-                .fillMaxHeight()
+                .height(40.dp)
                 .fillMaxWidth(1f / options.size)
                 .padding(3.dp)
                 .clip(pill)
                 .background(
                     if (enabled) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    else MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
                 ),
         )
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
@@ -73,7 +81,7 @@ fun PrismSegmented(
                 options.forEachIndexed { optionIndex, label ->
                     val textColor by animateColorAsState(
                         targetValue = when {
-                            !enabled -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                            !enabled -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)
                             optionIndex == index -> MaterialTheme.colorScheme.onPrimary
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },

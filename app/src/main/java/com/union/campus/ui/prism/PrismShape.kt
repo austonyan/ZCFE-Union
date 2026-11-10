@@ -96,20 +96,4 @@ private fun RoundedPolygon.toComposePath(w: Float, h: Float): Path {
     return path
 }
 
-// ---------- 常用形状单例（dp 值在 Density 层换算；PrismShape 直接用像素等价：调用方传 dp * density） ----------
-
-/** 常用 shape 工厂：参数为 dp，返回对应 px 形状。 */
-object PrismShapes {
-    fun card(density: Density) = PrismShape(PrismCorner.Md * density.density)
-    fun groupTop(density: Density) = PrismShape(0f, corners = floatArrayOf(
-        PrismCorner.Xl * density.density, PrismCorner.Xl * density.density, 0f, 0f))
-    fun groupMiddle(density: Density) = PrismShape(0f)
-    fun groupBottom(density: Density) = PrismShape(0f, corners = floatArrayOf(0f, 0f,
-        PrismCorner.Xl * density.density, PrismCorner.Xl * density.density))
-    fun groupOnly(density: Density) = PrismShape(PrismCorner.Xl * density.density)
-    fun alert(density: Density) = PrismShape(PrismCorner.Alert * density.density)
-    fun sheetTop(density: Density) = PrismShape(0f, corners = floatArrayOf(
-        PrismCorner.Sheet * density.density, PrismCorner.Sheet * density.density, 0f, 0f))
-    fun input(density: Density) = PrismShape(PrismCorner.Md * density.density)
-    fun chip(density: Density) = PrismShape(PrismCorner.Sm * density.density)
-}
+// 常用形状统一走 PrismTokens.prismShape(dp) / prismGroupShape()，不再保留第二套工厂。

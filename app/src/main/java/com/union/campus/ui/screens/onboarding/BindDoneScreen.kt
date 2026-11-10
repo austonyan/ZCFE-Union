@@ -4,7 +4,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,25 +29,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
+import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismRow
-import com.union.campus.ui.prism.PrismSwitch
-import com.union.campus.ui.prism.bodyStyle
+import com.union.campus.ui.prism.PrismSection
+import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 
 /** 绑定完成：三套账号就绪状态 + 开启提醒 + 进入应用。 */
@@ -107,43 +106,42 @@ fun BindDoneScreen(
                         alpha = checkScale
                     },
             )
-            Text("设置完成", style = headlineStyle().copy(fontSize = 32.sp, lineHeight = 38.sp))
+            Text("设置完成", style = pageTitleStyle())
             Text("您的所有账号数据已就绪", style = subheadlineStyle())
 
-            PrismGroupedList {
-                StatusRow(
-                    title = "教务系统",
-                    subtitle = if (jwBound) "已连接 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可稍后在凭证中心添加",
-                    ok = jwBound, icon = Icons.Rounded.School, index = 0, count = 3,
-                )
-                StatusRow(
-                    title = "大白U帮",
-                    subtitle = if (showerBound) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定，可稍后添加",
-                    ok = showerBound, icon = Icons.Rounded.Shower, index = 1, count = 3,
-                )
-                StatusRow(
-                    title = "完美校园",
-                    subtitle = if (electricBound) "已绑定电费 · ${cred.electricAccount}" else "未绑定，可稍后添加",
-                    ok = electricBound, icon = Icons.Rounded.Bolt, index = 2, count = 3,
-                )
+            PrismSection(title = "账号状态") {
+                PrismGroupedList {
+                    StatusRow(
+                        title = "教务系统",
+                        subtitle = if (jwBound) "已连接 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可稍后在凭证中心添加",
+                        ok = jwBound, icon = Icons.Rounded.School,
+                    )
+                    StatusRow(
+                        title = "大白U帮",
+                        subtitle = if (showerBound) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定，可稍后添加",
+                        ok = showerBound, icon = Icons.Rounded.Shower,
+                    )
+                    StatusRow(
+                        title = "完美校园",
+                        subtitle = if (electricBound) "已绑定电费 · ${cred.electricAccount}" else "未绑定，可稍后添加",
+                        ok = electricBound, icon = Icons.Rounded.Bolt,
+                    )
+                }
             }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Icon(Icons.Rounded.Notifications, null)
-                Spacer(Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text("开启提醒", style = bodyStyle())
-                    Text("上课、考试、低电费", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            PrismSection(title = "提醒") {
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "开启提醒",
+                        subtitle = "上课、考试、低电费",
+                        checked = remindOn,
+                        onCheckedChange = {
+                            remindOn = it
+                            launchUi { settings.setRemindEnabled(it) }
+                        },
+                        leading = { Icon(Icons.Rounded.Notifications, null) },
+                    )
                 }
-                PrismSwitch(checked = remindOn, onCheckedChange = {
-                    remindOn = it
-                    launchUi { settings.setRemindEnabled(it) }
-                })
             }
 
             PrismButton(
@@ -173,20 +171,16 @@ private fun StatusRow(
     subtitle: String,
     ok: Boolean,
     icon: ImageVector,
-    index: Int,
-    count: Int,
 ) {
     PrismRow(
         title = title,
         subtitle = subtitle,
-        index = index,
-        count = count,
         leading = { IconBadge(icon) },
         trailing = {
             Icon(
                 Icons.Rounded.CheckCircle, null,
                 tint = if (ok) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
+                else MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled),
             )
         },
     )
