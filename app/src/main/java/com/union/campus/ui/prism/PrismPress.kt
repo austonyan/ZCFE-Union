@@ -2,6 +2,8 @@ package com.union.campus.ui.prism
 
 import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.IndicationNodeFactory
+import androidx.compose.foundation.interaction.FocusInteraction
+import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.runtime.Composable
@@ -23,6 +25,8 @@ import kotlinx.coroutines.launch
  */
 enum class PressLook { Ink, Tint }
 
+private const val HOVER_ALPHA = PrismAlpha.Hover
+private const val FOCUS_ALPHA = PrismAlpha.Focus
 private const val INK_ALPHA = PrismAlpha.PressInk
 private const val TINT_FADE = PrismAlpha.PressTint
 private const val TINT_LIFT = PrismAlpha.PressLift
@@ -45,6 +49,10 @@ private class PressNode(private val interactionSource: InteractionSource) :
     // Animatable.value 是 snapshot state：draw 中读取会自动触发重绘
     private val animatable = Animatable(0f)
 
+    // 键盘聚焦 / 指针悬停也要有可见反馈（M3 交互状态层要求）
+    private val hover = Animatable(0f)
+    private val focus = Animatable(0f)
+
     override fun onAttach() {
         coroutineScope.launch {
             interactionSource.interactions.collect { interaction ->
@@ -57,6 +65,22 @@ private class PressNode(private val interactionSource: InteractionSource) :
                         animatable.stop()
                         launch { animatable.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
                     }
+                    is HoverInteraction.Enter -> {
+                        hover.stop()
+                        launch { hover.animateTo(1f, PrismMotion.tween(PrismMotion.Fast)) }
+                    }
+                    is HoverInteraction.Exit -> {
+                        hover.stop()
+                        launch { hover.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
+                    }
+                    is FocusInteraction.Focus -> {
+                        focus.stop()
+                        launch { focus.animateTo(1f, PrismMotion.tween(PrismMotion.Fast)) }
+                    }
+                    is FocusInteraction.Unfocus -> {
+                        focus.stop()
+                        launch { focus.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
+                    }
                 }
             }
         }
@@ -67,19 +91,24 @@ private class PressNode(private val interactionSource: InteractionSource) :
         val onSurface = currentValueOf(androidx.compose.material3.LocalContentColor)
         val dark = currentValueOf(LocalPrismDark)
         val p = animatable.value
+        // 悬停/聚焦取较弱的一档，避免盖过按压反馈
+        val state = maxOf(hover.value * HOVER_ALPHA, focus.value * FOCUS_ALPHA)
 
         when (look) {
             PressLook.Tint -> {
                 if (dark) {
                     drawContent()
                     if (p > 0f) drawRect(Color.White.withAlpha(TINT_LIFT * p))
+                    if (state > 0f) drawRect(Color.White.withAlpha(state))
                 } else {
                     drawWithAlpha(1f - TINT_FADE * p) { drawContent() }
+                    if (state > 0f) drawRect(onSurface.withAlpha(state))
                 }
             }
             PressLook.Ink -> {
                 drawContent()
-                if (p > 0f) drawRect(onSurface.withAlpha(INK_ALPHA * p))
+                val alpha = maxOf(INK_ALPHA * p, state)
+                if (alpha > 0f) drawRect(onSurface.withAlpha(alpha))
             }
         }
     }

@@ -1,20 +1,23 @@
 package com.union.campus.ui.theme
 
+import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
-import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MotionScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Density
+import androidx.core.view.WindowCompat
 import com.union.campus.ui.prism.LocalPrismDark
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.LocalPressLook
@@ -22,11 +25,12 @@ import com.union.campus.ui.prism.LocalSurfaceLevel
 import com.union.campus.ui.prism.PressLook
 import com.union.campus.ui.prism.PrismMessenger
 import com.union.campus.ui.prism.PrismPressIndication
+import com.union.campus.ui.prism.PrismMaterialShapes
 import com.union.campus.ui.prism.SurfaceLevel
 
 /**
  * Union 主题：M3 动态取色 + Teal 备用；交互/形状/色阶复刻 FlClash prism_ui：
- * 全局无 ripple、iOS 式按压反馈、SurfaceLevel 体系、expressive 动效。
+ * Prism 按压反馈 + M3 三态叠加、SurfaceLevel 体系、expressive 动效。
  */
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
@@ -50,10 +54,24 @@ fun UnionTheme(
             ?: if (darkTheme) DarkColors else LightColors
     }
 
+    // 边到边：状态栏/导航栏图标明暗跟随主题，避免浅色主题下白图标不可见
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        DisposableEffect(darkTheme) {
+            val window = (view.context as? Activity)?.window
+            if (window != null) {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !darkTheme
+                controller.isAppearanceLightNavigationBars = !darkTheme
+            }
+            onDispose {}
+        }
+    }
+
     CompositionLocalProvider(
         LocalDensity provides clampedDensity,
+        // Prism 按压反馈作为默认 indication；不屏蔽 ripple，保证键盘/指针状态下有三态叠加
         LocalIndication provides PrismPressIndication,
-        LocalRippleConfiguration provides null,
         LocalPrismDark provides darkTheme,
         LocalSurfaceLevel provides SurfaceLevel.Page,
         LocalPressLook provides PressLook.Ink,
@@ -62,6 +80,7 @@ fun UnionTheme(
         MaterialTheme(
             colorScheme = colorScheme,
             typography = UnionTypography,
+            shapes = PrismMaterialShapes,
             motionScheme = MotionScheme.expressive(),
             content = content,
         )

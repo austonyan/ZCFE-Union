@@ -3,7 +3,8 @@ package com.union.campus.ui.prism
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
@@ -23,6 +24,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
@@ -77,7 +79,7 @@ fun PrismSegmented(
                 ),
         )
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-            Row(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize().selectableGroup()) {
                 options.forEachIndexed { optionIndex, label ->
                     val textColor by animateColorAsState(
                         targetValue = when {
@@ -92,12 +94,17 @@ fun PrismSegmented(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clickable(enabled = enabled) {
-                                if (optionIndex != index) {
-                                    haptics.select()
-                                    onSelect(optionIndex)
-                                }
-                            },
+                            .selectable(
+                                selected = optionIndex == index,
+                                enabled = enabled,
+                                role = Role.Tab,
+                                onClick = {
+                                    if (optionIndex != index) {
+                                        haptics.select()
+                                        onSelect(optionIndex)
+                                    }
+                                },
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Text(

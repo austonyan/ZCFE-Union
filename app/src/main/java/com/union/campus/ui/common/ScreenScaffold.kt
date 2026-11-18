@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -63,7 +65,21 @@ fun UnionScreenScaffold(
             )
         },
     ) { padding ->
-        content(padding)
+        // 平板/折叠屏展开时限制正文宽度，避免超长行宽不可读（M3: 840–1040dp 上限）
+        Box(
+            Modifier
+                .fillMaxSize()
+                .padding(padding),
+            contentAlignment = Alignment.TopCenter,
+        ) {
+            Box(
+                Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = 840.dp),
+            ) {
+                content(PaddingValues())
+            }
+        }
     }
 }
 

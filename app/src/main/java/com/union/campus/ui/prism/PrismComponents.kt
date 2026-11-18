@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -86,7 +87,7 @@ fun PrismCard(
         Surface(
             modifier = modifier
                 .clip(shape)
-                .clickable(onClick = onClick),
+                .clickable(role = Role.Button, onClick = onClick),
             color = fill,
             shape = shape,
         ) {
@@ -193,7 +194,13 @@ fun PrismRow(
         Row(
             modifier = modifier
                 .fillMaxWidth()
-                .then(if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier)
+                .then(
+                    if (onClick != null) {
+                        Modifier.clickable(role = Role.Button, onClick = onClick)
+                    } else {
+                        Modifier
+                    },
+                )
                 .defaultMinSize(minHeight = 56.dp)
                 .padding(horizontal = PrismSpace.RowHorizontal, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,

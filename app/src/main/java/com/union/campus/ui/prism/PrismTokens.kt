@@ -1,7 +1,9 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
@@ -10,6 +12,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+
+import com.union.campus.ui.theme.PrismType
 import androidx.compose.ui.unit.sp
 
 /**
@@ -86,6 +90,10 @@ object PrismAlpha {
     const val PressInk = 0.10f
     const val PressTint = 0.25f
     const val PressLift = 0.20f
+
+    /** 指针悬停 / 键盘聚焦的状态叠加（弱于按压，保证外接键盘与鼠标也有反馈）。 */
+    const val Hover = 0.06f
+    const val Focus = 0.12f
 }
 
 object PrismIconSize {
@@ -99,93 +107,58 @@ object PrismIconSize {
     val Meta: Dp = 16.dp
 }
 
-/** 页面标题：28/34 w700；PrismPageHeader 与 pageTitleStyle 共用。 */
+/** 页面标题（28/34 w700）。尺寸定义在 [PrismType.PageTitle]，此处仅作语义别名。 */
 @Composable
-fun pageTitleStyle(): TextStyle = MaterialTheme.typography.headlineSmall.copy(
-    fontSize = 28.sp,
-    lineHeight = 34.sp,
-    fontWeight = FontWeight(700),
-)
+fun pageTitleStyle(): TextStyle = PrismType.PageTitle
 
-/** 分组头/卡片头：17/22 w600。 */
+/** 分组头/卡片头（17/22 w600）。 */
 @Composable
-fun headlineStyle(): TextStyle = MaterialTheme.typography.titleMedium.copy(
-    fontSize = 17.sp,
-    lineHeight = 22.sp,
-    fontWeight = FontWeight(600),
-)
+fun headlineStyle(): TextStyle = PrismType.SectionTitle
 
-/** 列表标题：17/22 w400。 */
+/** 列表标题（17/22 w400）。 */
 @Composable
-fun bodyStyle(): TextStyle = MaterialTheme.typography.bodyLarge.copy(fontSize = 17.sp, lineHeight = 22.sp)
+fun bodyStyle(): TextStyle = PrismType.ListTitle
 
-/** 列表副标题/正文：15/20。 */
+/** 列表副标题/正文（15/20）。 */
 @Composable
-fun subheadlineStyle(): TextStyle = MaterialTheme.typography.bodyMedium.copy(fontSize = 15.sp, lineHeight = 20.sp)
+fun subheadlineStyle(): TextStyle = PrismType.Subhead
 
-/** footer：13/18。 */
+/** footer（13/18）。 */
 @Composable
-fun footnoteStyle(): TextStyle = MaterialTheme.typography.bodySmall.copy(fontSize = 13.sp, lineHeight = 18.sp)
+fun footnoteStyle(): TextStyle = PrismType.Footnote
 
-/** 导航/chip：12/16 w600。 */
+/** 导航/chip（12/16 w600）。 */
 @Composable
-fun caption1Style(): TextStyle = MaterialTheme.typography.labelMedium.copy(
-    fontSize = 12.sp,
-    lineHeight = 16.sp,
-    fontWeight = FontWeight(600),
-)
+fun caption1Style(): TextStyle = PrismType.Caption
 
-/** 按钮标签：15/20 w600；按钮内文字统一用这一档，窄按钮也不换行。 */
+/** 按钮标签（15/20 w600）；按钮内文字统一用这一档，窄按钮也不换行。 */
 @Composable
-fun buttonLabelStyle(): TextStyle = MaterialTheme.typography.labelLarge.copy(
-    fontSize = 15.sp,
-    lineHeight = 20.sp,
-    fontWeight = FontWeight(600),
-)
+fun buttonLabelStyle(): TextStyle = PrismType.ButtonLabel
 
-/** 最小注记：11/14 w500，不再出现 8/9sp。 */
+/** 底部导航栏标签（10/12 w600）：比 caption1 再小一档，5 个 tab 才能并排放下。 */
 @Composable
-fun caption2Style(): TextStyle = MaterialTheme.typography.labelSmall.copy(
-    fontSize = 11.sp,
-    lineHeight = 14.sp,
-    fontWeight = FontWeight(500),
-)
+fun dockLabelStyle(): TextStyle = PrismType.Caption.copy(fontSize = 10.sp, lineHeight = 12.sp)
 
-/** 仪表盘大数字：40/44 w700，等宽数字。 */
+/** 最小注记（11/14 w500），不再出现 8/9sp。 */
 @Composable
-fun displayStyle(): TextStyle = MaterialTheme.typography.displayMedium.copy(
-    fontSize = 40.sp,
-    lineHeight = 44.sp,
-    fontWeight = FontWeight(700),
-    fontFeatureSettings = "tnum",
-)
+fun caption2Style(): TextStyle = PrismType.Caption2
 
-/** 指标主数字：34/40 w700，等宽数字。 */
+/** 仪表盘大数字（40/44 w700，等宽数字）。 */
 @Composable
-fun metricStyle(): TextStyle = MaterialTheme.typography.headlineSmall.copy(
-    fontSize = 34.sp,
-    lineHeight = 40.sp,
-    fontWeight = FontWeight(700),
-    fontFeatureSettings = "tnum",
-)
+fun displayStyle(): TextStyle = PrismType.Display.copy(fontFeatureSettings = "tnum")
 
-/** 指标次数字（双列卡）：24/28 w700，等宽数字。 */
+/** 指标主数字（34/40 w700，等宽数字）。 */
 @Composable
-fun metricCompactStyle(): TextStyle = MaterialTheme.typography.titleLarge.copy(
-    fontSize = 24.sp,
-    lineHeight = 28.sp,
-    fontWeight = FontWeight(700),
-    fontFeatureSettings = "tnum",
-)
+fun metricStyle(): TextStyle = PrismType.Metric.copy(fontFeatureSettings = "tnum")
 
-/** 指标小数字（卡片内联）：20/24 w600，等宽数字。 */
+/** 指标次数字（双列卡，24/28 w700，等宽数字）。 */
 @Composable
-fun metricSmallStyle(): TextStyle = MaterialTheme.typography.titleMedium.copy(
-    fontSize = 20.sp,
-    lineHeight = 24.sp,
-    fontWeight = FontWeight(600),
-    fontFeatureSettings = "tnum",
-)
+fun metricCompactStyle(): TextStyle = PrismType.MetricCompact.copy(fontFeatureSettings = "tnum")
+
+/** 指标小数字（卡片内联，20/24 w600，等宽数字）。 */
+@Composable
+fun metricSmallStyle(): TextStyle = PrismType.MetricSmall.copy(fontFeatureSettings = "tnum")
+
 
 /** 页面/卡片使用的形状：参数为 dp，内部按 density 换算，避免再次漏乘。 */
 @Composable
@@ -197,6 +170,21 @@ fun prismShape(radius: Float, smoothing: Float = PrismSmoothing): PrismShape {
 /** 分组列表用的整组形状（首尾圆角由容器裁剪，行本身不再各自裁角）。 */
 @Composable
 fun prismGroupShape(): PrismShape = prismShape(PrismCorner.Xl)
+
+/**
+ * 供 `MaterialTheme(shapes = ...)` 使用：让 M3 原生组件（Button / Card / Chip / Slider / Menu）
+ * 与 Prism 使用同一套圆角数值，避免两套形状体系并存。
+ *
+ * M3 的 [Shapes] 只接受 [CornerBasedShape]，因此这里用 RoundedCornerShape 承载同样的 dp 值；
+ * Prism 自绘组件仍走 [prismShape] 的连续圆角。
+ */
+val PrismMaterialShapes: Shapes = Shapes(
+    extraSmall = RoundedCornerShape(PrismCorner.Sm.dp),
+    small = RoundedCornerShape(PrismCorner.Lg.dp),
+    medium = RoundedCornerShape(PrismCorner.Md.dp),
+    large = RoundedCornerShape(PrismCorner.Xl.dp),
+    extraLarge = RoundedCornerShape(PrismCorner.Xxl.dp),
+)
 
 /** 统一的透明度入口：页面不再直接写 copy(alpha = …)。 */
 fun Color.withAlpha(value: Float): Color = copy(alpha = value)

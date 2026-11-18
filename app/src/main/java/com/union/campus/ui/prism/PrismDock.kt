@@ -11,7 +11,8 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -39,8 +40,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.union.campus.navigation.Screen
 
 /**
@@ -100,7 +101,7 @@ fun PrismDock(
                     .clip(pill)
                     .background(MaterialTheme.colorScheme.primary),
             )
-            Row(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxSize().selectableGroup()) {
                 tabs.forEach { tab ->
                     val selected = tab == current
                     val contentColor by animateColorAsState(
@@ -122,12 +123,16 @@ fun PrismDock(
                         modifier = Modifier
                             .weight(1f)
                             .fillMaxHeight()
-                            .clickable {
-                                if (!selected) {
-                                    haptics.select()
-                                    onSelect(tab)
-                                }
-                            },
+                            .selectable(
+                                selected = selected,
+                                role = Role.Tab,
+                                onClick = {
+                                    if (!selected) {
+                                        haptics.select()
+                                        onSelect(tab)
+                                    }
+                                },
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         Column(
@@ -141,7 +146,7 @@ fun PrismDock(
                                     } else {
                                         tab.tabIconOutlined ?: tab.tabIcon ?: Icons.Rounded.Home
                                     },
-                                    contentDescription = tab.title,
+                                    contentDescription = null,
                                     tint = contentColor,
                                     modifier = Modifier.size(PrismIconSize.Dock).scale(iconScale),
                                 )
@@ -170,9 +175,7 @@ fun PrismDock(
                             Text(
                                 text = tab.title,
                                 color = contentColor,
-                                fontSize = 10.sp,
-                                lineHeight = 12.sp,
-                                style = caption1Style().copy(fontSize = 10.sp, lineHeight = 12.sp),
+                                style = dockLabelStyle(),
                             )
                         }
                     }

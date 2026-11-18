@@ -2,8 +2,9 @@ package com.union.campus
 
 import android.os.Bundle
 import android.view.WindowManager
-import android.graphics.Color as AndroidColor
+
 import androidx.activity.compose.setContent
+import androidx.activity.enableEdgeToEdge
 import androidx.fragment.app.FragmentActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
@@ -28,9 +29,9 @@ class MainActivity : FragmentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        androidx.core.view.WindowCompat.setDecorFitsSystemWindows(window, false)
-        window.statusBarColor = AndroidColor.TRANSPARENT
-        window.navigationBarColor = AndroidColor.TRANSPARENT
+        // 边到边：系统栏透明、内容延伸至系统栏下方，insets 统一交给 Compose
+        enableEdgeToEdge()
+
         MainActivityHolder.attach(this)
 
         setContent {

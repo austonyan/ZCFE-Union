@@ -48,3 +48,4 @@ link.mjs
 # 教务抓取产物（含会话凭证、压缩 JS，不入库）
 教务/results/
 教务/downloads/
+.alma-snapshots
