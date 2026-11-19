@@ -320,7 +320,6 @@ fun TodayScreen(
                         TodayCourseRail(
                             cells = todayCells,
                             config = scheduleConfig,
-                            nowTick = nowTick,
                             current = current,
                             next = next,
                             onOpenCourse = onOpenCourse,
@@ -341,7 +340,7 @@ fun TodayScreen(
                     },
                 ) {
                     Row(
-                        Modifier.fillMaxWidth(),
+                        Modifier.fillMaxWidth().height(IntrinsicSize.Min),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         val days = electricBalance?.let { estimateDays(it) } ?: "—"
@@ -357,7 +356,7 @@ fun TodayScreen(
                             contentColor = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface,
                             compact = true,
                             onClick = onOpenElectric,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                         PrismMetricCard(
                             label = "洗浴",
@@ -369,7 +368,7 @@ fun TodayScreen(
                             contentColor = MaterialTheme.colorScheme.onSurface,
                             compact = true,
                             onClick = onOpenShower,
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).fillMaxHeight(),
                         )
                     }
                 }
@@ -562,7 +561,6 @@ private fun HeroChip(text: String, contentColor: Color) {
 private fun TodayCourseRail(
     cells: List<CourseCell>,
     config: TimetableScheduleConfig,
-    nowTick: Long,
     current: CourseCell?,
     next: CourseCell?,
     onOpenCourse: (String) -> Unit,
@@ -574,7 +572,6 @@ private fun TodayCourseRail(
             val isNext = next?.id == cell.id
             // 与主卡保持同一课程色，只有当前焦点突出；不把整条时间轨变成彩虹。
             val isFocus = isCurrent || (current == null && isNext)
-            val isFinished = info?.end?.let { SemesterCalc.timeToMillisToday(it, nowTick) }?.let { it < nowTick } == true
             val container = if (isFocus) prismCourseContainer(cell.name) else surfaceColorOf(SurfaceLevel.Card)
             val onContainer = if (isFocus) prismCourseOnContainer(cell.name) else MaterialTheme.colorScheme.onSurface
             val dotColor = if (isFocus) onContainer else MaterialTheme.colorScheme.outlineVariant
@@ -652,18 +649,6 @@ private fun TodayCourseRail(
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
-                    if (isCurrent || isNext || isFinished) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = when {
-                                isCurrent -> "正在上课"
-                                isNext -> "下一节"
-                                else -> "已结束"
-                            },
-                            style = caption1Style(),
-                            color = prismTextMuted(onContainer),
-                        )
-                    }
                 }
             }
         }

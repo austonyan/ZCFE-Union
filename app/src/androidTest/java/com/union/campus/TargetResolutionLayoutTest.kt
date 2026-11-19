@@ -5,6 +5,12 @@ import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -14,9 +20,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
@@ -26,6 +34,7 @@ import com.union.campus.domain.ShowerReservation
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismDialogActions
 import com.union.campus.ui.prism.PrismSegmented
+import com.union.campus.ui.prism.PrismMetricCard
 import com.union.campus.ui.screens.life.ReservationCard
 import com.union.campus.ui.screens.study.WeekSwitcher
 import com.union.campus.ui.theme.UnionTheme
@@ -94,6 +103,32 @@ class TargetResolutionLayoutTest(private val widthDp: Int, private val fontScale
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
         bitmap.recycle()
+    }
+
+    @Test
+    fun lifeCards_matchHeightWithDifferentContentLengths() {
+        show {
+            Row(
+                Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                PrismMetricCard(
+                    label = "电费", value = "123.45 度", subtitle = "约 30 天 · 今日 2.50 度",
+                    compact = true,
+                    modifier = Modifier.weight(1f).fillMaxHeight().testTag("electric"),
+                )
+                PrismMetricCard(
+                    label = "洗浴", value = "8 / 20", subtitle = "空闲",
+                    compact = true,
+                    modifier = Modifier.weight(1f).fillMaxHeight().testTag("shower"),
+                )
+            }
+        }
+        screenshot("life-cards")
+        val electric = rule.onNodeWithTag("electric").fetchSemanticsNode().boundsInRoot
+        val shower = rule.onNodeWithTag("shower").fetchSemanticsNode().boundsInRoot
+        assertEquals(electric.top, shower.top, 1f)
+        assertEquals(electric.bottom, shower.bottom, 1f)
     }
 
     @Test
