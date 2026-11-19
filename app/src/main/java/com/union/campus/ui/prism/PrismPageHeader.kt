@@ -39,7 +39,8 @@ fun PrismPageHeader(
                     text = subtitle,
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 1,
+                    // 学期名较长时宁可换行，也不要显示成「2026-2027学年第…」。
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
             }

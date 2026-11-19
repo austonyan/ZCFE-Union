@@ -19,9 +19,11 @@ enum class SurfaceLevel {
 }
 
 private fun ColorScheme.colorOf(level: SurfaceLevel, dark: Boolean): Color = when (level) {
-    SurfaceLevel.Page -> if (dark) surfaceDim else surfaceContainer
+    // 实测：surfaceContainer 对纯白只有 1.17:1，卡片边界仍然发虚；
+    // 再压一档到 surfaceContainerHigh（约 1.22:1）才过 1.2 的可辨阈值。
+    SurfaceLevel.Page -> if (dark) surfaceDim else surfaceContainerHigh
     SurfaceLevel.Card -> if (dark) surfaceContainer else surfaceContainerLowest
-    SurfaceLevel.Block -> if (dark) surfaceContainerHigh else surfaceContainerLow
+    SurfaceLevel.Block -> if (dark) surfaceContainerHigh else surfaceContainer
     SurfaceLevel.Inset -> surfaceContainerHighest
 }
 
