@@ -103,7 +103,6 @@ import java.util.Locale
 @Composable
 fun TimetableScreen(
     onOpenCourse: (CourseCell) -> Unit,
-    onOpenGrades: () -> Unit,
     onOpenTimetableSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -233,11 +232,6 @@ fun TimetableScreen(
                     icon = Icons.Outlined.Settings,
                     contentDescription = "课程表设置",
                     onClick = onOpenTimetableSettings,
-                )
-                PrismIconButton(
-                    icon = Icons.Outlined.Grade,
-                    contentDescription = "成绩",
-                    onClick = onOpenGrades,
                 )
             },
         )

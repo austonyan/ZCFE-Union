@@ -16,12 +16,10 @@ import com.union.campus.ui.common.launchUi
 @Composable
 fun TimetableRoute(
     onOpenCourse: (CourseCell) -> Unit,
-    onOpenGrades: () -> Unit,
     onOpenTimetableSettings: () -> Unit,
 ) {
     TimetableScreen(
         onOpenCourse = onOpenCourse,
-        onOpenGrades = onOpenGrades,
         onOpenTimetableSettings = onOpenTimetableSettings,
     )
 }

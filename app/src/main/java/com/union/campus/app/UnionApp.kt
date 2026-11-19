@@ -262,7 +262,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                         AppState.selectedCourse = cell
                         navController.navigate(Screen.CourseDetail.route)
                     },
-                    onOpenGrades = { navController.navigate(Screen.Grades.route) },
                     onOpenTimetableSettings = { navController.navigate(Screen.TimetableSettings.route) },
                 )
             }
