@@ -1,6 +1,7 @@
 package com.union.campus.ui.screens.onboarding
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.rounded.Shower
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,7 +39,6 @@ import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismProgressRail
@@ -48,7 +50,6 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 
 /** 绑定完成：三套账号就绪状态 + 开启提醒 + 进入应用。 */
@@ -69,15 +70,21 @@ fun BindDoneScreen(
 
     val motion = rememberPrismMotion()
     val checkScale by animateFloatAsState(
-        targetValue = if (shown) 1f else 0f,
+        targetValue = if (shown) 1f else 0.92f,
         animationSpec = motion.spec(PrismSpec.entranceBouncy),
         label = "bind-done-check",
+    )
+    val checkCorner by animateDpAsState(
+        targetValue = if (shown) 24.dp else 40.dp,
+        animationSpec = motion.springSmooth(),
+        label = "bind-done-shape",
     )
 
     val cred = credentials.load()
     val jwBound = cred.jwStudentNo.isNotBlank()
     val showerBound = cred.showerToken.isNotBlank()
     val electricBound = cred.electricAccount.isNotBlank()
+    val boundCount = listOf(jwBound, showerBound, electricBound).count { it }
 
     UnionScreenScaffold(
         title = "绑定完成",
@@ -96,36 +103,40 @@ fun BindDoneScreen(
                 total = 4,
                 labels = listOf("欢迎", "教务", "洗浴", "电费"),
             )
-            Icon(
-                Icons.Rounded.CheckCircle,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
+            Surface(
+                shape = RoundedCornerShape(checkCorner, checkCorner, 8.dp, checkCorner),
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier
-                    .size(52.dp)
                     .graphicsLayer {
                         scaleX = checkScale
                         scaleY = checkScale
-                        alpha = checkScale
                     },
-            )
+            ) {
+                Icon(Icons.Rounded.CheckCircle, null, Modifier.padding(20.dp).size(40.dp))
+            }
             Text("设置完成", style = pageTitleStyle())
-            Text("您的所有账号数据已就绪", style = subheadlineStyle())
+            Text(
+                if (boundCount == 3) "三个账号已保存，开始你的校园日常。" else "已保存 $boundCount 个账号，其余可稍后在凭证中心添加。",
+                style = subheadlineStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
 
             PrismSection(title = "账号状态") {
                 PrismGroupedList {
                     StatusRow(
                         title = "教务系统",
-                        subtitle = if (jwBound) "已连接 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可稍后在凭证中心添加",
+                        subtitle = if (jwBound) "凭证已保存 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可稍后在凭证中心添加",
                         ok = jwBound, icon = Icons.Rounded.School,
                     )
                     StatusRow(
                         title = "大白U帮",
-                        subtitle = if (showerBound) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定，可稍后添加",
+                        subtitle = if (showerBound) "凭证已保存 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定，可稍后添加",
                         ok = showerBound, icon = Icons.Rounded.Shower,
                     )
                     StatusRow(
                         title = "完美校园",
-                        subtitle = if (electricBound) "已绑定电费 · ${cred.electricAccount}" else "未绑定，可稍后添加",
+                        subtitle = if (electricBound) "已绑定 · 学号 ${cred.electricAccount.take(4)}****" else "未绑定，可稍后添加",
                         ok = electricBound, icon = Icons.Rounded.Bolt,
                     )
                 }
@@ -179,11 +190,7 @@ private fun StatusRow(
         subtitle = subtitle,
         leading = { IconBadge(icon) },
         trailing = {
-            Icon(
-                Icons.Rounded.CheckCircle, null,
-                tint = if (ok) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled),
-            )
+            Text(if (ok) "已保存" else "待添加", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
         },
     )
 }

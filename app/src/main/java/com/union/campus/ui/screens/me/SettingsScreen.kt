@@ -2,8 +2,8 @@ package com.union.campus.ui.screens.me
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,9 +14,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Info
@@ -34,8 +34,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
@@ -54,6 +53,10 @@ import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.ui.prism.LocalPrismDark
+import com.union.campus.ui.theme.DarkColors
+import com.union.campus.ui.theme.LightColors
+import com.union.campus.ui.theme.PresetPalettes
 
 /** 设置总页：外观、学习、提醒、隐私与数据的统一入口。 */
 @Composable
@@ -114,9 +117,9 @@ fun SettingsScreen(
             PrismSection("外观") {
                 PrismCard {
                     Text(
-                        "主题",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        "让校园日常，更像你",
+                        style = MaterialTheme.typography.titleLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
                     )
                     Spacer(Modifier.height(8.dp))
                     PrismSegmented(
@@ -136,7 +139,7 @@ fun SettingsScreen(
                         },
                     )
                     Spacer(Modifier.height(14.dp))
-                    if (dynamicColor) {
+                    if (dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                         Text(
                             "已开启莫奈取色，颜色跟随系统壁纸；关闭后可选择预设主题色。",
                             style = footnoteStyle(),
@@ -144,7 +147,7 @@ fun SettingsScreen(
                         )
                     } else {
                         Text(
-                            "预设主题色",
+                            if (dynamicColor) "当前系统不支持动态取色，使用预设主题色" else "预设主题色",
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -158,7 +161,7 @@ fun SettingsScreen(
                 PrismGroupedList {
                     PrismToggleRow(
                         title = "动态取色（莫奈）",
-                        subtitle = "开启后跟随系统壁纸配色；关闭后使用所选预设主题色",
+                        subtitle = "Android 12 及以上跟随壁纸；其他版本使用所选预设",
                         leading = { IconBadge(Icons.Outlined.Palette) },
                         checked = dynamicColor,
                         onCheckedChange = { on -> launchUi { settings.setDynamicColor(on) } },
@@ -219,19 +222,19 @@ fun SettingsScreen(
     }
 }
 
-/** 预设主题色：种子色取自 FlClash，选中后整页即时换色。 */
-private data class ThemePresetOption(val id: String, val label: String, val seed: Color)
+/** 使用应用实际色板预览，不把种子色误当作最终主题色。 */
+private data class ThemePresetOption(val id: String, val label: String)
 
 private val themePresetOptions = listOf(
-    ThemePresetOption("teal", "品牌青", Color(0xFF0B4F52)),
-    ThemePresetOption("blue", "海蓝", Color(0xFF007AFF)),
-    ThemePresetOption("purple", "品紫", Color(0xFFCB30E0)),
-    ThemePresetOption("pink", "玫粉", Color(0xFFFF2D55)),
-    ThemePresetOption("red", "赤红", Color(0xFFFF383C)),
-    ThemePresetOption("orange", "暖橙", Color(0xFFFF8D28)),
-    ThemePresetOption("yellow", "明黄", Color(0xFFFFCC00)),
-    ThemePresetOption("green", "草绿", Color(0xFF34C759)),
-    ThemePresetOption("gray", "岩灰", Color(0xFF8E8E93)),
+    ThemePresetOption("teal", "品牌青"),
+    ThemePresetOption("blue", "海蓝"),
+    ThemePresetOption("purple", "品紫"),
+    ThemePresetOption("pink", "玫粉"),
+    ThemePresetOption("red", "赤红"),
+    ThemePresetOption("orange", "暖橙"),
+    ThemePresetOption("yellow", "明黄"),
+    ThemePresetOption("green", "草绿"),
+    ThemePresetOption("gray", "岩灰"),
 )
 
 @Composable
@@ -240,60 +243,54 @@ private fun ThemeColorPicker(
     onSelect: (String) -> Unit,
 ) {
     val selectedLabel = themePresetOptions.firstOrNull { it.id == selectedId }?.label ?: "品牌青"
-    Column {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
-            themePresetOptions.forEach { option ->
-                val selected = option.id == selectedId
-                Column(
-                    Modifier
-                        .width(52.dp)
-                        .clip(androidx.compose.foundation.shape.RoundedCornerShape(12.dp))
-                        .clickable { if (!selected) onSelect(option.id) }
-                        .padding(vertical = 4.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Box(
+    val dark = LocalPrismDark.current
+    Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        themePresetOptions.chunked(3).forEach { options ->
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                options.forEach { option ->
+                    val selected = option.id == selectedId
+                    val scheme = PresetPalettes.scheme(option.id, dark) ?: if (dark) DarkColors else LightColors
+                    Column(
                         Modifier
-                            .size(36.dp)
-                            .clip(CircleShape)
-                            .background(option.seed)
-                            .then(
-                                if (selected) Modifier.border(
-                                    width = 2.dp,
-                                    color = MaterialTheme.colorScheme.onSurface,
-                                    shape = CircleShape,
-                                ) else Modifier,
-                            ),
-                        contentAlignment = Alignment.Center,
+                            .weight(1f)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(scheme.surfaceContainer)
+                            .then(if (selected) Modifier.border(2.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(16.dp)) else Modifier)
+                            .selectable(selected = selected, role = Role.RadioButton, onClick = { if (!selected) onSelect(option.id) })
+                            .padding(horizontal = 8.dp, vertical = 12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
-                        if (selected) {
-                            Icon(
-                                Icons.Rounded.Check,
-                                contentDescription = null,
-                                tint = if (option.seed.luminance() > 0.55f) Color.Black else Color.White,
-                                modifier = Modifier.size(18.dp),
-                            )
+                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Box(Modifier.size(28.dp).clip(CircleShape).background(scheme.primary), contentAlignment = Alignment.Center) {
+                                if (selected) {
+                                    Icon(
+                                        Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        tint = scheme.onPrimary,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                }
+                            }
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(scheme.secondary))
+                            Box(Modifier.size(12.dp).clip(CircleShape).background(scheme.tertiary))
                         }
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            option.label,
+                            style = caption2Style(),
+                            color = scheme.onSurface,
+                            maxLines = 1,
+                        )
                     }
-                    Spacer(Modifier.height(3.dp))
-                    Text(
-                        option.label,
-                        style = caption2Style(),
-                        color = if (selected) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                    )
                 }
             }
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "当前：$selectedLabel",
+            "当前：$selectedLabel · 预览随浅色 / 深色模式变化",
             style = footnoteStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

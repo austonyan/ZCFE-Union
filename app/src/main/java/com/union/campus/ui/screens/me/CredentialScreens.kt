@@ -14,11 +14,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Logout
-import androidx.compose.material.icons.outlined.Shower
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -35,18 +35,13 @@ import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismIconSize
-import com.union.campus.ui.prism.PrismStatus
-import com.union.campus.ui.prism.PrismStatusDot
 import com.union.campus.ui.prism.PrismTextButton
-import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -71,6 +66,7 @@ fun CredentialsCenterScreen(
     var logoutTarget by remember { mutableStateOf<AccountTarget?>(null) }
 
     fun healthCheck() {
+        if (checking) return
         checking = true
         launchUi {
             val jw = ServiceLocator.jwRepository
@@ -164,7 +160,7 @@ fun CredentialsCenterScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "三套账号独立登录、独立退出。使用卡片行尾按钮登录、重新登录或退出。",
+                "三个平台，独立管理。已保存的凭证是否有效，可通过体检向服务器验证。",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -173,12 +169,12 @@ fun CredentialsCenterScreen(
             CredentialAccountCard(
                 title = "教务",
                 subtitle = if (jwBound) {
-                    "已连接 · 学号 ${cred.jwStudentNo.take(4)}****"
+                    "学号 ${cred.jwStudentNo.take(4)}****"
                 } else {
-                    "未登录 · 使用行尾按钮登录"
+                    "尚未保存教务账号"
                 },
                 detail = if (jwBound) {
-                    "用于课表、成绩、考试与评教 · 使用行尾按钮重新登录或退出"
+                    "用于课表、成绩、考试与评教"
                 } else {
                     "使用学号与教务系统密码登录"
                 },
@@ -194,12 +190,12 @@ fun CredentialsCenterScreen(
             CredentialAccountCard(
                 title = "洗浴",
                 subtitle = if (showerBound) {
-                    "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}"
+                    "手机 ${ServiceLocator.showerRepository.maskedMobile()}"
                 } else {
-                    "未登录 · 使用行尾按钮登录"
+                    "尚未保存大白U帮账号"
                 },
                 detail = if (showerBound) {
-                    "Token 保存在本机加密存储 · 使用行尾按钮重新登录或退出"
+                    "登录凭证保存在本机加密存储"
                 } else {
                     "使用大白U帮手机号与密码登录"
                 },
@@ -215,12 +211,12 @@ fun CredentialsCenterScreen(
             CredentialAccountCard(
                 title = "电费",
                 subtitle = if (electricBound) {
-                    "已绑定 · 学号 ${cred.electricAccount.take(4)}**** · 学校编码 ${cred.electricCustomerCode}"
+                    "学号 ${cred.electricAccount.take(4)}**** · 学校编码 ${cred.electricCustomerCode}"
                 } else {
-                    "未绑定 · 使用行尾按钮登录"
+                    "尚未绑定完美校园账号"
                 },
                 detail = if (electricBound) {
-                    "只查询本人房间 · 使用行尾按钮重新登录或退出"
+                    "只查询本人房间的余额与用量"
                 } else {
                     "绑定完美校园账号后查看余额与用量"
                 },
@@ -282,26 +278,22 @@ private fun CredentialAccountCard(
         modifier = Modifier.fillMaxWidth(),
         containerColor = container,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+        corner = 24f,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            PrismStatusDot(
-                color = if (bound) PrismStatus.success() else onContainer.withAlpha(PrismAlpha.Disabled),
-                size = 8,
-            )
-            Spacer(Modifier.width(8.dp))
             Text(title, style = headlineStyle(), color = onContainer)
             Spacer(Modifier.weight(1f))
             Text(
-                if (bound) "已登录" else "未登录",
+                if (bound) "凭证已保存" else "待绑定",
                 style = footnoteStyle(),
-                color = prismTextMuted(onContainer),
+                color = onContainer,
             )
         }
         Spacer(Modifier.height(4.dp))
         Text(subtitle, style = subheadlineStyle(), color = onContainer)
         Spacer(Modifier.height(2.dp))
-        Text(detail, style = footnoteStyle(), color = prismTextMuted(onContainer))
-        Spacer(Modifier.height(6.dp))
+        Text(detail, style = footnoteStyle(), color = onContainer)
+        Spacer(Modifier.height(12.dp))
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -319,8 +311,8 @@ private fun CredentialAccountCard(
                     Text("退出", color = MaterialTheme.colorScheme.error)
                 }
             }
-            PrismTextButton(onClick = onAction) {
-                Text(actionLabel)
+            FilledTonalButton(onClick = onAction) {
+                Text(actionLabel, maxLines = 1)
             }
         }
     }

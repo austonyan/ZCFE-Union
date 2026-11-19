@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -26,6 +27,7 @@ import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -46,7 +48,6 @@ import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismLoadingIndicator
@@ -60,7 +61,6 @@ import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
@@ -146,13 +146,20 @@ fun ProfileScreen(
         )
         PrismCard(
             modifier = Modifier.fillMaxWidth(),
+            corner = 28f,
             contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconBadge(Icons.Outlined.Person)
-                Spacer(Modifier.width(12.dp))
-                Column {
-                    Text(if (cred.jwStudentNo.isNotBlank()) "同学" else "未登录", style = headlineStyle())
+                Surface(
+                    shape = RoundedCornerShape(24.dp, 24.dp, 8.dp, 24.dp),
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                ) {
+                    Icon(Icons.Outlined.Person, null, Modifier.padding(16.dp).size(28.dp))
+                }
+                Spacer(Modifier.width(16.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(if (cred.jwStudentNo.isNotBlank()) "你好，同学" else "欢迎，同学", style = MaterialTheme.typography.headlineSmall)
                     Text(
                         listOfNotNull(
                             "郑州财经学院".takeIf { true },
@@ -163,26 +170,32 @@ fun ProfileScreen(
                     )
                 }
             }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "${listOf(cred.jwStudentNo.isNotBlank(), cred.showerToken.isNotBlank(), cred.electricAccount.isNotBlank()).count { it }} / 3 个账号已保存 · 各平台独立管理",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         PrismSection("账号与凭证") {
             PrismGroupedList {
                 PrismRow(
-                    title = "教务", subtitle = if (cred.jwStudentNo.isNotBlank()) "已连接 · 学号 ${cred.jwStudentNo.take(4)}****" else "未绑定",
+                    title = "教务", subtitle = if (cred.jwStudentNo.isNotBlank()) "学号 ${cred.jwStudentNo.take(4)}****" else "登录后查看课表、成绩与考试",
                     leading = { IconBadge(Icons.Outlined.School) },
-                    trailing = { StatusIcon(cred.jwStudentNo.isNotBlank()) },
+                    trailing = { AccountStatusBadge(cred.jwStudentNo.isNotBlank()) },
                     onClick = onOpenCredentials,
                 )
                 PrismRow(
-                    title = "洗浴", subtitle = if (cred.showerToken.isNotBlank()) "已连接 · 手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "未绑定",
+                    title = "洗浴", subtitle = if (cred.showerToken.isNotBlank()) "手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "登录大白U帮，查看洗浴与账单",
                     leading = { IconBadge(Icons.Outlined.Shower) },
-                    trailing = { StatusIcon(cred.showerToken.isNotBlank()) },
+                    trailing = { AccountStatusBadge(cred.showerToken.isNotBlank()) },
                     onClick = onOpenCredentials,
                 )
                 PrismRow(
-                    title = "电费", subtitle = if (cred.electricAccount.isNotBlank()) "已绑定学号 ${cred.electricAccount.take(4)}****" else "未绑定",
+                    title = "电费", subtitle = if (cred.electricAccount.isNotBlank()) "学号 ${cred.electricAccount.take(4)}****" else "绑定本人宿舍，查看余额与用量",
                     leading = { IconBadge(Icons.Outlined.Bolt) },
-                    trailing = { StatusIcon(cred.electricAccount.isNotBlank()) },
+                    trailing = { AccountStatusBadge(cred.electricAccount.isNotBlank()) },
                     onClick = onOpenCredentials,
                 )
             }
@@ -193,7 +206,7 @@ fun ProfileScreen(
                 Column(Modifier.weight(1f)) {
                     Text("账号体检", style = headlineStyle())
                     Text(
-                        "并行检查教务、洗浴与电费，不阻塞当前页面",
+                        if (checking) "正在向三个平台验证，请稍候" else "已保存不代表有效，以服务器检查结果为准",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -204,7 +217,7 @@ fun ProfileScreen(
                     PrismTextButton(onClick = { healthCheck() }) {
                         Icon(Icons.Outlined.Sync, null)
                         Spacer(Modifier.width(6.dp))
-                        Text("开始")
+                        Text("检查", maxLines = 1)
                     }
                 }
             }
@@ -241,7 +254,7 @@ private fun CheckStateRow(name: String, state: CheckState) {
                 style = footnoteStyle(),
                 color = prismTextFaint(),
             )
-            CheckState.Checking -> PrismLoadingIndicator(size = 16.dp)
+            CheckState.Checking -> Text("检查中", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             CheckState.Ok -> {
                 Icon(
                     Icons.Outlined.CheckCircle,
@@ -267,9 +280,12 @@ private fun CheckStateRow(name: String, state: CheckState) {
 }
 
 @Composable
-private fun StatusIcon(ok: Boolean) {
-    Icon(
-        Icons.Outlined.CheckCircle, null,
-        tint = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled),
-    )
+private fun AccountStatusBadge(ok: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (ok) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
+        contentColor = if (ok) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+    ) {
+        Text(if (ok) "已保存" else "未绑定", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, maxLines = 1)
+    }
 }

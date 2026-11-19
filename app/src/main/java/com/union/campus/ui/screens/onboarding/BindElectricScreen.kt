@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -51,7 +52,6 @@ import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.prismTextMuted
 
 /** 绑定电费：学号带入 → 园区 → 楼栋 → 楼层 → 房间（写操作，上游不校验身份，只查本人房间）。 */
 @Composable
@@ -69,6 +69,7 @@ fun BindElectricScreen(
     var loading by rememberSaveable { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var helpVisible by rememberSaveable { mutableStateOf(false) }
+    var confirmBind by rememberSaveable { mutableStateOf(false) }
 
     var zones by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
     var builds by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
@@ -219,6 +220,16 @@ fun BindElectricScreen(
         )
     }
 
+    if (confirmBind) {
+        PrismAlertDialog(
+            title = "绑定本人房间？",
+            body = "将 ${zone?.name.orEmpty()} / ${build?.name.orEmpty()} / ${floor?.name.orEmpty()} / ${room?.name.orEmpty()} 绑定至当前完美校园账号。请确认这是你本人的宿舍。",
+            confirmText = "确认绑定",
+            onConfirm = { confirmBind = false; doBind() },
+            onDismiss = { confirmBind = false },
+        )
+    }
+
     UnionScreenScaffold(
         title = "绑定完美校园",
         onBack = onBack,
@@ -231,9 +242,10 @@ fun BindElectricScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -245,7 +257,12 @@ fun BindElectricScreen(
                     labels = listOf("欢迎", "教务", "洗浴", "电费"),
                 )
             }
-            Text("选择你所在的宿舍房间", style = subheadlineStyle())
+            OnboardingIntro(
+                title = "宿舍用电，心中有数",
+                description = "先确认账号，再选择本人宿舍。已有房间可直接使用，无需重复绑定。",
+                icon = Icons.Rounded.MeetingRoom,
+            )
+            Text("完美校园账号", style = MaterialTheme.typography.titleMedium)
 
             PrismTextField(
                 value = account,
@@ -286,25 +303,25 @@ fun BindElectricScreen(
                                 Text(
                                     bound.roomVerify,
                                     style = footnoteStyle(),
-                                    color = prismTextMuted(MaterialTheme.colorScheme.onSecondaryContainer),
+                                    color = MaterialTheme.colorScheme.onSecondaryContainer,
                                 )
                             }
                             PrismTextButton(
                                 onClick = { chooseBoundRoom(bound) },
                                 enabled = !loading,
                             ) {
-                                Text("使用")
+                                Text("使用", color = MaterialTheme.colorScheme.onSecondaryContainer, maxLines = 1)
                             }
                         }
                     }
                     Text(
                         "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
                         style = footnoteStyle(),
-                        color = prismTextMuted(MaterialTheme.colorScheme.onSecondaryContainer),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 }
-                Text("绑定新房间", style = headlineStyle())
             }
+            Text("选择本人房间", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
             DropdownField(
                 label = "园区", icon = Icons.Rounded.LocationOn,
                 options = zones.map { it.name }, selected = zone?.name,
@@ -335,21 +352,27 @@ fun BindElectricScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = subheadlineStyle()) }
+            error?.let { OnboardingError(it) }
 
             PrismButton(
-                onClick = { doBind() },
+                onClick = {
+                    if (account.isBlank() || zone == null || build == null || floor == null || room == null) {
+                        doBind() // 仅复用已有校验；缺少字段时不会发起写操作。
+                    } else {
+                        confirmBind = true
+                    }
+                },
                 loading = loading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Link, null)
                 Spacer(Modifier.width(8.dp))
-                Text("绑定房间")
+                Text("绑定房间", maxLines = 1)
             }
             PrismTextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Schedule, null)
                 Spacer(Modifier.width(8.dp))
-                Text(skipLabel)
+                Text(skipLabel, maxLines = 1)
             }
 
             PrismCard(

@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -33,6 +34,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -68,6 +71,8 @@ fun LoginAcademicScreen(
 ) {
     val jw = ServiceLocator.jwRepository
     val haptics = rememberPrismHaptics()
+    val studentFocus = remember { FocusRequester() }
+    val passwordFocus = remember { FocusRequester() }
 
     var studentNo by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
@@ -98,8 +103,8 @@ fun LoginAcademicScreen(
     }
 
     fun validate(): Boolean {
-        if (studentNo.isBlank()) { error = "请输入学号"; return false }
-        if (password.isBlank()) { error = "请输入密码"; return false }
+        if (studentNo.isBlank()) { error = "请输入学号"; studentFocus.requestFocus(); return false }
+        if (password.isBlank()) { error = "请输入密码"; passwordFocus.requestFocus(); return false }
         return true
     }
 
@@ -155,9 +160,10 @@ fun LoginAcademicScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -170,16 +176,18 @@ fun LoginAcademicScreen(
                 )
             }
 
-            Text(
-                "使用学号和教务密码登录",
-                style = subheadlineStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            OnboardingIntro(
+                title = "连接你的课表",
+                description = "使用学号与教务密码，登录后查看课表、成绩与考试。",
+                icon = Icons.Rounded.Person,
             )
-
+            Text("教务账号", style = MaterialTheme.typography.titleMedium)
             PrismTextField(
                 value = studentNo,
                 onValueChange = { studentNo = it },
                 label = "学号",
+                modifier = Modifier.focusRequester(studentFocus),
+                isError = error != null && studentNo.isBlank(),
                 leadingIcon = Icons.Rounded.Person,
                 supportingText = "用于课表、成绩、考试",
                 keyboardOptions = KeyboardOptions(
@@ -191,6 +199,8 @@ fun LoginAcademicScreen(
                 value = password,
                 onValueChange = { password = it },
                 label = "密码",
+                modifier = Modifier.focusRequester(passwordFocus),
+                isError = error != null && password.isBlank(),
                 leadingIcon = Icons.Rounded.Lock,
                 visualTransformation = if (passwordVisible) {
                     VisualTransformation.None
@@ -238,12 +248,13 @@ fun LoginAcademicScreen(
                 value = captcha,
                 onValueChange = { captcha = it },
                 label = if (needCaptcha) "验证码" else "验证码（如需要）",
+                supportingText = if (needCaptcha) "按上方图片输入；看不清可换一张" else "未提示验证码时可留空",
                 leadingIcon = Icons.Rounded.VerifiedUser,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             )
 
             error?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = subheadlineStyle())
+                OnboardingError(it)
             }
 
             PrismButton(
@@ -253,22 +264,20 @@ fun LoginAcademicScreen(
             ) {
                 Icon(Icons.Rounded.Login, null)
                 Spacer(Modifier.width(8.dp))
-                Text("登录教务")
+                Text("登录教务", maxLines = 1)
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                PrismTextButton(onClick = onNext) {
+            Column(Modifier.fillMaxWidth()) {
+                PrismTextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Rounded.Schedule, null)
                     Spacer(Modifier.width(8.dp))
-                    Text(skipLabel)
+                    Text(skipLabel, maxLines = 1)
                 }
                 PrismTextButton(
                     onClick = { openExternalLink(ExternalLinks.RetrievePassword) },
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("忘记密码？")
+                    Text("忘记密码？", maxLines = 1)
                 }
             }
 

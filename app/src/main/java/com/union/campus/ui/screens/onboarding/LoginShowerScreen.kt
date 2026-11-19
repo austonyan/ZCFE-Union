@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -26,9 +27,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -61,6 +65,8 @@ fun LoginShowerScreen(
 ) {
     val shower = ServiceLocator.showerRepository
     val haptics = rememberPrismHaptics()
+    val mobileFocus = remember { FocusRequester() }
+    val secretFocus = remember { FocusRequester() }
     var mobile by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var smsCode by rememberSaveable { mutableStateOf("") }
@@ -73,9 +79,9 @@ fun LoginShowerScreen(
 
     fun doLogin() {
         when {
-            mobile.isBlank() -> { error = "请输入手机号"; return }
-            !useSms && password.isBlank() -> { error = "请输入密码"; return }
-            useSms && smsCode.isBlank() -> { error = "请输入验证码"; return }
+            mobile.isBlank() -> { error = "请输入手机号"; mobileFocus.requestFocus(); return }
+            !useSms && password.isBlank() -> { error = "请输入密码"; secretFocus.requestFocus(); return }
+            useSms && smsCode.isBlank() -> { error = "请输入验证码"; secretFocus.requestFocus(); return }
         }
         loading = true
         error = null
@@ -124,9 +130,10 @@ fun LoginShowerScreen(
         },
     ) { padding ->
         Column(
-            modifier = Modifier
+            modifier = modifier
                 .fillMaxSize()
                 .padding(padding)
+                .imePadding()
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -138,15 +145,18 @@ fun LoginShowerScreen(
                     labels = listOf("欢迎", "教务", "洗浴", "电费"),
                 )
             }
-            Text(
-                "使用大白U帮的手机号和密码",
-                style = subheadlineStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            OnboardingIntro(
+                title = "洗浴，轻松安排",
+                description = "连接大白U帮账号，查看空闲、排队与账单。",
+                icon = Icons.Rounded.Phone,
             )
+            Text(if (useSms) "短信验证" else "账号密码", style = MaterialTheme.typography.titleMedium)
             PrismTextField(
                 value = mobile,
                 onValueChange = { mobile = it },
                 label = "手机号",
+                modifier = Modifier.focusRequester(mobileFocus),
+                isError = error != null && mobile.isBlank(),
                 leadingIcon = Icons.Rounded.Phone,
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Phone,
@@ -158,6 +168,8 @@ fun LoginShowerScreen(
                     value = password,
                     onValueChange = { password = it },
                     label = "密码",
+                    modifier = Modifier.focusRequester(secretFocus),
+                    isError = error != null && password.isBlank(),
                     leadingIcon = Icons.Rounded.Lock,
                     visualTransformation = if (passwordVisible) {
                         VisualTransformation.None
@@ -181,6 +193,8 @@ fun LoginShowerScreen(
                     value = smsCode,
                     onValueChange = { smsCode = it },
                     label = "短信验证码",
+                    modifier = Modifier.focusRequester(secretFocus),
+                    isError = error != null && smsCode.isBlank(),
                     leadingIcon = Icons.Rounded.Sms,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
@@ -189,7 +203,7 @@ fun LoginShowerScreen(
                     supportingText = if (smsSent) "验证码已发送" else null,
                 )
             }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = subheadlineStyle()) }
+            error?.let { OnboardingError(it) }
 
             PrismButton(
                 onClick = { doLogin() },
@@ -198,13 +212,13 @@ fun LoginShowerScreen(
             ) {
                 Icon(Icons.Rounded.Login, null)
                 Spacer(Modifier.width(8.dp))
-                Text("登录洗浴")
+                Text("登录洗浴", maxLines = 1)
             }
 
             PrismTextButton(
                 onClick = {
                     if (!useSms) {
-                        if (mobile.isBlank()) { error = "请先输入手机号"; return@PrismTextButton }
+                        if (mobile.isBlank()) { error = "请先输入手机号"; mobileFocus.requestFocus(); return@PrismTextButton }
                         launchUi {
                             try {
                                 shower.clientSendSms(mobile.trim())
@@ -223,7 +237,7 @@ fun LoginShowerScreen(
             ) {
                 Icon(Icons.Rounded.Sms, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (useSms) "改用密码登录" else "改用验证码登录")
+                Text(if (useSms) "改用密码登录" else "发送验证码并切换登录", maxLines = 1)
             }
 
             PrismTextButton(
@@ -232,7 +246,7 @@ fun LoginShowerScreen(
             ) {
                 Icon(Icons.Rounded.Schedule, null)
                 Spacer(Modifier.width(8.dp))
-                Text(skipLabel)
+                Text(skipLabel, maxLines = 1)
             }
 
             PrismCard(

@@ -14,6 +14,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Explore
+import androidx.compose.material.icons.rounded.School
+import androidx.compose.material.icons.rounded.Shower
+import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,13 +35,11 @@ import com.union.campus.ui.common.TimetableSchedulePicker
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.PrismButton
-import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
-import com.union.campus.ui.prism.subheadlineStyle
 
 /** 欢迎页：说明 Union 把教务、洗浴、电费合成一个入口。 */
 @Composable
@@ -71,33 +75,25 @@ fun WelcomeScreen(
 
         Spacer(Modifier.height(8.dp))
 
-        Text(
-            text = "把三套账号，收进一个入口",
-            style = headlineStyle(),
-            color = MaterialTheme.colorScheme.onSurface,
+        OnboardingIntro(
+            title = "校园日常，一个入口",
+            description = "依次连接教务、洗浴与电费。每一步都可跳过，之后随时补充。",
+            icon = Icons.Rounded.School,
         )
-        Text(
-            text = "课表、成绩、洗浴空闲与电费余额，打开应用就能看到。三个平台的账号会在接下来的步骤里依次绑定。",
-            style = subheadlineStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        PrismCard(
-            modifier = Modifier.fillMaxWidth(),
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-        ) {
-            Text(
-                text = "三个平台，合三为一",
-                style = headlineStyle(),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                text = "绑定教务、大白U帮与完美校园后，课表、洗浴与电费会汇总到这里。",
-                style = subheadlineStyle(),
-                color = MaterialTheme.colorScheme.onPrimaryContainer,
-            )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(Icons.Rounded.School to "教务", Icons.Rounded.Shower to "洗浴", Icons.Rounded.Bolt to "电费").forEach { (icon, label) ->
+                Surface(
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Row(Modifier.padding(horizontal = 12.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(icon, null, Modifier.size(20.dp))
+                        Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
+                    }
+                }
+            }
         }
 
         Text(
@@ -127,7 +123,7 @@ fun WelcomeScreen(
             onClick = onStartBinding,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("开始绑定")
+            Text("开始绑定", maxLines = 1)
             Spacer(Modifier.width(8.dp))
             Icon(Icons.AutoMirrored.Rounded.ArrowForward, contentDescription = null)
         }
