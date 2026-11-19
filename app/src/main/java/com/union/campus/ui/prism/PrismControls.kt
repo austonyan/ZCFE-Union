@@ -208,7 +208,7 @@ fun PrismErrorState(
         Icon(
             Icons.Rounded.ErrorOutline,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+            tint = prismTextFaint(),
             modifier = Modifier.size(38.dp),
         )
         Text(

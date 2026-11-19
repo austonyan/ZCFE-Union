@@ -44,7 +44,6 @@ import com.union.campus.domain.TimetableData
 import com.union.campus.domain.TimetableSchedule
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismEntryCard
 import com.union.campus.ui.prism.PrismGroupedList
@@ -54,8 +53,8 @@ import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 
 /** 教务首页：常用功能、教务事务与最近通知。 */
@@ -136,7 +135,7 @@ fun AcademicsScreen(
                 Text(
                     "看课表",
                     style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer.withAlpha(PrismAlpha.Secondary),
+                    color = prismTextMuted(MaterialTheme.colorScheme.onPrimaryContainer),
                 )
             }
         }

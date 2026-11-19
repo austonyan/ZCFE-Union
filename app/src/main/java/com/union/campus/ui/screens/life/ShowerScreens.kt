@@ -98,6 +98,7 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.metricStyle
 import com.union.campus.ui.prism.pageTitleStyle
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
@@ -1353,13 +1354,13 @@ private fun ReservationCard(
                         "预约已过期，正在自动取消，请重新预约"
                     },
                     style = footnoteStyle(),
-                    color = onContainer.withAlpha(PrismAlpha.Secondary),
+                    color = prismTextMuted(onContainer),
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
                     "预约不会自动开启设备，需在倒计时内手动启动。",
                     style = footnoteStyle(),
-                    color = onContainer.withAlpha(PrismAlpha.Secondary),
+                    color = prismTextMuted(onContainer),
                 )
             }
         }

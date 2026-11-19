@@ -90,6 +90,8 @@ import com.union.campus.ui.prism.caption1Style
 import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.prismCoursePalette
+import com.union.campus.ui.prism.prismTextFaint
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.withAlpha
@@ -587,14 +589,14 @@ private fun TimetableGrid(
                                     Text(
                                         time.start,
                                         style = timeStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+                                        color = prismTextMuted(),
                                         maxLines = 1,
                                         softWrap = false,
                                     )
                                     Text(
                                         time.end,
                                         style = timeStyle,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                                        color = prismTextFaint(),
                                         maxLines = 1,
                                         softWrap = false,
                                     )
@@ -710,7 +712,7 @@ private fun TimetableGrid(
                                                 Text(
                                                     "@$shownLocation",
                                                     style = cellMetaStyle,
-                                                    color = onBg.withAlpha(PrismAlpha.Secondary),
+                                                    color = prismTextMuted(onBg),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                     textAlign = TextAlign.Center,
@@ -720,7 +722,7 @@ private fun TimetableGrid(
                                                 Text(
                                                     cell.teacher,
                                                     style = cellMetaStyle,
-                                                    color = onBg.withAlpha(PrismAlpha.Secondary),
+                                                    color = prismTextMuted(onBg),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                     textAlign = TextAlign.Center,
