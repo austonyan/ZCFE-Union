@@ -7,7 +7,7 @@
 - 方法: 源码逐类审查 + 配色对比度实算（WCAG 2.x，sRGB 相对亮度）+ `./gradlew :app:lintDebug`
 - Lint: **0 error / 25 warning**
 
-Overall Score: **71 / 100**
+Overall Score: **71 / 100**（修复后 **88 / 100**，见文末《本轮修复记录》）
 
 > 口径说明：上一份 `m3-audit-report.md`（v0.2.16，91 分）没有把「9 套预设配色 × 亮/暗两态」纳入对比度计算，也没把
 > Android 16 屏幕方向策略计入布局项。本次分数下降是**口径变严**，不是代码退步——v0.2.17 之后新增的
@@ -145,3 +145,44 @@ Lint 已报警：`LockedOrientationActivity` + `DiscouragedApi`（`AndroidManife
 6. PrismMotion 接 reduce-motion 开关 + 收敛散写 spring（P1）
 7. 拆分 ShowerScreens / ClassroomScreens（P1，纯结构，不改行为）
 8. 3 条主链 compose UI 冒烟（P1，防回归）
+
+
+---
+
+# 本轮修复记录（2026-11-19）
+
+6 个修复分支，各自独立 worktree 并行完成，逐次合并后在 master 上全量验证。
+
+## 已修复
+
+| 编号 | 问题 | 结果 |
+|---|---|---|
+| P0-1 | 8 套预设 `onPrimary/primary` 3.18–4.17 | 按 M3 tone 重算（亮 tone40/onPrimary tone100，暗 tone80/tone20）；实测 **5.23–5.49**（文字类最小对），`onPrimary/primary` 亮 6.43–6.48、暗 7.69–7.76 |
+| P0-1' | `primary` 作文字色 2.59–3.40 | 重算后 **5.23–5.30** |
+| P0-2 | `Secondary(0.72)`/`Hint(0.55)` 二次压暗 | 新增 `prismTextMuted()`（onSurfaceVariant 1.0）与 `prismTextFaint()`（0.85）；31 处文字迁移完毕，亮色实测 muted **9.14:1**、faint **6.08:1**（最差预设 5.21 / 6.02） |
+| P0-3 | 品牌暗色 page/card **1.13:1** | 新增 `TealSurfaceDimDark = #060C0C`，现 **1.20:1**；container 五档排序仍单调 |
+| P0-4 | 大屏正文无限宽 | 新增 `ui/common/PageWidth.kt` 的 `Modifier.pageWidth()`（840dp 居中）；`ScreenScaffold` 复用之，并补到 Today / Academics / Life / Welcome / Timetable / Profile 共 6 处 |
+| P1 | Chip 无选中语义 | 全部调用点经确认为单选 → `selectable(role = Role.RadioButton)`，保留「已选中不再回调」行为 |
+| P1 | IconButton 缺 role/禁用语义 | `role = Button` + `semantics { disabled() }` |
+| P1 | reduce-motion 覆盖不足 | `PrismMotion.animationsEnabled(context)` + `rememberPrismMotion()`；Dock / Segmented / Switch / GpaRuler / Chip / DetailScreens / BindDone 全部接入，关动画时退化 snap |
+| P1 | 动效参数重复定义 | GpaRuler + DetailScreens → `PrismSpec.sheetIn`；Dock → `pressDown`；BindDone → 新增 `PrismSpec.entranceBouncy` |
+| P1 | 超大屏幕文件 | ShowerScreens 1830→1000（+4 文件）、ClassroomScreens 1371→4 文件（最大 523）、MeScreens 1040→4 文件（最大 337）；纯搬运，`XxxScreen` 签名零改动 |
+| P1 | UI 无测试 | 新增 `app/src/androidTest`：Chip 选中语义、IconButton disabled 语义、Switch 状态、MainActivity 启动冒烟，共 4 类 |
+| P2 | lint 遗留 | StaticFieldLeak×3（抑制+注释）、UseKtx、ObsoleteSdkInt×2、UnusedAttribute、DiscouragedApi、LockedOrientationActivity、supportsRtl 移除、PrismPress 过期注释、mipmap-anydpi-v26 合并 |
+
+## 验证
+
+- `:app:compileDebugKotlin` `--rerun-tasks` → BUILD SUCCESSFUL
+- `:app:compileDebugAndroidTestKotlin` + `:app:assembleDebugAndroidTest` → BUILD SUCCESSFUL（产出测试 APK）
+- `:app:testDebugUnitTest` → 全部通过
+- `:app:lintDebug` → **0 error / 12 warning**（修复前 0 error / 25 warning）
+  - 剩余：`ModifierParameter`×4、`NewerVersionAvailable`×3、`AutoboxingStateCreation`×2、`DefaultLocale`、`AndroidGradlePluginVersion`、`GetInstance`（均为明确不做的项：需同步改外部调用点 / 依赖升级 / 上游协议要求）
+- `python tools/check-contrast.py` → 18 个 scheme 全 PASS（含 container 排序与 1.2 层级阈值）
+
+## 仍未处理（下一轮候选）
+
+- `NullStatus` 的 `ModifierParameter`：需同步改 6+ 处位置参数调用点
+- `ShowerScreens.kt` 仍有 1000 行（单 composable 内部尚未提取子件，属行为敏感改动）
+- `WindowSizeClass` / `ListDetailPaneScaffold` 双栏仍未接入（只做了限宽，未做多窗格）
+- `AppState` 全局单例（0 ViewModel）未改
+- 依赖版本升级（`NewerVersionAvailable`×3、AGP/Gradle）
