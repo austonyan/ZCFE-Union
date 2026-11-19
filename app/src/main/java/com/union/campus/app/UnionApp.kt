@@ -3,9 +3,7 @@ package com.union.campus.app
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -40,6 +38,7 @@ import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismDock
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSnackbarHost
+import com.union.campus.ui.prism.PrismSpec
 import com.union.campus.ui.screens.life.ClassroomDetailScreen
 import com.union.campus.ui.screens.life.DeviceDetailScreen
 import com.union.campus.ui.screens.life.ElectricScreen
@@ -80,10 +79,9 @@ import com.union.campus.ui.screens.study.TimetableSettingsScreen
 import com.union.campus.ui.screens.today.TodayScreen
 
 /**
- * 页面转场（FlClash page_transition 复刻）：iOS 27 push——
- * 新页 300ms 临界阻尼弹簧从右滑入；被覆盖页回退 30% 并淡出。
+ * 页面转场：详情页走 24dp 短位移 push/pop（[PrismSpec]），
+ * 五个 tab 走 fade-through 微缩放，底部 dock 仍用纵向滑动。
  */
-private val PushSpec = PrismMotion.tween<Float>(PrismMotion.Emphasized)
 private val PushOffsetSpec = PrismMotion.tween<IntOffset>(PrismMotion.Emphasized)
 private val TabFade = PrismMotion.tween<Float>(PrismMotion.Standard)
 
@@ -134,10 +132,10 @@ fun UnionApp(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            enterTransition = { slideInHorizontally(PushOffsetSpec) { it } },
-            exitTransition = { slideOutHorizontally(PushOffsetSpec) { -it / 3 } + fadeOut(TabFade) },
-            popEnterTransition = { slideInHorizontally(PushOffsetSpec) { -it / 3 } + fadeIn(TabFade) },
-            popExitTransition = { slideOutHorizontally(PushOffsetSpec) { it } },
+            enterTransition = { PrismSpec.pushEnter },
+            exitTransition = { PrismSpec.pushExit },
+            popEnterTransition = { PrismSpec.popEnter },
+            popExitTransition = { PrismSpec.popExit },
         ) {
             // ---------- 绑定流程 ----------
             composable(Screen.Welcome.route) {
@@ -549,17 +547,17 @@ fun UnionApp(modifier: Modifier = Modifier) {
     }
 }
 
-/** 标签页路由：淡入淡出。 */
+/** 标签页路由：fade-through + 0.98→1 微缩放。 */
 private fun NavGraphBuilder.tabRoute(
     route: String,
     content: @Composable () -> Unit,
 ) {
     composable(
         route = route,
-        enterTransition = { fadeIn(TabFade) },
-        exitTransition = { fadeOut(TabFade) },
-        popEnterTransition = { fadeIn(TabFade) },
-        popExitTransition = { fadeOut(TabFade) },
+        enterTransition = { PrismSpec.tabEnter },
+        exitTransition = { PrismSpec.tabExit },
+        popEnterTransition = { PrismSpec.tabEnter },
+        popExitTransition = { PrismSpec.tabExit },
     ) { content() }
 }
 

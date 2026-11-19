@@ -1,16 +1,21 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.IndicationNodeFactory
 import androidx.compose.foundation.interaction.FocusInteraction
 import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.InteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.ContentDrawScope
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.node.DelegatingNode
 import androidx.compose.ui.node.DrawModifierNode
@@ -133,4 +138,24 @@ private class PressNode(private val interactionSource: InteractionSource) :
 @Composable
 fun WithPressLook(look: PressLook, content: @Composable () -> Unit) {
     CompositionLocalProvider(LocalPressLook provides look, content = content)
+}
+
+/** 按压缩放：按下 0.985、抬起回弹；只走 graphicsLayer，不触发布局。 */
+@Composable
+fun Modifier.prismPressScale(
+    interactionSource: InteractionSource,
+    target: Float = 0.985f,
+    enabled: Boolean = true,
+): Modifier {
+    if (!enabled) return this
+    val pressed by interactionSource.collectIsPressedAsState()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed) target else 1f,
+        animationSpec = if (pressed) PrismSpec.pressDown else PrismSpec.pressUp,
+        label = "prism-press-scale",
+    )
+    return graphicsLayer {
+        scaleX = scale
+        scaleY = scale
+    }
 }

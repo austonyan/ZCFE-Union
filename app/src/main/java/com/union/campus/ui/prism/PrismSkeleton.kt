@@ -25,7 +25,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.compose.material3.MaterialTheme
 
-/** 轻量骨架块：默认 1200ms 线性扫光，系统关闭动画时退化为静态灰块。 */
+/** 轻量骨架块：默认 1500ms 线性扫光，系统关闭动画时退化为静态灰块。 */
 @Composable
 fun PrismSkeleton(
     modifier: Modifier = Modifier,
