@@ -56,6 +56,9 @@ private val TealTertiaryContainerDark = Color(0xFF38485A)
 private val TealOnTertiaryContainerDark = Color(0xFFE7F2FF)
 
 private val TealSurfaceDark = Color(0xFF0D1515)
+// 深色 Page 底色：比 surfaceContainer(#1A2121) 暗到 1.20:1 以上，
+// 满足 PrismSurface 的 Page/Card 可辨阈值（原 #0D1515 仅 1.13:1）。
+private val TealSurfaceDimDark = Color(0xFF060C0C)
 private val TealOnSurfaceDark = Color(0xFFDCE4E4)
 private val TealOnSurfaceVariantDark = Color(0xFFC4D8D9)
 private val TealSurfaceContainerLowDark = Color(0xFF161D1D)
@@ -142,7 +145,7 @@ val DarkColors = darkColorScheme(
     inverseSurface = TealInverseSurfaceDark,
     inverseOnSurface = TealInverseOnSurfaceDark,
     inversePrimary = TealInversePrimaryDark,
-    surfaceDim = TealSurfaceDark,
+    surfaceDim = TealSurfaceDimDark,
     surfaceBright = Color(0xFF394141),
     surfaceContainerLowest = Color(0xFF081111),
     surfaceContainerLow = TealSurfaceContainerLowDark,
