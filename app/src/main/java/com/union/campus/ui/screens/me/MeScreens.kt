@@ -80,6 +80,8 @@ import com.union.campus.ui.prism.SnapSheetDefaults
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismStatusDot
 import com.union.campus.ui.prism.PrismTextButton
+import com.union.campus.ui.prism.prismTextFaint
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.CardHeader
@@ -266,7 +268,7 @@ private fun CheckStateRow(name: String, state: CheckState) {
             CheckState.Idle -> Text(
                 "未检查",
                 style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                color = prismTextFaint(),
             )
             CheckState.Checking -> PrismLoadingIndicator(size = 16.dp)
             CheckState.Ok -> {
@@ -545,13 +547,13 @@ private fun CredentialAccountCard(
             Text(
                 if (bound) "已登录" else "未登录",
                 style = footnoteStyle(),
-                color = onContainer.withAlpha(PrismAlpha.Secondary),
+                color = prismTextMuted(onContainer),
             )
         }
         Spacer(Modifier.height(4.dp))
         Text(subtitle, style = subheadlineStyle(), color = onContainer)
         Spacer(Modifier.height(2.dp))
-        Text(detail, style = footnoteStyle(), color = onContainer.withAlpha(PrismAlpha.Secondary))
+        Text(detail, style = footnoteStyle(), color = prismTextMuted(onContainer))
         Spacer(Modifier.height(6.dp))
         Row(
             Modifier.fillMaxWidth(),

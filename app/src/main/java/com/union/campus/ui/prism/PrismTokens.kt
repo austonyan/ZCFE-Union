@@ -20,7 +20,9 @@ import androidx.compose.ui.unit.sp
  * Prism 设计令牌：页面层不再自造字号、透明度与间距。
  *
  * 节奏：页面 16 / 区间 28 / 区内 12；分组头 T24 B8。
- * 透明度五档：分隔线 0.14 / 禁用 0.38 / 提示 0.55 / 次要 0.72 / 主文 1。
+ * 透明度只用于非文字元素（分隔线 / 描边 / 容器底 / 骨架 / 图表网格与柱体）。
+ * 文字不再叠第二层 alpha：次要文字走 [prismTextMuted]（onSurfaceVariant 1.0），
+ * 第三层注记走 [prismTextFaint]（只压一档 0.85，仍 ≥4.5:1）。
  */
 
 object PrismSpace {
@@ -51,11 +53,17 @@ object PrismAlpha {
     /** 主文。 */
     const val Primary = 1f
 
-    /** 次要文字、卡片脚注。 */
+    /** 旧次要文字档位：文字层请改用 [prismTextMuted]；这里只保留给尚未迁移的非文字调用点。 */
     const val Secondary = 0.72f
 
-    /** 非关键提示、占位说明。 */
+    /** 旧提示档位：文字层请改用 [prismTextFaint]；这里保留给图表网格/柱体等非文字用途。 */
     const val Hint = 0.55f
+
+    /**
+     * 第三层文字（注记、轴标签）的唯一 alpha：压在 onSurfaceVariant 上的一层。
+     * 实测亮色 9 套预设最差 5.21:1（surfaceContainerHigh）/ 6.02:1（纯白），暗色 ≥6.80:1。
+     */
+    const val Faint = 0.85f
 
     /** 禁用。 */
     const val Disabled = 0.38f
@@ -191,6 +199,43 @@ val PrismMaterialShapes: Shapes = Shapes(
 
 /** 统一的透明度入口：页面不再直接写 copy(alpha = …)。 */
 fun Color.withAlpha(value: Float): Color = copy(alpha = value)
+
+/**
+ * 语义化次要文字色：只用一层，不再叠 alpha。
+ *
+ * 页面/卡片上直接用 [MaterialTheme.colorScheme.onSurfaceVariant]（1.0）。该令牌本身
+ * 已按对比度校准：亮色默认主题在 surfaceContainerHigh(#E1EAEA) 上 9.14:1、
+ * surfaceContainerLowest(#FFFFFF) 上 11.19:1；9 套预设最差 7.58 / 9.30。
+ * 旧写法再乘 0.72 会掉到 3.81–4.32:1，这就是要修的双重压暗。
+ *
+ * 彩色容器（primaryContainer 等）传入配套的内容色 [base]（onXContainer）：原样返回。
+ * onXContainer/container 已由色板按 ≥4.5:1 配对，再乘 alpha 反而掉档；层级交给
+ * 字号与字重，而不是继续压颜色（onSurfaceVariant 放在预设的 tertiaryContainer 上
+ * 只有约 2:1，不能替代容器内容色）。
+ */
+@Composable
+fun prismTextMuted(base: Color = MaterialTheme.colorScheme.onSurface): Color =
+    if (base == MaterialTheme.colorScheme.onSurface) {
+        MaterialTheme.colorScheme.onSurfaceVariant
+    } else {
+        base
+    }
+
+/**
+ * 第三层文字色（轴标签、占位说明、极弱注记）：onSurfaceVariant 只压一档
+ * [PrismAlpha.Faint]（0.85）。
+ *
+ * 实测（WCAG 2.x）：亮色默认主题 6.08:1（页面）/ 7.08:1（卡片）；9 套预设最差
+ * 5.21:1 / 6.02:1；暗色默认主题 9.27 / 8.36，预设最差 8.09 / 6.80 —— 全部 ≥4.5。
+ * 彩色容器不适用（onXContainer 再压会掉到约 3.5），此时返回 [base] 原色。
+ */
+@Composable
+fun prismTextFaint(base: Color = MaterialTheme.colorScheme.onSurface): Color =
+    if (base == MaterialTheme.colorScheme.onSurface) {
+        MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Faint)
+    } else {
+        base
+    }
 
 /** 分组头间距（T24 B8）。 */
 val PrismSectionHeaderPadding = PaddingValues(
