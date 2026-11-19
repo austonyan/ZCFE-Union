@@ -203,7 +203,8 @@ fun ShowerOrdersScreen(
 ) {
     val shower = ServiceLocator.showerRepository
     var orders by remember { mutableStateOf<List<ShowerOrder>>(emptyList()) }
-    var page by remember { mutableIntStateOf(0) }
+    // 分页序号用 rememberSaveable：从详情返回后继续从已加载到的页码往后翻。
+    var page by rememberSaveable { mutableIntStateOf(0) }
     var isLast by remember { mutableStateOf(false) }
     var loading by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }

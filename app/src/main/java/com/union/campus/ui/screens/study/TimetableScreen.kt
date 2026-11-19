@@ -45,6 +45,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -112,9 +113,10 @@ fun TimetableScreen(
     val haptics = rememberPrismHaptics()
 
     var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
-    var semesterDm by remember { mutableStateOf("") }
-    var week by remember { mutableIntStateOf(1) }
-    var maxWeek by remember { mutableIntStateOf(25) }
+    // 学期/周次用 rememberSaveable：进入课程详情再返回时，恢复用户翻到的那一周。
+    var semesterDm by rememberSaveable { mutableStateOf("") }
+    var week by rememberSaveable { mutableIntStateOf(1) }
+    var maxWeek by rememberSaveable { mutableIntStateOf(25) }
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
     
     var weekDirection by remember { mutableIntStateOf(0) }
@@ -128,22 +130,27 @@ fun TimetableScreen(
         fallbackGroup = if (fallbackValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6,
     )
 
-    suspend fun loadSemester(dm: String, force: Boolean = false) {
+    /**
+     * 加载学期课表。keepWeek = true 用于从课程详情返回：沿用 rememberSaveable 里的周次，
+     * 不把 week 重置成教务返回的当前周；换学期/首次加载仍以 data.week 为准。
+     */
+    suspend fun loadSemester(dm: String, force: Boolean = false, keepWeek: Boolean = false) {
         if (dm.isBlank()) return
+        currentWeek = SemesterCalc.currentWeek(dm, settings.firstWeekStart.first())
         if (!force && dm == semesterDm && timetable != null) return
         semesterDm = dm
         weekDirection = 0
-        currentWeek = SemesterCalc.currentWeek(dm, settings.firstWeekStart.first())
+        val requestWeek = if (keepWeek) week else 0
         val data = if (jw.isBound()) {
-            runCatching { jw.timetable(dm, 0) }.getOrNull()
+            runCatching { jw.timetable(dm, requestWeek) }.getOrNull()
         } else {
             null
         }
         if (data != null) {
             timetable = data
-            week = data.week
+            if (!keepWeek) week = data.week
             maxWeek = data.maxWeek
-        } else {
+        } else if (!keepWeek) {
             week = currentWeek
             entities.read("jw.timetable.$dm.w$week", TimetableData.serializer())?.let { timetable = it.data }
         }
@@ -153,9 +160,21 @@ fun TimetableScreen(
         if (jw.isBound()) {
             semesters = runCatching { jw.semesterList() }.getOrDefault(emptyList())
         }
-        val saved = settings.timetableSemesterDm.first()
-        loadSemester(saved.ifBlank { jw.currentSemesterDm() }, force = true)
-        // 学期选择在「课程表设置」里完成；设置保存后这里立刻跟着换学期。
+        if (semesterDm.isBlank()) {
+            // 首次进入：学期以设置为准。
+            val saved = settings.timetableSemesterDm.first()
+            loadSemester(saved.ifBlank { jw.currentSemesterDm() }, force = true)
+        } else {
+            // 从课程详情返回：先用缓存恢复用户翻到的那一周，缓存命中就不再走网络。
+            if (timetable == null) {
+                entities.read("jw.timetable.$semesterDm.w$week", TimetableData.serializer())?.let {
+                    timetable = it.data
+                    maxWeek = it.data.maxWeek
+                }
+            }
+            loadSemester(semesterDm, keepWeek = true)
+        }
+        // 学期选择在「课程表设置」里完成；设置保存后这里立刻跟着换学期（周次归到 data.week）。
         settings.timetableSemesterDm.collect { next ->
             val target = next.ifBlank { jw.currentSemesterDm() }
             if (target.isNotBlank() && target != semesterDm) loadSemester(target)

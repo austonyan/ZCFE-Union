@@ -19,8 +19,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -54,7 +56,9 @@ fun FreeClassroomsScreen(
     val jw = ServiceLocator.jwRepository
     var buildings by remember { mutableStateOf<List<TeachingBuilding>>(emptyList()) }
     var building by remember { mutableStateOf<TeachingBuilding?>(null) }
-    var dateOffset by remember { mutableStateOf(0) } // 0 今天 / 1 明天 / 2 后天
+    // 楼栋对象不能直接存，保存 id；日期偏移用 rememberSaveable 保证从详情返回后不重置。
+    var buildingId by rememberSaveable { mutableStateOf("") }
+    var dateOffset by rememberSaveable { mutableIntStateOf(0) } // 0 今天 / 1 明天 / 2 后天
     var rooms by remember { mutableStateOf<List<FreeClassroom>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -64,7 +68,11 @@ fun FreeClassroomsScreen(
 
     LaunchedEffect(Unit) {
         buildings = runCatching { jw.teachingBuildings() }.getOrDefault(emptyList())
-        building = buildings.firstOrNull { it.campus.startsWith("惠济") } ?: buildings.firstOrNull()
+        // 返回本页时按保存的 id 反查楼栋；找不到再回落到惠济校区或第一栋。
+        building = buildings.firstOrNull { it.dm == buildingId }
+            ?: buildings.firstOrNull { it.campus.startsWith("惠济") }
+            ?: buildings.firstOrNull()
+        buildingId = building?.dm.orEmpty()
         if (building == null) {
             loading = false
             if (jw.isBound()) error = "未获取到教学楼列表，请稍后重试"
@@ -115,7 +123,10 @@ fun FreeClassroomsScreen(
                     PrismChip(
                         label = b.name,
                         selected = building?.dm == b.dm,
-                        onClick = { building = b },
+                        onClick = {
+                            building = b
+                            buildingId = b.dm
+                        },
                     )
                 }
             }

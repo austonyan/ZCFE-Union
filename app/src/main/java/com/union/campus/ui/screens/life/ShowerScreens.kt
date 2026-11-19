@@ -43,6 +43,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -126,10 +127,11 @@ fun ShowerScreen(
     var buildings by remember { mutableStateOf<List<ShowerBuilding>>(emptyList()) }
     var areas by remember { mutableStateOf<List<ShowerArea>>(emptyList()) }
     var devices by remember { mutableStateOf<List<ShowerDevice>>(emptyList()) }
-    var orgId by remember { mutableStateOf("") }
-    var orgAreaId by remember { mutableStateOf("") }
-    var buildingId by remember { mutableStateOf("") }
-    var areaId by remember { mutableStateOf("") }
+    // 位置选择链保存 id：从设备详情返回后继续停在同一学校/校区/楼栋/区域。
+    var orgId by rememberSaveable { mutableStateOf("") }
+    var orgAreaId by rememberSaveable { mutableStateOf("") }
+    var buildingId by rememberSaveable { mutableStateOf("") }
+    var areaId by rememberSaveable { mutableStateOf("") }
     var queueInfo by remember { mutableStateOf<ShowerQueue?>(null) }
     var queueCounts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var loading by remember { mutableStateOf(true) }
@@ -161,7 +163,8 @@ fun ShowerScreen(
                 val list = shower.orgs()
                 orgs = list
                 if (list.isEmpty()) {
-                    val savedOrg = settings.lastShowerOrgId.first()
+                    // 列表为空或请求失败时，也优先沿用页面里已有的学校，避免返回后被清空。
+                    val savedOrg = orgId.ifBlank { settings.lastShowerOrgId.first() }
                     if (savedOrg.isNotBlank() && savedOrg != "0") {
                         orgId = savedOrg
                         error = null
@@ -172,7 +175,10 @@ fun ShowerScreen(
                     return@launchUi
                 }
                 val saved = settings.lastShowerOrgId.first()
-                val target = list.firstOrNull { it.id == saved } ?: list.first()
+                // 返回本页时优先用保存的学校；失效了再回落到上次记录/第一项。
+                val target = list.firstOrNull { it.id == orgId }
+                    ?: list.firstOrNull { it.id == saved }
+                    ?: list.first()
                 orgId = target.id
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -181,7 +187,8 @@ fun ShowerScreen(
                     error = e.userMessage
                     loading = false
                 } else {
-                    val savedOrg = settings.lastShowerOrgId.first()
+                    // 列表为空或请求失败时，也优先沿用页面里已有的学校，避免返回后被清空。
+                    val savedOrg = orgId.ifBlank { settings.lastShowerOrgId.first() }
                     if (savedOrg.isNotBlank() && savedOrg != "0") {
                         orgId = savedOrg
                         error = null
@@ -227,10 +234,14 @@ fun ShowerScreen(
             val list = shower.orgAreas(orgId)
             orgAreas = list
             val saved = settings.lastShowerOrgArea.first()
-            val target = list.firstOrNull { it.id == saved } ?: list.firstOrNull()
+            // 返回本页时保留已选校区；已不存在再按上次记录/第一项回落。
+            val target = list.firstOrNull { it.id == orgAreaId }
+                ?: list.firstOrNull { it.id == saved }
+                ?: list.firstOrNull()
             if (target == null) {
-                if (saved.isNotBlank() && saved != "0") {
-                    orgAreaId = saved
+                val fallback = orgAreaId.ifBlank { saved }
+                if (fallback.isNotBlank() && fallback != "0") {
+                    orgAreaId = fallback
                     error = null
                 } else {
                     error = "该学校暂无洗浴校区"
@@ -247,7 +258,7 @@ fun ShowerScreen(
                 loading = false
             } else {
                 // 校区列表接口异常时，直接用登录返回/上次保存的 orgArea 继续加载
-                val fallback = settings.lastShowerOrgArea.first()
+                val fallback = orgAreaId.ifBlank { settings.lastShowerOrgArea.first() }
                 if (fallback.isNotBlank() && fallback != "0") {
                     orgAreas = emptyList()
                     orgAreaId = fallback
@@ -273,7 +284,9 @@ fun ShowerScreen(
             buildings = list
             val saved = settings.lastShowerBuildingId.first()
             val savedAreaName = settings.lastShowerArea.first()
-            var target = list.firstOrNull { it.id == saved }
+            // 返回本页时优先保留已选楼栋，再按上次记录/区域名反查/第一栋回落。
+            var target = list.firstOrNull { it.id == buildingId }
+                ?: list.firstOrNull { it.id == saved }
             // 旧版本只存了区域名称：用区域反查它所在的楼栋，避免一律落在 1 号楼
             if (target == null && savedAreaName.isNotBlank()) {
                 val match = runCatching { shower.areasWithState(orgAreaId) }
@@ -318,7 +331,9 @@ fun ShowerScreen(
             areas = list
             val savedId = settings.lastShowerAreaId.first()
             val savedName = settings.lastShowerArea.first()
-            val target = list.firstOrNull { it.id == savedId }
+            // 返回本页时优先保留已选区域；已不存在再按上次记录/名称/第一项回落。
+            val target = list.firstOrNull { it.id == areaId }
+                ?: list.firstOrNull { it.id == savedId }
                 ?: list.firstOrNull { it.name == savedName }
                 ?: list.firstOrNull()
             if (target == null) {
