@@ -108,35 +108,34 @@ fun GradesScreen(
     // 补考标记：只读原始成绩缓存里不及格的课程代码，不额外发网络请求。
     var rawFailCodes by remember { mutableStateOf<Set<String>>(emptySet()) }
 
+    // 补考标记：每次进入/切换学期都向上游要一次原始成绩，用户不必先手动点「原始成绩」。
     LaunchedEffect(semesterDm, effective) {
-        rawFailCodes = if (!effective || semesterDm.isBlank()) {
-            emptySet()
-        } else {
-            entities.read("jw.grades.$semesterDm.0", GradesData.serializer())
-                ?.data?.grades
-                ?.filter { gradeBandOf(it.score, it.gpa) == GradeBand.Fail }
-                ?.map { it.courseCode }
-                ?.filter { it.isNotBlank() }
-                ?.toSet()
-                .orEmpty()
+        if (!effective || semesterDm.isBlank()) {
+            rawFailCodes = emptySet()
+            return@LaunchedEffect
         }
+        val fromUpstream = if (jw.isBound()) {
+            runCatching { jw.grades(semesterDm, effective = false, forceRefresh = true) }.getOrNull()
+        } else {
+            null
+        }
+        val raw = fromUpstream ?: entities.read("jw.grades.$semesterDm.0", GradesData.serializer())?.data
+        rawFailCodes = raw?.grades
+            ?.filter { gradeBandOf(it.score, it.gpa) == GradeBand.Fail }
+            ?.map { it.courseCode }
+            ?.filter { it.isNotBlank() }
+            ?.toSet()
+            .orEmpty()
     }
 
-    suspend fun loadInner() {
+    suspend fun loadInner(force: Boolean) {
         state = if (!jw.isBound()) {
             entities.read("jw.grades.$semesterDm.${if (effective) 1 else 0}", GradesData.serializer())
                 ?.let { UiState.Ready(it.data, it.updatedAt) }
                 ?: UiState.Empty("在「我的 → 凭证中心」登录教务账号")
         } else {
             try {
-                val ready = UiState.Ready(jw.grades(semesterDm, effective))
-                // 老缓存里没有原始字段：补一次强制刷新，才能拿到"考核方式"。
-                if (ready.data.grades.isNotEmpty() && ready.data.grades.all { it.raw.isEmpty() }) {
-                    runCatching { jw.grades(semesterDm, effective, forceRefresh = true) }
-                        .getOrNull()?.let { UiState.Ready(it) } ?: ready
-                } else {
-                    ready
-                }
+                UiState.Ready(jw.grades(semesterDm, effective, forceRefresh = force))
             } catch (e: AppError.AuthExpired) {
                 entities.read("jw.grades.$semesterDm.${if (effective) 1 else 0}", GradesData.serializer())
                     ?.let { UiState.Ready(it.data, it.updatedAt) }
@@ -147,10 +146,10 @@ fun GradesScreen(
         }
     }
 
-    fun load() {
+    fun load(force: Boolean = false) {
         state = UiState.Loading
         launchUi {
-            loadInner()
+            loadInner(force)
             // 当前学期还没有成绩时，自动退到最近一个有成绩的学期（只在用户没手动选过时）。
             if (!userPicked && state.dataOrNull()?.grades.isNullOrEmpty() && semesters.size > 1) {
                 val from = semesters.indexOfFirst { it.dm == semesterDm }.coerceAtLeast(0)
@@ -161,8 +160,8 @@ fun GradesScreen(
                     if (!cached?.data?.grades.isNullOrEmpty()) {
                         semesterDm = candidate.dm
                         state = UiState.Ready(cached.data, cached.updatedAt)
-                        // 老缓存没有原始字段时补一次刷新，拿到「考核方式」。
-                        if (cached.data.grades.all { it.raw.isEmpty() } && jw.isBound()) {
+                        // 走到回退学期时如果是用户触发的，同样走一次上游。
+                        if (force && jw.isBound()) {
                             runCatching { jw.grades(candidate.dm, effective, forceRefresh = true) }
                                 .getOrNull()?.let { state = UiState.Ready(it) }
                         }
@@ -199,7 +198,18 @@ fun GradesScreen(
         if (semesters.none { it.dm == semesterDm }) {
             semesterDm = semesters.firstOrNull { it.isCurrent }?.dm ?: semesters.first().dm
         }
-        load()
+        load(force = false)
+    }
+
+    // 首次由上面的 effect 负责；之后每次切学期/切口径都向上游要一次最新数据。
+    var firstSelection by remember { mutableStateOf(true) }
+    LaunchedEffect(semesterDm, effective) {
+        if (semesterDm.isBlank()) return@LaunchedEffect
+        if (firstSelection) {
+            firstSelection = false
+            return@LaunchedEffect
+        }
+        load(force = true)
     }
 
     val data = state.dataOrNull()
