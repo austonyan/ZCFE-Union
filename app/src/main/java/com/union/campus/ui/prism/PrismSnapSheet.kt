@@ -39,7 +39,7 @@ import kotlinx.coroutines.launch
  * SnapSheet（FlClash prism_ui 复刻）：
  * - 双 detent：9/16 ≈ 56.25% 与 0.9
  * - 临界阻尼弹簧（mass3/stiffness1000 → spring(1f, 333f)）
- * - 把手 28×4 r2，顶部留白 6
+ * - 把手 32×4 r2，顶部留白 6
  * - 内容上滑先撑满 sheet 再滚动、下滑到顶再收回（NestedScrollConnection）
  * - 进出场共用一条进度：遮罩与面板同时淡入/下落，退出时先冻结高度再下滑
  */
@@ -79,7 +79,7 @@ fun PrismSnapSheet(
             mounted = true
             fraction.snapTo(startAt.coerceIn(SnapSheetDefaults.Half, SnapSheetDefaults.Full))
             progress.snapTo(0f)
-            progress.animateTo(1f, PrismMotion.tween(PrismMotion.Emphasized, PrismMotion.Decelerate))
+            progress.animateTo(1f, PrismSpec.sheetIn)
         } else if (mounted) {
             // 冻结当前高度：退出过程中不再按 fraction 重新测量，避免吸附与下滑叠加造成的卡顿。
             fraction.stop()
@@ -184,7 +184,7 @@ fun PrismSnapSheet(
                     Modifier
                         .align(Alignment.CenterHorizontally)
                         .padding(top = 6.dp)
-                        .width(28.dp)
+                        .width(32.dp)
                         .height(4.dp)
                         .clip(handleShape)
                         .background(MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Grip)),

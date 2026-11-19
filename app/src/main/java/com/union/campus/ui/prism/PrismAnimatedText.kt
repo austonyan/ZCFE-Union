@@ -29,8 +29,8 @@ fun PrismAnimatedText(
     AnimatedContent(
         targetState = text,
         transitionSpec = {
-            (slideInVertically { it / 2 } + fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
-                (slideOutVertically { -it / 2 } + fadeOut(PrismMotion.tween(PrismMotion.Fast)))
+            (slideInVertically { it / 3 } + fadeIn(PrismMotion.tween(160))) togetherWith
+                (slideOutVertically { -it / 3 } + fadeOut(PrismMotion.tween(160)))
         },
         contentAlignment = contentAlignment,
         label = "prism-animated-text",
