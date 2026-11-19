@@ -1,18 +1,28 @@
 package com.union.campus.ui.screens.study
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Grade
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -21,28 +31,54 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.Grade
+import com.union.campus.domain.GradeBand
+import com.union.campus.domain.GpaSummary
 import com.union.campus.domain.GradesData
 import com.union.campus.domain.Semester
-import com.union.campus.ui.common.StateContent
+import com.union.campus.domain.computeGpa
+import com.union.campus.domain.gradeBandOf
 import com.union.campus.ui.common.UiState
-import com.union.campus.ui.common.dataOrNull
 import com.union.campus.ui.common.UnionScreenScaffold
+import com.union.campus.ui.common.dataOrNull
 import com.union.campus.ui.common.launchUi
-import com.union.campus.ui.prism.IconBadge
-import com.union.campus.ui.prism.PrismChip
+import com.union.campus.ui.prism.NullStatus
+import com.union.campus.ui.prism.PrismAlpha
+import com.union.campus.ui.prism.PrismCorner
+import com.union.campus.ui.prism.PrismErrorState
+import com.union.campus.ui.prism.PrismGpaRuler
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
-import com.union.campus.ui.prism.PrismMetricCard
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismShape
+import com.union.campus.ui.prism.PrismSkeleton
+import com.union.campus.ui.prism.PrismSkeletonList
+import com.union.campus.ui.prism.PrismSnapSheet
+import com.union.campus.ui.prism.PrismSpace
+import com.union.campus.ui.prism.PrismTextButton
+import com.union.campus.ui.prism.SectionHeader
+import com.union.campus.ui.prism.bodyStyle
+import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
-import kotlinx.coroutines.flow.first
+import com.union.campus.ui.prism.metricSmallStyle
+import com.union.campus.ui.prism.pageTitleStyle
+import com.union.campus.ui.prism.prismShape
+import com.union.campus.ui.prism.withAlpha
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
-/** 成绩：学期 GPA、有效/原始切换、学分进度。 */
+/** 成绩：学期绩点尺、学分账本、按类别分组的课程列表与成绩分布。 */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GradesScreen(
@@ -56,13 +92,14 @@ fun GradesScreen(
     var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
     var semesterDm by remember { mutableStateOf("") }
     var effective by remember { mutableStateOf(true) }
+    var sheetOpen by remember { mutableStateOf(false) }
     var state by remember { mutableStateOf<UiState<GradesData>>(UiState.Loading) }
 
     suspend fun loadInner() {
         state = if (!jw.isBound()) {
             entities.read("jw.grades.$semesterDm.${if (effective) 1 else 0}", GradesData.serializer())
                 ?.let { UiState.Ready(it.data, it.updatedAt) }
-                ?: UiState.Empty("登录教务后可查看成绩")
+                ?: UiState.Empty("在「我的 → 凭证中心」登录教务账号")
         } else {
             try {
                 UiState.Ready(jw.grades(semesterDm, effective))
@@ -96,16 +133,20 @@ fun GradesScreen(
     }
 
     val data = state.dataOrNull()
-    val gpa = data?.grades?.let { computeGpa(it) }
+    val summary = data?.grades?.let { computeGpa(it) }
+    val semesterName = semesters.firstOrNull { it.dm == semesterDm }?.name
+        ?: semesterDm.ifBlank { "本学期" }
 
     UnionScreenScaffold(
         title = "成绩",
         onBack = onBack,
+        subtitle = cacheSubtitle(state),
+        modifier = modifier,
         actions = {
             PrismIconButton(
                 icon = Icons.Outlined.Share,
                 contentDescription = "分享",
-                onClick = { /* 分享：生成脱敏成绩卡片文本 */ launchUi { shareGrades(gpa, data) } },
+                onClick = { /* 分享：生成脱敏成绩卡片文本 */ launchUi { shareGrades(summary, data) } },
             )
         },
     ) { padding ->
@@ -114,61 +155,87 @@ fun GradesScreen(
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+                .padding(bottom = PrismSpace.Bottom),
+            verticalArrangement = Arrangement.spacedBy(PrismSpace.Item),
         ) {
-            if (semesters.size > 1) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    semesters.take(8).forEach { sem ->
-                        PrismChip(
-                            label = sem.shortLabel,
-                            selected = semesterDm == sem.dm,
-                            onClick = { semesterDm = sem.dm; load() },
-                        )
-                    }
-                }
-            }
-
-            PrismMetricCard(
-                label = "GPA",
-                value = gpa?.first ?: "—",
-                subtitle = "加权平均 ${gpa?.second ?: "—"} · 已修 ${data?.grades?.size ?: 0} 门课程\n按学校规则估算，以教务为准",
-                icon = Icons.Rounded.Grade,
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                accent = MaterialTheme.colorScheme.onPrimaryContainer,
+            SemesterRow(
+                semesterName = semesterName,
+                effective = effective,
+                onPickSemester = { if (semesters.isNotEmpty()) sheetOpen = true },
+                onToggleMode = {
+                    effective = !effective
+                    load()
+                },
             )
 
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                PrismChip(label = "有效成绩", selected = effective, onClick = { effective = true; load() })
-                PrismChip(label = "原始成绩", selected = !effective, onClick = { effective = false; load() })
-            }
+            when (val current = state) {
+                UiState.Loading -> {
+                    RulerSkeleton()
+                    PrismSkeletonList(rows = 3, showHero = false)
+                }
 
-            StateContent(
-                state = state,
-                emptyIcon = Icons.Rounded.Grade,
-                onRetry = { load() },
-            ) { d ->
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    PrismGroupedList {
-                        d.grades.forEach { g ->
-                            PrismRow(
-                                title = g.courseName,
-                                subtitle = "${g.score} 分 · ${g.gpa.ifBlank { "— " }}绩点 · ${g.credits.ifBlank { "?" }} 学分",
-                                leading = { IconBadge(Icons.Rounded.Grade) },
-                                onClick = { onOpenGrade(g) },
-                            )
-                        }
-                    }
-                    Text(
-                        "成绩为客户端估算展示，最终以教务系统为准",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                is UiState.Failed -> PrismErrorState(
+                    message = current.message,
+                    hint = if (current.isAuth) "可到「我的 → 凭证中心」重新登录" else null,
+                    onRetry = { load() },
+                )
+
+                is UiState.Empty -> NullStatus(
+                    icon = Icons.Rounded.Grade,
+                    title = "登录教务后查看成绩",
+                    subtitle = current.hint,
+                    modifier = Modifier.padding(horizontal = 16.dp),
+                )
+
+                is UiState.Ready -> if (current.data.grades.isEmpty()) {
+                    NullStatus(
+                        icon = Icons.Rounded.Grade,
+                        title = "本学期还没有成绩",
+                        subtitle = "成绩一般在考后两周内发布",
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                    )
+                } else {
+                    GradesContent(
+                        data = current.data,
+                        summary = computeGpa(current.data.grades),
+                        onOpenGrade = onOpenGrade,
+                    )
+                }
+            }
+        }
+    }
+
+    PrismSnapSheet(visible = sheetOpen, onDismiss = { sheetOpen = false }) {
+        Column(
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 6.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text("选择学期", style = pageTitleStyle())
+            PrismGroupedList {
+                semesters.forEach { sem ->
+                    PrismRow(
+                        title = sem.name,
+                        onClick = {
+                            sheetOpen = false
+                            if (sem.dm != semesterDm) {
+                                semesterDm = sem.dm
+                                load()
+                            }
+                        },
+                        trailing = if (sem.isCurrent) {
+                            {
+                                Text(
+                                    "现在",
+                                    style = caption2Style(),
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        } else {
+                            null
+                        },
                     )
                 }
             }
@@ -176,11 +243,309 @@ fun GradesScreen(
     }
 }
 
-private suspend fun shareGrades(gpa: Pair<String, String>?, data: GradesData?) {
+/** 学期行：左侧选学期，右侧切换有效/原始成绩。 */
+@Composable
+private fun SemesterRow(
+    semesterName: String,
+    effective: Boolean,
+    onPickSemester: () -> Unit,
+    onToggleMode: () -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .defaultMinSize(minHeight = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Row(
+            Modifier
+                .weight(1f)
+                .clip(prismShape(PrismCorner.Sm))
+                .clickable(
+                    role = Role.Button,
+                    onClickLabel = "选择学期",
+                    onClick = onPickSemester,
+                )
+                .padding(vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = semesterName,
+                style = bodyStyle(),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false),
+            )
+            Icon(
+                Icons.Rounded.ArrowDropDown,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp),
+            )
+        }
+        PrismTextButton(onClick = onToggleMode) {
+            Text(if (effective) "有效成绩" else "原始成绩")
+        }
+    }
+}
+
+@Composable
+private fun RulerSkeleton() {
+    PrismSkeleton(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp)
+            .height(132.dp),
+        corner = PrismCorner.Md,
+    )
+}
+
+@Composable
+private fun GradesContent(
+    data: GradesData,
+    summary: GpaSummary,
+    onOpenGrade: (Grade) -> Unit,
+) {
+    PrismGpaRuler(
+        gpa = summary.gpa.toDoubleOrNull(),
+        weightedAverage = summary.weightedAverage,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+    LedgerRow(summary)
+    groupGrades(data.grades).forEach { (title, grades) ->
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp),
+        ) {
+            SectionHeader(title) {
+                Text(
+                    "${grades.size} 门",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            PrismGroupedList {
+                grades.forEach { grade ->
+                    GradeRow(grade = grade, onClick = { onOpenGrade(grade) })
+                }
+            }
+        }
+    }
+    GradeDistribution(data.grades)
+    Text(
+        text = buildString {
+            append("成绩为客户端估算展示，最终以教务系统为准")
+            if (summary.excludedCount > 0) {
+                append("\n${summary.excludedCount} 门未计入绩点")
+            }
+        },
+        style = footnoteStyle(),
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = Modifier.padding(horizontal = 16.dp),
+    )
+}
+
+/** 学分账本：三列等宽数字 + caption2 标签，不加容器。 */
+@Composable
+private fun LedgerRow(summary: GpaSummary) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        LedgerCell(formatCredits(summary.credits), "学分", Modifier.weight(1f))
+        LedgerCell(summary.courseCount.toString(), "门", Modifier.weight(1f))
+        LedgerCell(summary.excellentCount.toString(), "门优秀", Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun LedgerCell(value: String, label: String, modifier: Modifier = Modifier) {
+    Column(modifier) {
+        Text(
+            text = value,
+            style = metricSmallStyle(),
+            color = MaterialTheme.colorScheme.onSurface,
+            maxLines = 1,
+        )
+        Text(
+            text = label,
+            style = caption2Style(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+    }
+}
+
+/** 课程行：3dp 等级色标 + 课名/元信息 + 右对齐分数。 */
+@Composable
+private fun GradeRow(grade: Grade, onClick: () -> Unit) {
+    val band = gradeBandOf(grade.score, grade.gpa)
+    PrismRow(
+        title = grade.courseName,
+        subtitle = gradeSubtitle(grade, band),
+        leading = {
+            Box(
+                Modifier
+                    .width(3.dp)
+                    .height(36.dp)
+                    .clip(prismShape(2f))
+                    .background(bandColor(band)),
+            )
+        },
+        trailing = {
+            Text(
+                text = grade.score.ifBlank { "—" },
+                style = metricSmallStyle(),
+                color = if (band == GradeBand.Fail) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurface
+                },
+                textAlign = TextAlign.End,
+                maxLines = 1,
+            )
+        },
+        onClick = onClick,
+    )
+}
+
+/** 成绩分布：按学分加权的堆叠条 + 图例。 */
+@Composable
+private fun GradeDistribution(grades: List<Grade>) {
+    val entries = DistributionBands
+        .map { band ->
+            band to grades
+                .filter { gradeBandOf(it.score, it.gpa) == band }
+                .sumOf { it.credits.trim().toDoubleOrNull() ?: 0.0 }
+        }
+        .filter { it.second > 0.0 }
+    if (entries.isEmpty()) return
+
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+    ) {
+        SectionHeader("成绩分布")
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .height(8.dp)
+                .clip(PrismShape(Float.MAX_VALUE)),
+            horizontalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            entries.forEach { (band, credits) ->
+                Box(
+                    Modifier
+                        .weight(credits.toFloat())
+                        .fillMaxHeight()
+                        .background(bandColor(band)),
+                )
+            }
+        }
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = entries.joinToString(" · ") { (band, credits) ->
+                "${band.label} ${String.format(Locale.ROOT, "%.1f", credits)}"
+            },
+            style = caption2Style(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** 等级色：只占语义位，跟着主题预设走。 */
+@Composable
+private fun bandColor(band: GradeBand): Color = when (band) {
+    GradeBand.Excellent -> MaterialTheme.colorScheme.primary
+    GradeBand.Good -> MaterialTheme.colorScheme.tertiary
+    GradeBand.Medium -> MaterialTheme.colorScheme.onSurfaceVariant
+    GradeBand.Pass -> MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary)
+    GradeBand.Fail -> MaterialTheme.colorScheme.error
+    GradeBand.Unknown -> MaterialTheme.colorScheme.outline
+}
+
+private val DistributionBands = listOf(
+    GradeBand.Excellent,
+    GradeBand.Good,
+    GradeBand.Medium,
+    GradeBand.Pass,
+    GradeBand.Fail,
+)
+
+private val CategoryOrder = listOf("必修", "选修", "通识", "其他")
+
+/** 按课程类别分组：必修 → 选修 → 通识 → 其他；类别全空时退回单组「全部课程」。 */
+private fun groupGrades(grades: List<Grade>): List<Pair<String, List<Grade>>> {
+    if (grades.all { it.category.isBlank() }) {
+        return listOf("全部课程" to sortGrades(grades))
+    }
+    return grades
+        .groupBy { categoryGroupOf(it.category) }
+        .mapValues { (_, list) -> sortGrades(list) }
+        .toList()
+        .sortedBy { (name, _) ->
+            val index = CategoryOrder.indexOf(name)
+            if (index >= 0) index else CategoryOrder.lastIndex
+        }
+}
+
+private fun categoryGroupOf(category: String): String = when {
+    category.contains("必修") -> "必修"
+    category.contains("选修") -> "选修"
+    category.contains("通识") -> "通识"
+    else -> "其他"
+}
+
+/** 组内排序：分数降序，同分按学分降序，无法识别的成绩落底。 */
+private fun sortGrades(grades: List<Grade>): List<Grade> =
+    grades.sortedWith(
+        compareByDescending<Grade> { sortScoreOf(it) }
+            .thenByDescending { it.credits.trim().toDoubleOrNull() ?: 0.0 },
+    )
+
+private fun sortScoreOf(grade: Grade): Double =
+    grade.score.trim().toDoubleOrNull() ?: when (gradeBandOf(grade.score, grade.gpa)) {
+        GradeBand.Excellent -> 95.0
+        GradeBand.Good -> 85.0
+        GradeBand.Medium -> 75.0
+        GradeBand.Pass -> 65.0
+        GradeBand.Fail -> 50.0
+        GradeBand.Unknown -> -1.0
+    }
+
+/** 元信息：学分 · 绩点 · 等级；空值整段省略。 */
+private fun gradeSubtitle(grade: Grade, band: GradeBand): String = buildList {
+    grade.credits.trim().takeIf { it.isNotBlank() }?.let { add("$it 学分") }
+    grade.gpa.trim().takeIf { it.isNotBlank() }?.let { add("$it 绩点") }
+    if (band == GradeBand.Unknown) {
+        grade.score.trim().takeIf { it.isNotBlank() }?.let { add(it) }
+    } else {
+        add(band.label)
+    }
+}.joinToString(" · ")
+
+private fun formatCredits(value: Double): String =
+    String.format(Locale.ROOT, "%.1f", value).removeSuffix(".0")
+
+private fun cacheSubtitle(state: UiState<GradesData>): String? = when (state) {
+    is UiState.Ready -> state.updatedAt
+        .takeIf { it > 0 }
+        ?.let { "缓存于 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(Date(it))}" }
+
+    else -> null
+}
+
+private suspend fun shareGrades(summary: GpaSummary?, data: GradesData?) {
     if (data == null) return
     val text = buildString {
         appendLine("我的学期成绩（学号已隐藏）")
-        appendLine("GPA ${gpa?.first} · 加权平均 ${gpa?.second}")
+        appendLine("GPA ${summary?.gpa ?: "—"} · 加权平均 ${summary?.weightedAverage ?: "—"}")
         data.grades.forEach { appendLine("${it.courseName}: ${it.score} 分 / ${it.credits} 学分") }
         appendLine("— 来自 郑财校园")
     }
@@ -193,40 +558,4 @@ suspend fun shareText(text: String) {
         val clipboard = com.union.campus.UnionApplicationHolder.clipboard
         clipboard?.setPrimaryClip(android.content.ClipData.newPlainText("union", text))
     }
-}
-
-/** GPA 计算：4.0 制，绩点按分数段（90+→4.0, 85+→3.7, 82+→3.3, 78+→3.0, 75+→2.7, 72+→2.3, 68+→2.0, 64+→1.5, 60+→1.0）。 */
-fun computeGpa(grades: List<Grade>): Pair<String, String> {
-    var totalCredit = 0.0
-    var weightedPoints = 0.0
-    var weightedScore = 0.0
-    var validScore = 0.0
-    var scoreCredits = 0.0
-    grades.forEach { g ->
-        val credit = g.credits.toDoubleOrNull() ?: return@forEach
-        val score = g.score.toDoubleOrNull()
-        val gp = g.gpa.toDoubleOrNull() ?: score?.let { scoreToGp(it) } ?: return@forEach
-        totalCredit += credit
-        weightedPoints += credit * gp
-        if (score != null) {
-            validScore += credit * score
-            scoreCredits += credit
-        }
-    }
-    val gpa = if (totalCredit > 0) "%.2f".format(weightedPoints / totalCredit) else "—"
-    val avg = if (scoreCredits > 0) "%.1f".format(validScore / scoreCredits) else "—"
-    return gpa to avg
-}
-
-private fun scoreToGp(score: Double): Double = when {
-    score >= 90 -> 4.0
-    score >= 85 -> 3.7
-    score >= 82 -> 3.3
-    score >= 78 -> 3.0
-    score >= 75 -> 2.7
-    score >= 72 -> 2.3
-    score >= 68 -> 2.0
-    score >= 64 -> 1.5
-    score >= 60 -> 1.0
-    else -> 0.0
 }
