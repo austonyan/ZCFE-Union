@@ -7,7 +7,9 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -84,11 +86,19 @@ fun PrismCard(
         label = "card-container",
     )
     if (onClick != null) {
+        // 点按既要有 ink，也要有"被按住"的形变；抬起比按下慢，才有重量感。
+        val interaction = remember { MutableInteractionSource() }
         Surface(
             modifier = modifier
+                .prismPressScale(interaction, target = 0.985f)
                 .prismEdge(shape)
                 .clip(shape)
-                .clickable(role = Role.Button, onClick = onClick),
+                .clickable(
+                    interactionSource = interaction,
+                    indication = LocalIndication.current,
+                    role = Role.Button,
+                    onClick = onClick,
+                ),
             color = fill,
             shape = shape,
         ) {
@@ -765,17 +775,23 @@ fun PrismButton(
         !filled -> Color.Transparent
         else -> colors.first
     }
+    val interaction = remember { MutableInteractionSource() }
     WithPressLook(PressLook.Tint) {
         Surface(
-            onClick = {
-                haptics.tap()
-                onClick()
-            },
-            enabled = enabled && !loading,
             modifier = modifier
+                .prismPressScale(interaction, target = 0.96f, enabled = enabled && !loading)
                 .clip(pill)
                 .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp)
-                .minimumInteractiveComponentSize(),
+                .minimumInteractiveComponentSize()
+                .clickable(
+                    interactionSource = interaction,
+                    indication = LocalIndication.current,
+                    enabled = enabled && !loading,
+                    role = Role.Button,
+                ) {
+                    haptics.tap()
+                    onClick()
+                },
             shape = pill,
             color = resolvedContainer,
             border = if (!filled) androidx.compose.foundation.BorderStroke(
