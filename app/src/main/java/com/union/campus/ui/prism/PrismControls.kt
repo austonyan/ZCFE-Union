@@ -11,9 +11,11 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -43,18 +45,21 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * 统一的胶囊筛选芯片：未选中为 Inset 底，选中为主色底；
- * 颜色走 Fast 过渡，点按有触感，和 dock / segmented 使用同一套 Spring。
+ * 筛选芯片：中性未选中、secondaryContainer 配对选中、勾选与形状双重指示。
+ * 预留勾选位置，切换不会改变宽度；按压沿用统一的 motion / haptics。
  */
 @Composable
 fun PrismChip(
@@ -64,15 +69,24 @@ fun PrismChip(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
-    val density = LocalDensity.current
     val haptics = rememberPrismHaptics()
     val motion = rememberPrismMotion()
     val interactionSource = remember { MutableInteractionSource() }
-    val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
+    val pressed by interactionSource.collectIsPressedAsState()
+    val radius by animateFloatAsState(
+        targetValue = when {
+            pressed && enabled -> PrismShapeRole.PressedControl
+            selected -> PrismShapeRole.SelectedControl
+            else -> 24f
+        },
+        animationSpec = motion.springSnappy(),
+        label = "chip-shape",
+    )
+    val pill = prismShape(radius)
     val container by animateColorAsState(
         targetValue = when {
             !enabled -> surfaceColorOf(SurfaceLevel.Inset).withAlpha(PrismAlpha.Hint)
-            selected -> MaterialTheme.colorScheme.primary
+            selected -> MaterialTheme.colorScheme.secondaryContainer
             else -> surfaceColorOf(SurfaceLevel.Inset)
         },
         animationSpec = motion.tween(PrismMotion.Fast),
@@ -81,7 +95,7 @@ fun PrismChip(
     val content by animateColorAsState(
         targetValue = when {
             !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled)
-            selected -> MaterialTheme.colorScheme.onPrimary
+            selected -> MaterialTheme.colorScheme.onSecondaryContainer
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
         animationSpec = motion.tween(PrismMotion.Fast),
@@ -90,7 +104,9 @@ fun PrismChip(
     WithPressLook(PressLook.Tint) {
         Surface(
             modifier = modifier
+                .prismPressScale(interactionSource, target = 0.97f, enabled = enabled)
                 .minimumInteractiveComponentSize()
+                .clip(pill)
                 // 单选筛选语义：TalkBack 读作「单选按钮，已选中/未选中」。
                 // 调用方在外层 Row 上补 Modifier.selectableGroup() 即可获得分组语义。
                 .selectable(
@@ -110,14 +126,22 @@ fun PrismChip(
             shape = pill,
             color = container,
         ) {
-            Text(
-                text = label,
-                style = caption1Style(),
-                color = content,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-            )
+            Row(
+                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Box(Modifier.size(14.dp)) {
+                    if (selected) Icon(Icons.Rounded.Check, null, tint = content, modifier = Modifier.size(14.dp))
+                }
+                Text(
+                    text = label,
+                    style = caption1Style(),
+                    color = content,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
         }
     }
 }
@@ -159,6 +183,19 @@ fun PrismLoadingIndicator(
     strokeWidth: Dp = 2.dp,
     color: Color = MaterialTheme.colorScheme.primary,
 ) {
+    val motion = rememberPrismMotion()
+    if (!motion.enabled) {
+        // A static partial ring retains the loading signal without an infinite animation.
+        CircularProgressIndicator(
+            progress = { 0.75f },
+            modifier = modifier.size(size).clearAndSetSemantics {
+                progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+            },
+            color = color,
+            strokeWidth = strokeWidth,
+        )
+        return
+    }
     CircularProgressIndicator(
         modifier = modifier.size(size),
         color = color,
@@ -178,7 +215,13 @@ fun PrismLoadingBlock(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        PrismLoadingIndicator()
+        Box(
+            Modifier.size(72.dp).clip(prismShape(PrismShapeRole.Hero))
+                .background(MaterialTheme.colorScheme.secondaryContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            PrismLoadingIndicator(size = 28.dp, color = MaterialTheme.colorScheme.onSecondaryContainer)
+        }
         if (!label.isNullOrBlank()) {
             Text(
                 text = label,
@@ -205,12 +248,18 @@ fun PrismErrorState(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Icon(
-            Icons.Rounded.ErrorOutline,
-            contentDescription = null,
-            tint = prismTextFaint(),
-            modifier = Modifier.size(38.dp),
-        )
+        Box(
+            Modifier.size(72.dp).clip(prismShape(PrismShapeRole.Hero))
+                .background(MaterialTheme.colorScheme.errorContainer),
+            contentAlignment = Alignment.Center,
+        ) {
+            Icon(
+                Icons.Rounded.ErrorOutline,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onErrorContainer,
+                modifier = Modifier.size(32.dp),
+            )
+        }
         Text(
             text = message,
             style = subheadlineStyle(),
@@ -238,15 +287,16 @@ fun PrismReveal(
     index: Int = 0,
     content: @Composable () -> Unit,
 ) {
-    if (!prismAnimationsEnabled()) {
-        content()
+    val motion = rememberPrismMotion()
+    if (!motion.enabled) {
+        if (visible) content()
         return
     }
     AnimatedVisibility(
         visible = visible,
-        enter = fadeIn(PrismMotion.tween(PrismMotion.Standard, delayMillis = 50 * index)) +
-            slideInVertically(PrismMotion.tween(PrismMotion.Standard, delayMillis = 50 * index)) { it / 3 },
-        exit = fadeOut(PrismMotion.tween(PrismMotion.Fast)),
+        enter = fadeIn(motion.tween(PrismMotion.Standard, delayMillis = 50 * index)) +
+            slideInVertically(motion.tween(PrismMotion.Standard, delayMillis = 50 * index)) { it / 3 },
+        exit = fadeOut(motion.tween(PrismMotion.Fast)),
     ) {
         content()
     }

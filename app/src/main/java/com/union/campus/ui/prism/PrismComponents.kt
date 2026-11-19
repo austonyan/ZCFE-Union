@@ -2,14 +2,17 @@ package com.union.campus.ui.prism
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.LocalIndication
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -48,6 +51,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
@@ -55,10 +61,14 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.progressBarRangeInfo
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.constrainHeight
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
@@ -68,24 +78,25 @@ import kotlinx.coroutines.launch
 // ---------------- 卡片 ----------------
 
 /**
- * Prism 卡片：raised surface 填充、连续圆角 16、ink 按压（点击时）、无阴影。
+ * Prism 卡片：中性 raised surface、语义 Card 圆角、ink 按压、无阴影。
  */
 @Composable
 fun PrismCard(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     containerColor: Color = surfaceColorOf(LocalSurfaceLevel.current.next()),
-    corner: Float = PrismCorner.Md,
+    corner: Float = PrismShapeRole.Card,
     contentPadding: PaddingValues = PaddingValues(16.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val motion = rememberPrismMotion()
     val density = LocalDensity.current
     val shape = remember(corner, density.density) {
         PrismShape(corner * density.density)
     }
     val fill by animateColorAsState(
         targetValue = containerColor,
-        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        animationSpec = motion.tween(PrismMotion.Standard),
         label = "card-container",
     )
     if (onClick != null) {
@@ -137,59 +148,70 @@ fun CardHeader(title: String, modifier: Modifier = Modifier, icon: ImageVector? 
     }
 }
 
-// ---------------- 分组列表（iOS inset grouped） ----------------
+// ---------------- 连接式分组列表 ----------------
 
 /**
- * 分组列表：整组由容器统一裁 24 连续圆角，行之间由 Layout 画一条
- * onSurface·α0.14 的 hairline。行不再手写 index/count，条件增删行
- * 也不会破坏首尾圆角。
+ * 连接式分组：外角 24、内角 6、行间 2dp；中性容器，不给整组染色。
+ * 由实际测量的子项决定首尾，条件增删行不会破坏形状。
+ * dividerStart 为旧调用保留；连接间隙已替代分隔线。
  *
  * 放在已带页面左右边距的 Column 里；行内容应是 PrismRow 这类整行组件。
  */
 @Composable
+@Suppress("UNUSED_PARAMETER")
 fun PrismGroupedList(
     modifier: Modifier = Modifier,
     dividerStart: Dp = PrismSpace.RowHorizontal,
     content: @Composable () -> Unit,
 ) {
     val density = LocalDensity.current
-    val shape = remember(density.density) { PrismShape(PrismCorner.Xl * density.density) }
-    val dividerColor = MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.DividerSoft)
-    val dividerStartPx = with(density) { dividerStart.toPx() }
-    val dividerWidth = with(density) { Dp.Hairline.toPx() }
-    // measure 阶段写入，draw 阶段读取；同一次布局内即可画出分隔线。
+    val shape = prismShape(PrismShapeRole.GroupOuter)
+    val container = surfaceColorOf(SurfaceLevel.Card)
+    val outer = with(density) { PrismShapeRole.GroupOuter.dp.toPx() }
+    val inner = with(density) { PrismShapeRole.GroupInner.dp.toPx() }
+    val gap = with(density) { 2.dp.roundToPx() }
+    // Measure writes, draw reads; backgrounds follow the same measured row bounds.
     var rowHeights = IntArray(0)
     Layout(
         content = content,
         modifier = modifier
             .fillMaxWidth()
-            .prismEdge(shape)
             .clip(shape)
-            .background(surfaceColorOf(SurfaceLevel.Card))
             .drawWithContent {
-                drawContent()
                 var y = 0f
                 for (i in rowHeights.indices) {
-                    y += rowHeights[i]
-                    if (i < rowHeights.lastIndex) {
-                        drawLine(
-                            color = dividerColor,
-                            start = androidx.compose.ui.geometry.Offset(dividerStartPx, y),
-                            end = androidx.compose.ui.geometry.Offset(size.width, y),
-                            strokeWidth = dividerWidth,
-                        )
+                    val top = CornerRadius(if (i == 0) outer else inner)
+                    val bottom = CornerRadius(if (i == rowHeights.lastIndex) outer else inner)
+                    val path = Path().apply {
+                        addRoundRect(RoundRect(
+                            left = 0f, top = y, right = size.width, bottom = y + rowHeights[i],
+                            topLeftCornerRadius = top, topRightCornerRadius = top,
+                            bottomLeftCornerRadius = bottom, bottomRightCornerRadius = bottom,
+                        ))
                     }
+                    drawPath(path, container)
+                    y += rowHeights[i] + gap
                 }
+                drawContent()
             },
     ) { measurables, constraints ->
-        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0)) }
+        val placeables = measurables.map { it.measure(constraints.copy(minWidth = 0, minHeight = 0)) }
         rowHeights = placeables.map { it.height }.toIntArray()
-        val height = rowHeights.sum()
+        val height = constraints.constrainHeight(rowHeights.sum() + gap * (placeables.size - 1).coerceAtLeast(0))
         layout(constraints.maxWidth, height) {
             var y = 0
-            placeables.forEach { placeable ->
-                placeable.placeRelative(0, y)
-                y += placeable.height
+            placeables.forEachIndexed { index, placeable ->
+                // Clip the row's own ink to its connected shape as well as the group outline.
+                val top = if (index == 0) PrismShapeRole.GroupOuter else PrismShapeRole.GroupInner
+                val bottom = if (index == placeables.lastIndex) PrismShapeRole.GroupOuter else PrismShapeRole.GroupInner
+                placeable.placeRelativeWithLayer(0, y) {
+                    this.shape = RoundedCornerShape(
+                        topStart = top.dp, topEnd = top.dp,
+                        bottomStart = bottom.dp, bottomEnd = bottom.dp,
+                    )
+                    clip = true
+                }
+                y += placeable.height + gap
             }
         }
     }
@@ -347,6 +369,7 @@ fun PrismMetricCard(
         modifier = modifier,
         onClick = onClick,
         containerColor = containerColor,
+        corner = if (compact) PrismShapeRole.Card else PrismShapeRole.Hero,
         contentPadding = PaddingValues(if (compact) 14.dp else 20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -701,17 +724,17 @@ fun NullStatus(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         StaggerItem(shown, 0) {
-            // 空态不是错误页：给一个品牌色的圆形底座，比一个 55% 灰的大图标更"有人管"。
+            // 空态与加载态共用调和容器，图标使用完整的 onContainer 配对。
             Box(
                 modifier = Modifier
                     .size(72.dp)
-                    .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.withAlpha(0.08f)),
+                    .clip(prismShape(PrismShapeRole.Hero))
+                    .background(MaterialTheme.colorScheme.secondaryContainer),
                 contentAlignment = Alignment.Center,
             ) {
                 androidx.compose.material3.Icon(
                     icon, contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary.withAlpha(0.72f),
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     modifier = Modifier.size(32.dp),
                 )
             }
@@ -774,9 +797,16 @@ fun PrismButton(
     contentPadding: PaddingValues = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
     content: @Composable RowScope.() -> Unit,
 ) {
-    val density = LocalDensity.current
     val haptics = rememberPrismHaptics()
-    val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
+    val motion = rememberPrismMotion()
+    val interaction = remember { MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val radius by animateFloatAsState(
+        targetValue = if (pressed && enabled && !loading) PrismShapeRole.SelectedControl else 28f,
+        animationSpec = motion.springSnappy(),
+        label = "button-shape",
+    )
+    val pill = prismShape(radius)
     val base = if (filled) {
         Pair(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.onPrimary)
     } else {
@@ -788,7 +818,6 @@ fun PrismButton(
         !filled -> Color.Transparent
         else -> colors.first
     }
-    val interaction = remember { MutableInteractionSource() }
     WithPressLook(PressLook.Tint) {
         Surface(
             modifier = modifier
@@ -796,6 +825,9 @@ fun PrismButton(
                 .clip(pill)
                 .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp)
                 .minimumInteractiveComponentSize()
+                .semantics {
+                    if (loading) progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+                }
                 .clickable(
                     interactionSource = interaction,
                     indication = LocalIndication.current,
@@ -831,7 +863,7 @@ fun PrismButton(
                 }
                 if (loading) {
                     PrismLoadingIndicator(
-                        modifier = Modifier.align(Alignment.Center),
+                        modifier = Modifier.align(Alignment.Center).clearAndSetSemantics {},
                         size = 18.dp,
                         strokeWidth = 2.dp,
                         color = colors.second,
@@ -896,6 +928,7 @@ fun PrismAlertDialog(
     dismissText: String? = "取消",
     destructive: Boolean = false,
 ) {
+    val motion = rememberPrismMotion()
     val scope = rememberCoroutineScope()
     var open by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { open = true }
@@ -905,7 +938,7 @@ fun PrismAlertDialog(
         if (!open) return
         open = false
         scope.launch {
-            delay((PrismMotion.Quick + 20).toLong())
+            if (motion.enabled) delay((PrismMotion.Quick + 20).toLong())
             action()
         }
     }
@@ -916,15 +949,15 @@ fun PrismAlertDialog(
         AnimatedVisibility(
             visible = open,
             modifier = modifier.fillMaxWidth(0.92f).widthIn(max = 348.dp),
-            enter = fadeIn(PrismMotion.tween(PrismMotion.Fast)) +
+            enter = fadeIn(motion.tween(PrismMotion.Fast)) +
                 scaleIn(
                     initialScale = 0.92f,
-                    animationSpec = PrismMotion.springSnappy(),
+                    animationSpec = motion.springSnappy(),
                 ),
-            exit = fadeOut(PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate)) +
+            exit = fadeOut(motion.spec(PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate))) +
                 scaleOut(
                     targetScale = 0.94f,
-                    animationSpec = PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate),
+                    animationSpec = motion.spec(PrismMotion.tween(PrismMotion.Quick, PrismMotion.Accelerate)),
                 ),
         ) {
             Surface(

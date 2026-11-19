@@ -26,6 +26,17 @@ object PrismCorner {
     const val Sheet = 38f
 }
 
+/** Semantic roles, independent of the legacy size aliases used by existing pages. */
+object PrismShapeRole {
+    const val Hero = 28f
+    const val Card = 20f
+    const val Field = 16f
+    const val GroupOuter = 24f
+    const val GroupInner = 6f
+    const val SelectedControl = 16f
+    const val PressedControl = 12f
+}
+
 /** 平滑度：iOS 视感 ≈ Figma 0.6；胶囊形用 0。 */
 const val PrismSmoothing = 0.6f
 

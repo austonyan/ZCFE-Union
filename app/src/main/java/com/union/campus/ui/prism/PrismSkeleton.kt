@@ -34,7 +34,7 @@ fun PrismSkeleton(
 ) {
     val density = LocalDensity.current
     val shape = remember(density.density, corner) { PrismShape(corner * density.density) }
-    val enabled = prismAnimationsEnabled()
+    val enabled = rememberPrismMotion().enabled
     val transition = rememberInfiniteTransition(label = "prism-skeleton")
     val shimmerState = if (enabled) {
         transition.animateFloat(
@@ -86,25 +86,25 @@ fun PrismSkeletonList(
         if (showHero) {
             PrismSkeleton(
                 modifier = Modifier.fillMaxWidth().height(132.dp),
-                corner = PrismCorner.Md,
+                corner = PrismShapeRole.Hero,
             )
         }
         if (showMetricRow) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 PrismSkeleton(
                     modifier = Modifier.weight(1f).height(96.dp),
-                    corner = PrismCorner.Md,
+                    corner = PrismShapeRole.Card,
                 )
                 PrismSkeleton(
                     modifier = Modifier.weight(1f).height(96.dp),
-                    corner = PrismCorner.Md,
+                    corner = PrismShapeRole.Card,
                 )
             }
         }
         repeat(rows.coerceAtLeast(1)) {
             PrismSkeleton(
                 modifier = Modifier.fillMaxWidth().height(56.dp),
-                corner = PrismCorner.Md,
+                corner = PrismShapeRole.Card,
             )
         }
     }

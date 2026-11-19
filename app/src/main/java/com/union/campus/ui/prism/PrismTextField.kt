@@ -8,10 +8,8 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.input.VisualTransformation
 
 /** Prism 输入框：连续圆角 16、聚焦 2dp 主色、卡片底、错误内联。 */
@@ -32,8 +30,7 @@ fun PrismTextField(
     visualTransformation: VisualTransformation = VisualTransformation.None,
     enabled: Boolean = true,
 ) {
-    val density = LocalDensity.current
-    val shape = remember(density.density) { PrismShape(16f * density.density) }
+    val shape = prismShape(PrismShapeRole.Field)
     val container = surfaceColorOf(SurfaceLevel.Card)
     OutlinedTextField(
         value = value,
@@ -64,11 +61,12 @@ fun PrismTextField(
         shape = shape,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,
-            unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
             focusedContainerColor = container,
             unfocusedContainerColor = container,
             errorBorderColor = MaterialTheme.colorScheme.error,
-            errorContainerColor = MaterialTheme.colorScheme.errorContainer.withAlpha(PrismAlpha.ErrorFill),
+            // Keep text on its validated neutral surface; use error for outline/supporting text.
+            errorContainerColor = container,
             cursorColor = MaterialTheme.colorScheme.primary,
         ),
     )
