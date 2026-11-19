@@ -50,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
@@ -247,7 +249,28 @@ fun TimetableScreen(
             onThisWeek = { goThisWeek() },
         )
 
-        Box(Modifier.weight(1f).fillMaxWidth()) {
+        // 左右滑动切周：竖向滚动仍归课表自己，只有横向位移超过阈值才翻周。
+        val swipeThreshold = with(LocalDensity.current) { 56.dp.toPx() }
+        Box(
+            Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .pointerInput(week, dayCount, maxWeek) {
+                    var dragX = 0f
+                    detectHorizontalDragGestures(
+                        onDragStart = { dragX = 0f },
+                        onHorizontalDrag = { _, amount -> dragX += amount },
+                        onDragEnd = {
+                            when {
+                                dragX <= -swipeThreshold -> changeWeek(1)
+                                dragX >= swipeThreshold -> changeWeek(-1)
+                            }
+                            dragX = 0f
+                        },
+                        onDragCancel = { dragX = 0f },
+                    )
+                },
+        ) {
             if (!jw.isBound() && timetable == null) {
                 NullStatus(
                     icon = Icons.Rounded.MenuBook,
@@ -350,13 +373,15 @@ private fun TimetableGrid(
 
     val density = LocalDensity.current
     val fontScale = density.fontScale.coerceIn(0.8f, 1.4f)
+    // 6/7 列时每列只剩约 44dp，字号和留白都要跟着收，否则课名只能看到两三个字。
+    val isCompact = dayCount > 5
     val dayShape = remember(density.density) { PrismShape(8f * density.density) }
     val blockShape = remember(density.density) { PrismShape(10f * density.density) }
     val tagShape = remember(density.density) { PrismShape(4f * density.density) }
-    // 时间栏用无字距小字：10sp 下「S 10:40」在 52dp 内完整显示，也不会把三行撑出行高。
+    // 时间栏只放「节次 + 开始时间」，宽度压到 34dp 左右，剩下的全给课程卡片。
     val timeStyle = caption2Style().copy(
-        fontSize = 10.sp,
-        lineHeight = 11.sp,
+        fontSize = (if (isCompact) 9f else 9.5f).sp,
+        lineHeight = (if (isCompact) 10f else 10.5f).sp,
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
@@ -366,19 +391,17 @@ private fun TimetableGrid(
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
 
-    // 6/7 列时每列只剩约 44dp，字号和留白都要跟着收，否则课名只能看到两三个字。
-    val isCompact = dayCount > 5
-    val nameLineHeight = if (isCompact) 11.5f else 12.5f
-    val metaLineHeight = if (isCompact) 9.5f else 10.5f
+    val nameLineSp = if (isCompact) 11.5f else 12.5f
+    val metaLineSp = if (isCompact) 9.5f else 10.5f
     val cellNameStyle = caption1Style().copy(
         fontSize = (if (isCompact) 10f else 11f).sp,
-        lineHeight = nameLineHeight.sp,
+        lineHeight = nameLineSp.sp,
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
     val cellMetaStyle = caption2Style().copy(
         fontSize = (if (isCompact) 8.5f else 9.5f).sp,
-        lineHeight = metaLineHeight.sp,
+        lineHeight = metaLineSp.sp,
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
@@ -396,18 +419,26 @@ private fun TimetableGrid(
             .filter { it.startSection <= maxSection && it.endSection >= 1 }
         val hasEvening = allCells.any { it.endSection >= TimetableSchedule.EVENING_START_SECTION }
         val visibleEnd = if (hasEvening) maxSection else TimetableSchedule.DINNER_AFTER_SECTION
-        val todayCells = displayedDays.firstOrNull { it.day == today }?.cells.orEmpty()
-        val nowSlot = TimetableSchedule.slotForCurrentOrNext(todayCells, config, nowTick)
-        val times = TimetableSchedule.sectionTimes(nowSlot).associateBy { it.section }
-        val sTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.S1ToS6AndJ7))
-            .associateBy { it.section }
-        val jTimes = TimetableSchedule.sectionTimes(config.slotFor(BuildingGroup.J1ToJ6))
-            .associateBy { it.section }
+        // 第 3、4 节 J 组和 S 组差 20 分钟。时间栏只显示一套：看这一节本周实际有课的楼栋，
+        // 两种楼都出现时取占多数的那套，这一节没课就用设置里的默认组。
+        fun groupForSection(section: Int): BuildingGroup {
+            val counts = displayedDays.asSequence()
+                .flatMap { it.cells.asSequence() }
+                .filter { it.startSection == section }
+                .mapNotNull { TimetableSchedule.buildingGroupOf(it.location) }
+                .groupingBy { it }
+                .eachCount()
+            return counts.maxByOrNull { it.value }?.key ?: config.fallbackGroup
+        }
+        val times = (1..visibleEnd).associateWith { section ->
+            TimetableSchedule.sectionTimes(config.slotFor(groupForSection(section)))
+                .first { it.section == section }
+        }
 
         val breakHeight = 18.dp * fontScale
         val headerHeight = 40.dp * fontScale
-        val gridPadding = if (isCompact) 5.dp else 8.dp
-        val timeWidth = (if (isCompact) 44.dp else 52.dp) * fontScale
+        val gridPadding = 4.dp
+        val timeWidth = (if (isCompact) 30.dp else 34.dp) * fontScale
         val breakCount = (if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) 1 else 0) +
             (if (visibleEnd > TimetableSchedule.DINNER_AFTER_SECTION) 1 else 0)
         val rowsRoom = maxHeight - gridPadding * 2 - headerHeight - 4.dp - breakHeight * breakCount
@@ -459,7 +490,7 @@ private fun TimetableGrid(
         PrismCard(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
-                horizontal = if (isCompact) 4.dp else 6.dp,
+                horizontal = if (isCompact) 3.dp else 4.dp,
                 vertical = gridPadding,
             ),
         ) {
@@ -529,38 +560,14 @@ private fun TimetableGrid(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     maxLines = 1,
                                 )
-                                if (section == 3 || section == 4) {
+                                times[section]?.let { time ->
                                     Text(
-                                        "S ${sTimes[section]?.start.orEmpty()}",
+                                        time.start,
                                         style = timeStyle,
-                                        color = MaterialTheme.colorScheme.tertiary,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
                                         maxLines = 1,
                                         softWrap = false,
                                     )
-                                    Text(
-                                        "J ${jTimes[section]?.start.orEmpty()}",
-                                        style = timeStyle,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        maxLines = 1,
-                                        softWrap = false,
-                                    )
-                                } else {
-                                    times[section]?.let { time ->
-                                        Text(
-                                            time.start,
-                                            style = timeStyle,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
-                                            maxLines = 1,
-                                            softWrap = false,
-                                        )
-                                        Text(
-                                            time.end,
-                                            style = timeStyle,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
-                                            maxLines = 1,
-                                            softWrap = false,
-                                        )
-                                    }
                                 }
                             }
                         }
@@ -619,7 +626,7 @@ private fun TimetableGrid(
                                             .offset(y = sectionTop(start))
                                             .height(blockH)
                                             .fillMaxWidth()
-                                            .padding(horizontal = if (isCompact) 1.dp else 1.5.dp, vertical = 1.dp)
+                                            .padding(horizontal = 0.5.dp, vertical = 1.dp)
                                             .clip(blockShape)
                                             .background(bg)
                                             // 先清空内部所有语义，再挂一条完整描述；触摸仍由 clickable 处理。
@@ -636,20 +643,23 @@ private fun TimetableGrid(
                                         // 短块不硬塞三行元信息，长块也不会只显示两行课名。
                                         val innerVertical = 2.dp
                                         val usable = blockH.value - innerVertical.value * 2
+                                        // 系统字号放大后行高按 dp 一起涨，行数要按缩放后的行高算。
+                                        val nameLineDp = nameLineSp * fontScale
+                                        val metaLineDp = metaLineSp * fontScale
                                         val showLocationRow = shownLocation.isNotBlank() &&
-                                            usable >= metaLineHeight + nameLineHeight * 2
+                                            usable >= metaLineDp + nameLineDp * 2
                                         val showTeacherRow = showLocationRow && cell.teacher.isNotBlank() &&
-                                            usable >= metaLineHeight * 2 + nameLineHeight * 2
+                                            usable >= metaLineDp * 2 + nameLineDp * 2
                                         // 不再在格子里画上下课时间：时间栏已经逐节标了，格子留给课名。
                                         val metaRows = (if (showLocationRow) 1 else 0) +
                                             (if (showTeacherRow) 1 else 0)
-                                        val nameLines = ((usable - metaRows * metaLineHeight) / nameLineHeight)
+                                        val nameLines = ((usable - metaRows * metaLineDp) / nameLineDp)
                                             .toInt().coerceAtLeast(1)
                                         Column(
                                             Modifier
                                                 .fillMaxSize()
                                                 .padding(
-                                                    horizontal = if (isCompact) 3.dp else 4.dp,
+                                                    horizontal = if (isCompact) 2.5.dp else 3.dp,
                                                     vertical = innerVertical,
                                                 ),
                                         ) {
@@ -687,10 +697,9 @@ private fun TimetableGrid(
                 }
 
                 if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) {
-                    val s4 = sTimes[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
-                    val j4 = jTimes[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
+                    val lunchEnd = times[TimetableSchedule.LUNCH_AFTER_SECTION]?.end.orEmpty()
                     BreakBand(
-                        label = if (s4 == j4) "午休 $s4 起" else "午休 $s4 / $j4 起",
+                        label = "午休 $lunchEnd 起",
                         y = sectionTop(TimetableSchedule.LUNCH_AFTER_SECTION) + rowHeight,
                         height = breakHeight,
                     )
