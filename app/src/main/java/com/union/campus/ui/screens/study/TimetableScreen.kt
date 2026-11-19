@@ -654,15 +654,18 @@ private fun TimetableGrid(
                                         // 系统字号放大后行高按 dp 一起涨，行数要按缩放后的行高算。
                                         val nameLineDp = nameLineSp * fontScale
                                         val metaLineDp = metaLineSp * fontScale
-                                        val showLocationRow = shownLocation.isNotBlank() &&
-                                            usable >= metaLineDp + nameLineDp * 2
-                                        val showTeacherRow = showLocationRow && cell.teacher.isNotBlank() &&
-                                            usable >= metaLineDp * 2 + nameLineDp * 2
-                                        // 不再在格子里画上下课时间：时间栏已经逐节标了，格子留给课名。
-                                        val metaRows = (if (showLocationRow) 1 else 0) +
-                                            (if (showTeacherRow) 1 else 0)
+                                        // 先给教室/教师留位，课名最多 4 行：超长课名一律省略号，不能把下面信息挤出去。
+                                        val wantMeta = (if (shownLocation.isNotBlank()) 1 else 0) +
+                                            (if (cell.teacher.isNotBlank()) 1 else 0)
+                                        val metaRows = when {
+                                            usable >= wantMeta * metaLineDp + nameLineDp -> wantMeta
+                                            usable >= metaLineDp + nameLineDp -> 1
+                                            else -> 0
+                                        }
+                                        val showLocationRow = metaRows >= 1 && shownLocation.isNotBlank()
+                                        val showTeacherRow = metaRows >= 2 && cell.teacher.isNotBlank()
                                         val nameLines = ((usable - metaRows * metaLineDp) / nameLineDp)
-                                            .toInt().coerceAtLeast(1)
+                                            .toInt().coerceIn(1, 4)
                                         Column(
                                             Modifier
                                                 .fillMaxSize()
@@ -670,8 +673,9 @@ private fun TimetableGrid(
                                                     horizontal = if (isCompact) 2.5.dp else 3.dp,
                                                     vertical = innerVertical,
                                                 ),
-                                            // 内容整体垂直居中：短课名的块不会顶在卡片上沿。
+                                            // 内容整体居中：短课名的块不会顶在卡片上沿。
                                             verticalArrangement = Arrangement.Center,
+                                            horizontalAlignment = Alignment.CenterHorizontally,
                                         ) {
                                             Text(
                                                 cell.name,
@@ -679,6 +683,7 @@ private fun TimetableGrid(
                                                 color = onBg,
                                                 maxLines = nameLines,
                                                 overflow = TextOverflow.Ellipsis,
+                                                textAlign = TextAlign.Center,
                                             )
                                             if (showLocationRow) {
                                                 Text(
@@ -687,6 +692,7 @@ private fun TimetableGrid(
                                                     color = onBg.withAlpha(PrismAlpha.Secondary),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
+                                                    textAlign = TextAlign.Center,
                                                 )
                                             }
                                             if (showTeacherRow) {
@@ -696,6 +702,7 @@ private fun TimetableGrid(
                                                     color = onBg.withAlpha(PrismAlpha.Secondary),
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
+                                                    textAlign = TextAlign.Center,
                                                 )
                                             }
                                         }
@@ -783,12 +790,23 @@ private fun BreakBand(label: String, y: Dp, height: Dp) {
 private fun dayName(day: Int): String =
     listOf("周一", "周二", "周三", "周四", "周五", "周六", "周日").getOrElse(day - 1) { "" }
 
-/** 课表格子里只显示教务地点方括号内的部分，例如「知会楼(S1)[S1-301]」→「S1-301」。 */
-private val locationBracketRegex = Regex("""\[([^\]]*)]""")
+/** 课表格子里只显示教务地点方括号内的教室号，例如「知会楼(S1)[S1-301]」→「S1-301」。 */
+private val locationBracketRegex = Regex("""\[([^\]]*)]|【([^】]*)】""")
+
+/** 中日韩汉字：方括号里混进来的说明文字（[多媒体]、[线上]）要剔掉，只留教室号。 */
+private val cjkRegex = Regex("""[\u3400-\u4dbf\u4e00-\u9fa5]""")
 
 private fun displayLocation(location: String): String {
-    val inside = locationBracketRegex.find(location)?.groupValues?.getOrNull(1)?.trim().orEmpty()
-    return inside.ifBlank { location.trim() }
+    val inside = locationBracketRegex.find(location)
+        ?.groupValues
+        ?.drop(1)
+        ?.firstOrNull { it.isNotBlank() }
+        ?.trim()
+        .orEmpty()
+    val cleaned = inside.replace(cjkRegex, "").replace(Regex("""\s{2,}"""), " ").trim()
+    if (cleaned.isNotBlank()) return cleaned
+    // 括号里只有中文（没有教室号）时退回括号外的部分，别让格子里出现一长串说明。
+    return location.replace(locationBracketRegex, "").trim()
 }
 
 private fun minutesOfDay(now: Long): Int {
