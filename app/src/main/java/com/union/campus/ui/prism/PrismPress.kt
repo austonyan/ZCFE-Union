@@ -39,7 +39,7 @@ private const val TINT_LIFT = PrismAlpha.PressLift
 val LocalPressLook = compositionLocalOf { PressLook.Ink }
 val LocalPrismDark = compositionLocalOf { false }
 
-/** 全局按压指示：主题根部通过 LocalIndication 提供并禁用 ripple。 */
+/** 全局按压指示：主题根部通过 LocalIndication 设为默认 indication；不屏蔽 ripple，press/hover/focus 三态与 ripple 叠加。 */
 object PrismPressIndication : IndicationNodeFactory {
     override fun create(interactionSource: InteractionSource): DelegatingNode =
         PressNode(interactionSource)

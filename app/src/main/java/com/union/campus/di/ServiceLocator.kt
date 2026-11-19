@@ -17,10 +17,16 @@ import com.union.campus.data.store.SettingsStore
  */
 object ServiceLocator {
 
+    // 以下单例持有的是 Application Context，生命周期与进程一致，不构成泄漏。
+    @Suppress("StaticFieldLeak")
     lateinit var settings: SettingsStore
         private set
+
+    @Suppress("StaticFieldLeak")
     lateinit var credentials: CredentialStore
         private set
+
+    @Suppress("StaticFieldLeak")
     lateinit var entities: EntityStore
         private set
 

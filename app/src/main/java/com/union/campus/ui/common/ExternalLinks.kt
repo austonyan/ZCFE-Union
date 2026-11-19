@@ -1,7 +1,7 @@
 package com.union.campus.ui.common
 
 import android.content.Intent
-import android.net.Uri
+import androidx.core.net.toUri
 import com.union.campus.UnionApplicationHolder
 
 /** 外部跳转地址：支付宝充值小程序与教务找回密码。 */
@@ -17,7 +17,7 @@ object ExternalLinks {
 /** 用系统浏览器打开外部链接；没有可用应用时静默失败。 */
 fun openExternalLink(url: String) {
     val context = UnionApplicationHolder.appContext ?: return
-    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).apply {
+    val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
     runCatching { context.startActivity(intent) }
