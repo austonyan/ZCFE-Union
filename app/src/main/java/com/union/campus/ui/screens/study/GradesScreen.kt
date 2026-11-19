@@ -30,6 +30,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -89,10 +91,15 @@ fun GradesScreen(
     val jw = ServiceLocator.jwRepository
     val entities = ServiceLocator.entities
 
-    var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
-    var semesterDm by remember { mutableStateOf("") }
-    var effective by remember { mutableStateOf(true) }
-    var sheetOpen by remember { mutableStateOf(false) }
+    // 页面状态用 rememberSaveable：从课程详情返回时不会退回默认学期/默认口径。
+    var semesters by rememberSaveable(stateSaver = SemesterListSaver) {
+        mutableStateOf<List<Semester>>(emptyList())
+    }
+    var semesterDm by rememberSaveable { mutableStateOf("") }
+    var effective by rememberSaveable { mutableStateOf(true) }
+    var sheetOpen by rememberSaveable { mutableStateOf(false) }
+    // 用户手动选过学期后，不再自动跳到"最近一个有成绩的学期"。
+    var userPicked by rememberSaveable { mutableStateOf(false) }
     var state by remember { mutableStateOf<UiState<GradesData>>(UiState.Loading) }
 
     suspend fun loadInner() {
@@ -102,7 +109,14 @@ fun GradesScreen(
                 ?: UiState.Empty("在「我的 → 凭证中心」登录教务账号")
         } else {
             try {
-                UiState.Ready(jw.grades(semesterDm, effective))
+                val ready = UiState.Ready(jw.grades(semesterDm, effective))
+                // 老缓存里没有原始字段：补一次强制刷新，才能拿到"考核方式"。
+                if (ready.data.grades.isNotEmpty() && ready.data.grades.all { it.raw.isEmpty() }) {
+                    runCatching { jw.grades(semesterDm, effective, forceRefresh = true) }
+                        .getOrNull()?.let { UiState.Ready(it) } ?: ready
+                } else {
+                    ready
+                }
             } catch (e: AppError.AuthExpired) {
                 entities.read("jw.grades.$semesterDm.${if (effective) 1 else 0}", GradesData.serializer())
                     ?.let { UiState.Ready(it.data, it.updatedAt) }
@@ -115,19 +129,55 @@ fun GradesScreen(
 
     fun load() {
         state = UiState.Loading
-        launchUi { loadInner() }
+        launchUi {
+            loadInner()
+            // 当前学期还没有成绩时，自动退到最近一个有成绩的学期（只在用户没手动选过时）。
+            if (!userPicked && state.dataOrNull()?.grades.isNullOrEmpty() && semesters.size > 1) {
+                val from = semesters.indexOfFirst { it.dm == semesterDm }.coerceAtLeast(0)
+                var networkTries = 0
+                for (candidate in semesters.drop(from + 1)) {
+                    val key = "jw.grades.${candidate.dm}.${if (effective) 1 else 0}"
+                    val cached = entities.read(key, GradesData.serializer())
+                    if (!cached?.data?.grades.isNullOrEmpty()) {
+                        semesterDm = candidate.dm
+                        state = UiState.Ready(cached.data, cached.updatedAt)
+                        // 老缓存没有原始字段时补一次刷新，拿到「考核方式」。
+                        if (cached.data.grades.all { it.raw.isEmpty() } && jw.isBound()) {
+                            runCatching { jw.grades(candidate.dm, effective, forceRefresh = true) }
+                                .getOrNull()?.let { state = UiState.Ready(it) }
+                        }
+                        return@launchUi
+                    }
+                    if (jw.isBound() && networkTries < 2) {
+                        networkTries++
+                        val fetched = runCatching { jw.grades(candidate.dm, effective) }.getOrNull()
+                        if (!fetched?.grades.isNullOrEmpty()) {
+                            semesterDm = candidate.dm
+                            state = UiState.Ready(fetched)
+                            return@launchUi
+                        }
+                    }
+                }
+            }
+        }
     }
 
     LaunchedEffect(Unit) {
-        semesterDm = jw.currentSemesterDm()
-        if (jw.isBound()) {
-            val list = runCatching { jw.semesterList() }.getOrDefault(emptyList())
-            semesters = if (list.isNotEmpty()) list else listOf(Semester(semesterDm, semesterDm, true))
-            if (semesters.none { it.dm == semesterDm }) {
-                semesterDm = semesters.firstOrNull { it.isCurrent }?.dm ?: semesters.first().dm
+        if (semesterDm.isBlank()) semesterDm = jw.currentSemesterDm()
+        if (semesters.isEmpty()) {
+            val list = if (jw.isBound()) {
+                runCatching { jw.semesterList() }.getOrDefault(emptyList())
+            } else {
+                emptyList()
             }
-        } else {
-            semesters = listOf(Semester(semesterDm, semesterDm, true))
+            semesters = if (list.isNotEmpty()) {
+                list
+            } else {
+                listOf(Semester(semesterDm, semesterDm, true))
+            }
+        }
+        if (semesters.none { it.dm == semesterDm }) {
+            semesterDm = semesters.firstOrNull { it.isCurrent }?.dm ?: semesters.first().dm
         }
         load()
     }
@@ -221,6 +271,7 @@ fun GradesScreen(
                         onClick = {
                             sheetOpen = false
                             if (sem.dm != semesterDm) {
+                                userPicked = true
                                 semesterDm = sem.dm
                                 load()
                             }
@@ -365,18 +416,23 @@ private fun LedgerRow(summary: GpaSummary) {
 
 @Composable
 private fun LedgerCell(value: String, label: String, modifier: Modifier = Modifier) {
-    Column(modifier) {
+    Column(
+        modifier = modifier,
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
         Text(
             text = value,
             style = metricSmallStyle(),
             color = MaterialTheme.colorScheme.onSurface,
             maxLines = 1,
+            textAlign = TextAlign.Center,
         )
         Text(
             text = label,
             style = caption2Style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
+            textAlign = TextAlign.Center,
         )
     }
 }
@@ -478,6 +534,16 @@ private val DistributionBands = listOf(
     GradeBand.Fail,
 )
 
+/** 学期列表跨页面返回保存：flat 成 dm/name/isCurrent 三元组。 */
+private val SemesterListSaver = listSaver<List<Semester>, String>(
+    save = { list -> list.flatMap { listOf(it.dm, it.name, it.isCurrent.toString()) } },
+    restore = { flat ->
+        flat.chunked(3)
+            .filter { it.size == 3 }
+            .map { Semester(dm = it[0], name = it[1], isCurrent = it[2].toBoolean()) }
+    },
+)
+
 private val CategoryOrder = listOf("必修", "选修", "通识", "其他")
 
 /** 按课程类别分组：必修 → 选修 → 通识 → 其他；类别全空时退回单组「全部课程」。 */
@@ -498,8 +564,11 @@ private fun groupGrades(grades: List<Grade>): List<Pair<String, List<Grade>>> {
 private fun categoryGroupOf(category: String): String {
     val c = category.trim()
     return when {
-        c.contains("必修") || c.contains("学位") -> "必修"
-        c.contains("选修") || c.contains("限选") || c.contains("任选") -> "选修"
+        // 教务的类别形如「公共课/限选课」「专业课/必修课」「公共课/任选课」：
+        // 先看后半段，任选是选修，限选/必修/学位算必修。
+        c.contains("任选") -> "选修"
+        c.contains("必修") || c.contains("限选") || c.contains("学位") -> "必修"
+        c.contains("选修") -> "选修"
         c.contains("通识") || c.contains("公选") || c.contains("素质") || c.contains("拓展") -> "通识"
         else -> "其他"
     }

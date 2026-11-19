@@ -36,6 +36,7 @@ import com.union.campus.UnionApplicationHolder
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.Exam
 import com.union.campus.domain.Grade
+import com.union.campus.domain.assessmentText
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
@@ -205,16 +206,7 @@ fun GradeDetailScreen(
 
             PrismGroupedList {
                 PrismRow(title = "课程性质", subtitle = grade.category.ifBlank { "—" })
-            }
-
-            PrismCard {
-                CardHeader("绩点说明")
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    "90+ → 4.0 · 85+ → 3.7 · 82+ → 3.3 · 78+ → 3.0\n75+ → 2.7 · 72+ → 2.3 · 68+ → 2.0 · 64+ → 1.5 · 60+ → 1.0\n\n为客户端估算，以学校公布为准。",
-                    style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                PrismRow(title = "考核方式", subtitle = grade.assessmentText().ifBlank { "—" })
             }
 
             if (grade.score.toDoubleOrNull()?.let { it < 60 } == true) {

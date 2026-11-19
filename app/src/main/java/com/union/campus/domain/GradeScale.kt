@@ -152,3 +152,18 @@ private fun scoreToPoints(score: Double): Double = when {
 
 private fun format(value: Double, digits: Int): String =
     String.format(Locale.ROOT, "%.${digits}f", value)
+/**
+ * 考核方式（考试 / 考查）。
+ *
+ * 不同学期的教务接口字段名不一致，先按常见键名取，取不到就在原始字段里
+ * 找"考核"相关的键或直接等于考试/考查的值。
+ */
+fun Grade.assessmentText(): String {
+    val preferred = listOf("khfs", "ksfs", "khlx", "考核方式", "考核形式", "khxs")
+    preferred.firstNotNullOfOrNull { key -> raw[key]?.trim()?.takeIf { it.isNotBlank() } }
+        ?.let { return it }
+    raw.entries.firstOrNull { (key, value) ->
+        key.contains("考核") || value.trim() in setOf("考试", "考查", "考察", "开卷", "闭卷")
+    }?.let { return it.value.trim() }
+    return ""
+}

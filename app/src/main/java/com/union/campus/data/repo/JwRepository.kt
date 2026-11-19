@@ -284,6 +284,9 @@ class JwRepository constructor(
                 score = parse.str(g, "kscj", "cj", "score", "zpj"),
                 gpa = parse.str(g, "jd", "jidian", "gpa"),
                 category = parse.str(g, "kclb", "type", "kcxz"),
+                // 保留整行原始字段：考核方式等字段因学期/接口版本而异，不在这里逐个点名。
+                raw = g.keys.associateWith { key -> (g[key] as? JsonPrimitive)?.content.orEmpty() }
+                    .filterValues { it.isNotBlank() },
             )
         }
         val data = GradesData(semesterDm, effective, list, now())
