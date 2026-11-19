@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -73,6 +74,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.FreeClassroom
@@ -285,17 +287,19 @@ fun FreeClassroomsScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // 筛选栏：日期 / 节次 / 楼栋，一行可横滑。
+            // 筛选栏：日期 / 节次 / 楼栋，固定三等分，不横滑。
             Row(
                 Modifier
                     .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 DateFilterControl(
-                    label = dateChipLabel(selectedDate, today),
+                    weekday = "周" + WeekdayLabels[selectedDate.dayOfWeek.value - 1],
+                    dateText = "%02d/%02d".format(selectedDate.monthValue, selectedDate.dayOfMonth),
+                    isToday = dayOffset == 0,
+                    modifier = Modifier.weight(1.15f),
                     canGoBack = dayOffset > 0,
                     canGoForward = dayOffset < DateRangeDays,
                     onBack = { dateIso = selectedDate.minusDays(1).toString() },
@@ -308,6 +312,8 @@ fun FreeClassroomsScreen(
                         ?: "节次",
                     selected = sectionFilters.isNotEmpty(),
                     onClick = { sectionSheetOpen = true },
+                    modifier = Modifier.weight(1f),
+                    fillWidth = true,
                     onClear = if (sectionFilters.isNotEmpty()) {
                         { sectionFilters = emptyList() }
                     } else {
@@ -323,10 +329,9 @@ fun FreeClassroomsScreen(
                     } else {
                         null
                     },
+                    modifier = Modifier.weight(1f),
+                    fillWidth = true,
                 )
-                if (dayOffset > 0) {
-                    PrismTextButton(onClick = { dateIso = todayIso }) { Text("回到今天") }
-                }
             }
 
             val hasFilter = sectionFilters.isNotEmpty() ||
@@ -579,31 +584,49 @@ private fun utcMillisToLocalDate(millis: Long): LocalDate =
 
 @Composable
 private fun DateFilterControl(
-    label: String,
+    weekday: String,
+    dateText: String,
+    isToday: Boolean,
     canGoBack: Boolean,
     canGoForward: Boolean,
     onBack: () -> Unit,
     onForward: () -> Unit,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val shape = remember { PrismShape(Float.MAX_VALUE) }
+    val accent = MaterialTheme.colorScheme.primary
     Surface(
-        modifier = Modifier.minimumInteractiveComponentSize(),
+        modifier = modifier.minimumInteractiveComponentSize(),
         shape = shape,
         color = surfaceColorOf(SurfaceLevel.Inset),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             DateArrow(Icons.Rounded.ChevronLeft, "前一天", canGoBack, onBack)
-            Text(
-                label,
-                style = caption1Style(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
+            // 日期在上、周几在下；只有"今天"用主色高亮，不再写"今天"两个字。
+            Column(
                 modifier = Modifier
+                    .weight(1f)
                     .clip(shape)
                     .clickable(role = Role.Button, onClickLabel = "选择日期", onClick = onClick)
-                    .padding(horizontal = 4.dp, vertical = 8.dp),
-            )
+                    .padding(vertical = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(
+                    dateText,
+                    style = caption1Style(),
+                    color = if (isToday) accent else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+                Text(
+                    weekday,
+                    style = caption2Style(),
+                    color = if (isToday) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    softWrap = false,
+                )
+            }
             DateArrow(Icons.Rounded.ChevronRight, "后一天", canGoForward, onForward)
         }
     }
@@ -731,17 +754,18 @@ private fun SectionFilterSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Row(
-                Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 SectionPresets.forEach { (label, sections) ->
-                    FilterPill(
-                        label = label,
-                        selected = draft == sections,
-                        onClick = { draft = if (draft == sections) emptySet() else sections },
-                    )
+                    Box(Modifier.weight(1f)) {
+                        FilterPill(
+                            label = label,
+                            selected = draft == sections,
+                            onClick = { draft = if (draft == sections) emptySet() else sections },
+                            fillWidth = true,
+                        )
+                    }
                 }
             }
             listOf(1..5, 6..10).forEach { rowSections ->
@@ -853,7 +877,7 @@ private const val ClassroomColumns = 10
  * 空闲 = 白底 + 描边、有课 = onSurface 28% 灰、我的冲突 = 主色、未知 = 描边空心。
  */
 private object ClassroomCellStyle {
-    val Size: Dp = 9.dp
+    val Size: Dp = 10.dp
     val Gap: Dp = 2.dp
     val Corner: Dp = 2.dp
     val BorderWidth: Dp = 1.dp
@@ -895,6 +919,11 @@ private fun LegendItem(state: ClassroomCellState, label: String) {
 /** 节次表头：1…10 与下方方块同宽、居中。 */
 @Composable
 private fun SectionNumbersHeader(modifier: Modifier = Modifier) {
+    val fontScale = LocalDensity.current.fontScale.coerceIn(0.8f, 1.4f)
+    val numberStyle = caption2Style().copy(
+        fontSize = (8f / fontScale).sp,
+        lineHeight = (10f / fontScale).sp,
+    )
     Row(
         modifier
             .fillMaxWidth()
@@ -910,7 +939,7 @@ private fun SectionNumbersHeader(modifier: Modifier = Modifier) {
                 ) {
                     Text(
                         section.toString(),
-                        style = caption2Style(),
+                        style = numberStyle,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
                         softWrap = false,
@@ -951,14 +980,19 @@ private fun ClassroomList(
                         TypeHeader(type)
                     }
                 }
-                items(list.sortedBy { it.name }, key = { "${building.dm}-${it.name}" }) { room ->
-                    ClassroomRow(
-                        room = room,
-                        filtered = filtered,
-                        filterLabel = filterLabel,
-                        mySections = mySections,
-                        onCellClick = { section -> onCellClick(room, section) },
-                    )
+                val sorted = list.sortedBy { it.name }
+                itemsIndexed(sorted, key = { index, room -> "${building.dm}-$type-$index-${room.name}" }) { index, room ->
+                    // item 里只能有一个根节点，行和分隔线要包在 Column 里。
+                    Column(Modifier.fillMaxWidth()) {
+                        ClassroomRow(
+                            room = room,
+                            filtered = filtered,
+                            filterLabel = filterLabel,
+                            mySections = mySections,
+                            onCellClick = { section -> onCellClick(room, section) },
+                        )
+                        if (index < sorted.lastIndex) RoomDivider()
+                    }
                 }
             }
         }
@@ -968,6 +1002,18 @@ private fun ClassroomList(
             }
         }
     }
+}
+
+/** 房间之间的细分隔线：从文字端缩进，和分组列表的观感一致。 */
+@Composable
+private fun RoomDivider() {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .padding(start = 16.dp)
+            .height(Dp.Hairline)
+            .background(MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.DividerSoft)),
+    )
 }
 
 @Composable

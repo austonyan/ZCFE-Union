@@ -276,6 +276,7 @@ fun TodayScreen(
                 NextClassHero(
                     current = current,
                     next = next,
+                    hasClassesToday = todayCells.isNotEmpty(),
                     config = scheduleConfig,
                     nowTick = nowTick,
                     onClick = onOpenTimetable,
@@ -423,6 +424,7 @@ fun TodayScreen(
 private fun NextClassHero(
     current: CourseCell?,
     next: CourseCell?,
+    hasClassesToday: Boolean,
     config: TimetableScheduleConfig,
     nowTick: Long,
     onClick: () -> Unit,
@@ -452,6 +454,8 @@ private fun NextClassHero(
                 when {
                     current != null -> "正在上课"
                     next != null -> "下一节课"
+                    // 课都上完了和"今天本来就没课"是两件事，别用同一句话。
+                    hasClassesToday -> "今天的课程已全部结束"
                     else -> "今天没有课"
                 },
                 style = footnoteStyle(),
@@ -482,6 +486,8 @@ private fun NextClassHero(
                     cell.teacher.takeIf { it.isNotBlank() },
                     cell.sections.takeIf { it.isNotBlank() },
                 ).joinToString(" · ")
+            } else if (hasClassesToday) {
+                "歇一会儿，明天再战"
             } else {
                 "今天暂时没有课程，可以去自习或看看生活速览"
             },
