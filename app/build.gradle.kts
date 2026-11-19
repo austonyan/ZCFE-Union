@@ -14,8 +14,8 @@ android {
         applicationId = "com.union.campus"
         minSdk = 26
         targetSdk = 37
-        versionCode = 50
-        versionName = "0.2.45"
+        versionCode = 51
+        versionName = "0.2.46"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

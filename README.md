@@ -4,8 +4,9 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.45.apk`** — 已签名 release APK（versionCode 50，v2 签名，CN=Zhengcai Union，有效期 10000 天）
-- 上一版 `郑财校园-release-v0.2.44.apk`（versionCode 49）保留，便于回滚
+- **`郑财校园-release-v0.2.46.apk`** — 已签名 release APK（versionCode 51，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- 上一版 `郑财校园-release-v0.2.45.apk`（versionCode 50）保留，便于回滚
+- v0.2.46 变更：MD3 Expressive 活泼化（语义形状、连接式列表与分段控件、调和选中态、今天课程主卡、教务入口组、生活状态卡、账号与引导层次）；导航与通用状态转场响应减少动效；新增五 Tab 与公共组件回归测试。范围与校验见 `docs/md3-expressive-v0.2.46.md`。
 - v0.2.45 变更：MD3 全量审查修复（8 套预设按 M3 tone 重算、文字层级去掉二次 alpha、品牌暗色页/卡层级 1.13→1.20、`pageWidth` 大屏限宽铺到 6 个根页、Chip 选中语义 + IconButton 禁用语义、动效接入 reduce-motion、三个超大屏文件拆分、androidTest 从 0 到 4 类、lint 25→12 warning），详见 `docs/m3-audit-v0.2.44.md`
 - v0.2.26 变更：课表页头改为「学期第一行、日期第二行」
 - v0.2.25 变更：课表字号按 dp 锁定（不受系统字号放大影响）、「现在」徽标收进时间栏、页头副标题允许两行（学期名不再截断）、浅色页面压到 surfaceContainerHigh（页/卡对比 1.17→1.22:1）
@@ -50,10 +51,10 @@ work/          低电费每日 20:00 检查 Worker
 
 ## 设计语言（prism，复刻自 FlClash prism_ui）
 
-- 连续圆角（RoundedSuperellipse 等价实现，androidx.graphics-shapes）：卡 16 / 分组首尾 24 / 对话框 34 / sheet 38 / 按钮胶囊
+- 连续圆角（RoundedSuperellipse 等价实现，androidx.graphics-shapes）：普通卡 20 / 主卡 28 / 连接分组外 24、内 6 / 对话框 34 / sheet 38；按钮带轻按压形变
 - Surface 四级色阶（亮：灰页白卡；暗：近黑页 tone15 卡）
 - 无涟漪 iOS 按压反馈（ink α0.10 / tint 75%+白 20%）
-- 双档 SnapSheet（9/16 与 0.9，临界阻尼弹簧）、分组列表 hairline 分隔线、iOS Dynamic Type 字号表
+- 双档 SnapSheet（9/16 与 0.9，临界阻尼弹簧）、连接式列表 2dp 间隙、统一 Prism 字阶；Expressive 状态变化遵守系统减少动效设置
 - 详见 `docs/flclash-design-spec.md`（逐条文件:行号证据）
 
 ## 行为约定（power.md）
