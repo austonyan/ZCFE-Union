@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "messages": [
+    {
+      "id": "mwnewnixff93vz",
+      "role": "user",
+      "content": "「这个项目是什么」和「当前焦点」该怎么写？",
+      "at": "2026-11-19T10:33:25.017Z"
+    },
+    {
+      "id": "mwnewrmf6z0txk",
+      "role": "assistant",
+      "content": "两个字段的分工：brief 回答「这个项目长期是什么」，写一次后基本不动；focus 回答「现在推进到哪、下一步从哪开始」，随进展改。以下措辞可直接粘贴，自己填进去即可。\n\n**brief（建议）**\n> Union 是一个基于 Material 3 设计体系的前端应用（代码库 D:\\Code\\Union），长期目标是让界面在视觉质感、动效与交互一致性上达到成熟产品的水准。\n\n**focus（建议，按现在的状态）**\n> 当前焦点：依据已完成的 Material 3 前端全面审查结论，先集中落地质感与动效的改进项，并确认 frontend-design 技能在本项目中能被正常调用。\n\n两点提醒：\n- 上面的「前端应用」是我从最近三个会话标题（Material 3 UI 质感与动效、frontend-design 技能未显示、Material-3 前端全面审查）推的，如果 Union 的实际定位更具体（比如某个产品/工具），把名词换掉，brief 才算稳定。\n- focus 里带上了「frontend-design 技能未显示」这条未结事项；如果那件事已经解决，删掉后半句，focus 只留动效与质感这一条会更聚焦。\n\n需要我再给一版更短的（各一句、去掉所有括号说明）也可以说。",
+      "at": "2026-11-19T10:33:30.327Z",
+      "model": "magpie:qwen-cn/deepseek-v4.1-flash-1017"
+    }
+  ]
+}
