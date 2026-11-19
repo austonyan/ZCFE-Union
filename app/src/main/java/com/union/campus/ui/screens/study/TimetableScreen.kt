@@ -76,6 +76,7 @@ import com.union.campus.domain.TimetableSchedule
 import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
@@ -237,6 +238,7 @@ fun TimetableScreen(
 
     Column(
         modifier
+            .pageWidth()
             .fillMaxSize()
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
