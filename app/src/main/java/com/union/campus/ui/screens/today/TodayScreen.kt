@@ -20,12 +20,16 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.rounded.Bolt
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Event
+import androidx.compose.material.icons.rounded.LocationOn
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.RateReview
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -41,7 +45,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -60,9 +63,9 @@ import com.union.campus.domain.TodoItem
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
-import com.union.campus.ui.prism.MetaChip
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismCorner
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismMetricCard
@@ -71,17 +74,16 @@ import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
-import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismSkeletonList
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.caption1Style
 import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.metricStyle
 import com.union.campus.ui.prism.prismCourseContainer
 import com.union.campus.ui.prism.prismCourseOnContainer
+import com.union.campus.ui.prism.prismShape
 import com.union.campus.ui.prism.prismTextFaint
 import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.rememberPrismHaptics
@@ -345,12 +347,12 @@ fun TodayScreen(
                         val days = electricBalance?.let { estimateDays(it) } ?: "—"
                         val low = ElectricLowState.isLow(electricBalance, lowElectricThreshold)
                         PrismMetricCard(
-                            label = "电费",
+                            label = if (low) "电费 · 偏低" else "电费",
                             value = electricBalance?.let { "${it.kwh} 度" } ?: "未绑定",
                             subtitle = electricBalance?.let { "约 $days 天 · 今日 ${it.todayUse.ifBlank { "—" }} 度" }
                                 ?: "绑定后查看余额与用量",
                             icon = Icons.Rounded.Bolt,
-                            accent = if (low) PrismStatus.warning() else PrismStatus.info(),
+                            accent = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurfaceVariant,
                             containerColor = if (low) PrismStatus.warningContainer() else surfaceColorOf(SurfaceLevel.Card),
                             contentColor = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface,
                             compact = true,
@@ -362,7 +364,7 @@ fun TodayScreen(
                             value = showerArea?.let { "${it.idleNum} / ${it.totalNum}" } ?: "未绑定",
                             subtitle = showerArea?.let { "空闲 · 排队 ${it.queueNum} 人" } ?: "登录大白U帮后查看",
                             icon = Icons.Rounded.WaterDrop,
-                            accent = PrismStatus.success(),
+                            accent = MaterialTheme.colorScheme.onSurfaceVariant,
                             containerColor = surfaceColorOf(SurfaceLevel.Card),
                             contentColor = MaterialTheme.colorScheme.onSurface,
                             compact = true,
@@ -438,120 +440,117 @@ private fun NextClassHero(
 ) {
     val cell = current ?: next
     val info = cell?.let { TimetableSchedule.courseSchedule(it, config) }
-    val density = LocalDensity.current
-    val railShape = remember(density.density) { PrismShape(2f * density.density) }
-    val container = cell?.let { prismCourseContainer(it.name) } ?: MaterialTheme.colorScheme.secondaryContainer
-    val onContainer = cell?.let { prismCourseOnContainer(it.name) } ?: MaterialTheme.colorScheme.onSecondaryContainer
+    val container = cell?.let { prismCourseContainer(it.name) } ?: surfaceColorOf(SurfaceLevel.Card)
+    val onContainer = cell?.let { prismCourseOnContainer(it.name) } ?: MaterialTheme.colorScheme.onSurface
+    val status = when {
+        current != null -> "正在上课"
+        next != null -> "下一节 · 未开始"
+        hasClassesToday -> "今日课程已结束"
+        else -> "今天没有课"
+    }
 
     PrismCard(
         modifier = Modifier.fillMaxWidth(),
         onClick = onClick,
         containerColor = container,
+        corner = PrismCorner.Xxl,
         contentPadding = PaddingValues(20.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
+            Text(
+                text = cell?.name ?: if (hasClassesToday) "今天的课，上完了" else "留一点时间给自己",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                color = onContainer,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            // 静态状态几何，不靠循环动效表达「正在上课」。
             Box(
                 Modifier
-                    .size(7.dp)
-                    .clip(CircleShape)
-                    .background(onContainer.withAlpha(PrismAlpha.Primary)),
-            )
-            Spacer(Modifier.width(8.dp))
-            Text(
-                when {
-                    current != null -> "正在上课"
-                    next != null -> "下一节课"
-                    // 课都上完了和"今天本来就没课"是两件事，别用同一句话。
-                    hasClassesToday -> "今天的课程已全部结束"
-                    else -> "今天没有课"
-                },
-                style = footnoteStyle(),
-                fontWeight = FontWeight(600),
-                color = prismTextMuted(onContainer),
-            )
-            Spacer(Modifier.weight(1f))
-            if (current != null) {
-                HeroChip("现在", onContainer)
-            } else if (next != null) {
-                HeroChip("即将开始", onContainer)
+                    .size(48.dp)
+                    .clip(if (current != null) prismShape(PrismCorner.Md) else CircleShape)
+                    .background(onContainer.withAlpha(PrismAlpha.ContainerTint)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    imageVector = when {
+                        current != null -> Icons.Rounded.MenuBook
+                        next != null -> Icons.Rounded.Schedule
+                        hasClassesToday -> Icons.Rounded.Check
+                        else -> Icons.Rounded.MenuBook
+                    },
+                    contentDescription = null,
+                    tint = onContainer,
+                    modifier = Modifier.size(24.dp),
+                )
             }
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            text = cell?.name ?: "去课表看看本周安排",
-            style = headlineStyle(),
-            color = onContainer,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Spacer(Modifier.height(3.dp))
-        Text(
-            text = if (cell != null) {
-                listOfNotNull(
-                    info?.let { "${it.start}–${it.end}" },
-                    cell.location.takeIf { it.isNotBlank() },
-                    cell.teacher.takeIf { it.isNotBlank() },
-                    cell.sections.takeIf { it.isNotBlank() },
-                ).joinToString(" · ")
-            } else if (hasClassesToday) {
-                "歇一会儿，明天再战"
-            } else {
-                "今天暂时没有课程，可以去自习或看看生活速览"
-            },
-            style = subheadlineStyle(),
-            color = prismTextMuted(onContainer),
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Spacer(Modifier.height(12.dp))
+        HeroChip(status, onContainer)
         if (cell != null) {
-            Spacer(Modifier.height(14.dp))
-            if (next != null && current == null) {
-                val countdown = countdownText(next, config, nowTick)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = countdown ?: "即将开始",
-                        style = metricStyle(),
-                        color = onContainer,
-                    )
-                    Spacer(Modifier.width(6.dp))
-                    Text("后开始", style = footnoteStyle(), color = prismTextMuted(onContainer))
+            Spacer(Modifier.height(24.dp))
+            if (cell.location.isNotBlank()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.LocationOn, contentDescription = null, tint = onContainer, modifier = Modifier.size(20.dp))
+                    Text(cell.location, style = MaterialTheme.typography.titleLarge, color = onContainer, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
                 }
-            } else if (current != null) {
+                Spacer(Modifier.height(8.dp))
+            }
+            val detail = listOfNotNull(
+                cell.teacher.takeIf { it.isNotBlank() },
+                cell.sections.takeIf { it.isNotBlank() },
+            ).joinToString(" · ")
+            if (detail.isNotBlank()) {
+                Text(detail, style = footnoteStyle(), color = prismTextMuted(onContainer), maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            Spacer(Modifier.height(20.dp))
+            info?.let {
                 Text(
-                    text = currentRemainingText(current, config, nowTick) ?: "正在计时",
-                    style = subheadlineStyle(),
-                    fontWeight = FontWeight(600),
+                    text = "${it.start}–${it.end}",
+                    style = metricStyle(),
                     color = onContainer,
                 )
             }
-            Spacer(Modifier.height(10.dp))
-            val progress = classProgress(cell, current != null, config, nowTick)
-            Box(
-                Modifier
-                    .fillMaxWidth()
-                    .height(4.dp)
-                    .clip(railShape)
-                    .background(onContainer.withAlpha(PrismAlpha.ContainerTint)),
-            ) {
+            Text(
+                text = if (current != null) currentRemainingText(current, config, nowTick) ?: "正在上课"
+                else countdownText(cell, config, nowTick)?.let { "$it 后开始" } ?: "即将开始",
+                style = subheadlineStyle(),
+                color = prismTextMuted(onContainer),
+            )
+            if (current != null) {
+                Spacer(Modifier.height(12.dp))
+                val progress = classProgress(cell, true, config, nowTick)
+                val railShape = prismShape(PrismCorner.Sm)
                 Box(
                     Modifier
-                        .fillMaxWidth(progress.coerceIn(0f, 1f))
-                        .fillMaxHeight()
+                        .fillMaxWidth()
+                        .height(8.dp)
                         .clip(railShape)
-                        .background(onContainer.withAlpha(PrismAlpha.Primary)),
-                )
+                        .background(onContainer.withAlpha(PrismAlpha.ContainerTint)),
+                ) {
+                    Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).fillMaxHeight().clip(railShape).background(onContainer))
+                }
             }
+        } else {
+            Spacer(Modifier.height(20.dp))
+            Text(
+                if (hasClassesToday) "歇一会儿，明天再战" else "今天暂时没有课程，可以去自习或看看生活速览",
+                style = subheadlineStyle(),
+                color = prismTextMuted(onContainer),
+            )
         }
+        Spacer(Modifier.height(16.dp))
+        Text("查看本周课表", style = footnoteStyle(), fontWeight = FontWeight.SemiBold, color = onContainer)
     }
 }
 
 @Composable
 private fun HeroChip(text: String, contentColor: Color) {
-    val density = LocalDensity.current
-    val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
     Box(
         Modifier
-            .clip(pill)
+            .clip(CircleShape)
             .background(contentColor.withAlpha(PrismAlpha.ContainerTint))
             .padding(horizontal = 9.dp, vertical = 4.dp),
     ) {
@@ -569,25 +568,16 @@ private fun TodayCourseRail(
     onOpenCourse: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth()) {
-        cells.forEach { cell ->
+        cells.forEachIndexed { index, cell ->
             val info = TimetableSchedule.courseSchedule(cell, config)
             val isCurrent = current?.id == cell.id
             val isNext = next?.id == cell.id
-            val container = when {
-                isCurrent -> MaterialTheme.colorScheme.primaryContainer
-                isNext -> MaterialTheme.colorScheme.tertiaryContainer
-                else -> surfaceColorOf(SurfaceLevel.Card)
-            }
-            val onContainer = when {
-                isCurrent -> MaterialTheme.colorScheme.onPrimaryContainer
-                isNext -> MaterialTheme.colorScheme.onTertiaryContainer
-                else -> MaterialTheme.colorScheme.onSurface
-            }
-            val dotColor = when {
-                isCurrent -> MaterialTheme.colorScheme.primary
-                isNext -> MaterialTheme.colorScheme.tertiary
-                else -> MaterialTheme.colorScheme.outlineVariant
-            }
+            // 与主卡保持同一课程色，只有当前焦点突出；不把整条时间轨变成彩虹。
+            val isFocus = isCurrent || (current == null && isNext)
+            val isFinished = info?.end?.let { SemesterCalc.timeToMillisToday(it, nowTick) }?.let { it < nowTick } == true
+            val container = if (isFocus) prismCourseContainer(cell.name) else surfaceColorOf(SurfaceLevel.Card)
+            val onContainer = if (isFocus) prismCourseOnContainer(cell.name) else MaterialTheme.colorScheme.onSurface
+            val dotColor = if (isFocus) onContainer else MaterialTheme.colorScheme.outlineVariant
             Row(
                 Modifier
                     .fillMaxWidth()
@@ -595,16 +585,16 @@ private fun TodayCourseRail(
             ) {
                 Column(
                     Modifier
-                        .width(50.dp)
+                        .width(56.dp)
                         .fillMaxHeight()
                         .padding(top = 12.dp, end = 8.dp),
                     horizontalAlignment = Alignment.End,
                 ) {
                     Text(
                         info?.start ?: "—",
-                        style = caption1Style(),
-                        color = if (isCurrent || isNext) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = caption1Style().copy(fontFeatureSettings = "tnum"),
+                        fontWeight = if (isFocus) FontWeight.Bold else FontWeight.Normal,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
                         info?.end.orEmpty(),
@@ -613,18 +603,23 @@ private fun TodayCourseRail(
                     )
                 }
                 Box(Modifier.width(18.dp).fillMaxHeight()) {
-                    Box(
+                    if (index < cells.lastIndex) Box(
                         Modifier
                             .align(Alignment.TopCenter)
                             .fillMaxHeight()
-                            .width(1.dp)
-                            .background(MaterialTheme.colorScheme.outlineVariant.withAlpha(PrismAlpha.Divider)),
+                            .padding(top = 19.dp)
+                            .width(2.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant),
+                    )
+                    if (index > 0) Box(
+                        Modifier.align(Alignment.TopCenter).height(19.dp).width(2.dp)
+                            .background(MaterialTheme.colorScheme.outlineVariant),
                     )
                     Box(
                         Modifier
                             .align(Alignment.TopCenter)
-                            .padding(top = 15.dp)
-                            .size(8.dp)
+                            .padding(top = if (isFocus) 13.dp else 15.dp)
+                            .size(if (isFocus) 12.dp else 8.dp)
                             .clip(CircleShape)
                             .background(dotColor),
                     )
@@ -637,24 +632,15 @@ private fun TodayCourseRail(
                     containerColor = container,
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 12.dp),
                 ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            cell.name,
-                            style = bodyStyle(),
-                            fontWeight = FontWeight(600),
-                            color = onContainer,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            modifier = Modifier.weight(1f),
-                        )
-                        if (isCurrent) {
-                            Spacer(Modifier.width(6.dp))
-                            MetaChip("现在")
-                        } else if (isNext) {
-                            Spacer(Modifier.width(6.dp))
-                            MetaChip("下一节")
-                        }
-                    }
+                    Text(
+                        cell.name,
+                        style = bodyStyle(),
+                        fontWeight = FontWeight(600),
+                        color = onContainer,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(2.dp))
                     Text(
                         listOfNotNull(
@@ -663,9 +649,21 @@ private fun TodayCourseRail(
                         ).joinToString(" · "),
                         style = footnoteStyle(),
                         color = prismTextMuted(onContainer),
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    if (isCurrent || isNext || isFinished) {
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = when {
+                                isCurrent -> "正在上课"
+                                isNext -> "下一节"
+                                else -> "已结束"
+                            },
+                            style = caption1Style(),
+                            color = prismTextMuted(onContainer),
+                        )
+                    }
                 }
             }
         }
@@ -709,11 +707,10 @@ private fun countdownText(
     val totalSec = ((startMs - now) / 1000).coerceAtLeast(0)
     val hours = totalSec / 3600
     val minutes = (totalSec % 3600) / 60
-    val seconds = totalSec % 60
     return when {
         hours > 0 -> "%d 小时 %02d 分".format(hours, minutes)
-        minutes > 0 -> "%d 分 %02d 秒".format(minutes, seconds)
-        else -> "%d 秒".format(seconds)
+        minutes > 0 -> "%d 分钟".format(minutes)
+        else -> "不到 1 分钟"
     }
 }
 
@@ -726,8 +723,7 @@ private fun currentRemainingText(
     val endMs = SemesterCalc.timeToMillisToday(end, now) ?: return null
     val totalSec = ((endMs - now) / 1000).coerceAtLeast(0)
     val minutes = totalSec / 60
-    val seconds = totalSec % 60
-    return if (minutes > 0) "距下课 %d 分 %02d 秒".format(minutes, seconds) else "距下课 %d 秒".format(seconds)
+    return if (minutes > 0) "距下课 %d 分钟".format(minutes) else "距下课不到 1 分钟"
 }
 
 private fun classProgress(
