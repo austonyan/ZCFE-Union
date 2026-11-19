@@ -470,7 +470,8 @@ fun FreeClassroomsScreen(
                         )
 
                         else -> {
-                            SectionNumbersHeader()
+                            // 有节次筛选时列表不画方块，表头也就没有对齐对象了。
+                            if (sectionFilters.isEmpty()) SectionNumbersHeader()
                             ClassroomList(
                                 groups = matchingGroups,
                                 singleBuilding = buildingId.isNotBlank(),
