@@ -1,7 +1,6 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -68,7 +67,8 @@ fun PrismGpaRuler(
     weightedAverage: String,
     modifier: Modifier = Modifier,
 ) {
-    val animations = prismAnimationsEnabled()
+    val motion = rememberPrismMotion()
+    val animations = motion.enabled
     val targetFraction = gpa
         ?.let { (it / GpaRulerBands.Max.toDouble()).coerceIn(0.0, 1.0).toFloat() }
         ?: 0f
@@ -83,7 +83,7 @@ fun PrismGpaRuler(
     }
     val animated by animateFloatAsState(
         targetValue = landing,
-        animationSpec = spring(dampingRatio = 1f, stiffness = 420f),
+        animationSpec = motion.spec(PrismSpec.sheetIn),
         label = "gpa-ruler-pointer",
     )
     val pointer = if (animations) animated else targetFraction

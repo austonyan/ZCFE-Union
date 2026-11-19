@@ -22,7 +22,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -50,10 +49,12 @@ import com.union.campus.ui.prism.PrismNoticeBanner
 import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
+import com.union.campus.ui.prism.PrismSpec
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.prismCourseContainer
 import com.union.campus.ui.prism.prismCourseOnContainer
+import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
 
 // ---------------- 课程详情 ----------------
@@ -75,9 +76,10 @@ fun CourseDetailScreen(
         // 详情页"展开"入场：0.98→1 的轻微放大 + 淡入，替代整页硬切。
         var entered by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { entered = true }
+        val motion = rememberPrismMotion()
         val enter by animateFloatAsState(
             targetValue = if (entered) 1f else 0f,
-            animationSpec = spring(dampingRatio = 1f, stiffness = 420f),
+            animationSpec = motion.spec(PrismSpec.sheetIn),
             label = "course-detail-enter",
         )
         Column(

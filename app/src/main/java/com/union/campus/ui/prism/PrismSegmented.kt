@@ -26,6 +26,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
 /**
@@ -42,6 +43,7 @@ fun PrismSegmented(
 ) {
     if (options.isEmpty()) return
     val haptics = rememberPrismHaptics()
+    val motion = rememberPrismMotion()
     val pill = prismShape(40f)
     val track = surfaceColorOf(SurfaceLevel.Inset)
     val index = selectedIndex.coerceIn(0, options.lastIndex)
@@ -54,7 +56,7 @@ fun PrismSegmented(
         val itemWidth = maxWidth / options.size.toFloat()
         val offset by animateDpAsState(
             targetValue = itemWidth * index,
-            animationSpec = PrismMotion.springSnappy(),
+            animationSpec = motion.springSnappy(),
             label = "segmented-offset",
         )
         Box(
@@ -68,7 +70,8 @@ fun PrismSegmented(
         Box(
             Modifier
                 .align(Alignment.CenterStart)
-                .offset(x = offset)
+                // lambda 重载：偏移量在布局阶段读取，动画每帧只触发布局而非重组。
+                .offset { IntOffset(offset.roundToPx(), 0) }
                 .height(40.dp)
                 .fillMaxWidth(1f / options.size)
                 .padding(3.dp)
@@ -93,7 +96,7 @@ fun PrismSegmented(
                             optionIndex == index -> MaterialTheme.colorScheme.primary
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
-                        animationSpec = PrismMotion.tween(PrismMotion.Fast),
+                        animationSpec = motion.tween(PrismMotion.Fast),
                         label = "segmented-label-$optionIndex",
                     )
                     Box(
