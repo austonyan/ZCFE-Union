@@ -36,6 +36,7 @@ import com.union.campus.domain.ElectricLowState
 import com.union.campus.domain.ElectricStats
 import com.union.campus.domain.ShowerArea
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.MetaChip
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismEntryCard
@@ -113,6 +114,7 @@ fun LifeScreen(
     ) {
         Column(
             Modifier
+                .pageWidth()
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
                 .padding(start = PrismSpace.Page, end = PrismSpace.Page, top = 4.dp),

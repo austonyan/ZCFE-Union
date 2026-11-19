@@ -27,6 +27,7 @@ import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.ui.common.TimetableSchedulePicker
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismProgressRail
@@ -50,6 +51,7 @@ fun WelcomeScreen(
 
     Column(
         modifier = modifier
+            .pageWidth()
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 16.dp, vertical = 24.dp),

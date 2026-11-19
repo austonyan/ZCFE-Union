@@ -58,6 +58,7 @@ import com.union.campus.domain.TimetableSchedule
 import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.domain.TodoItem
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.MetaChip
 import com.union.campus.ui.prism.PrismAlpha
@@ -222,6 +223,7 @@ fun TodayScreen(
     if (initialLoading) {
         Column(
             Modifier
+                .pageWidth()
                 .fillMaxSize()
                 .padding(top = 8.dp),
         ) {
@@ -238,8 +240,11 @@ fun TodayScreen(
         onRefresh = { refresh() },
         modifier = modifier.fillMaxSize(),
     ) {
+        // 限宽只加在列表内容上；PullToRefreshBox 仍保持整屏，不用限宽容器包住刷新容器。
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
+            modifier = Modifier
+                .pageWidth()
+                .fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

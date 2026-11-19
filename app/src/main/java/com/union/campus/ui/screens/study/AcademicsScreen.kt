@@ -42,6 +42,7 @@ import com.union.campus.domain.JwNotice
 import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
 import com.union.campus.domain.TimetableSchedule
+import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
@@ -93,6 +94,7 @@ fun AcademicsScreen(
 
     Column(
         modifier
+            .pageWidth()
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(start = 16.dp, end = 16.dp, top = 4.dp),
