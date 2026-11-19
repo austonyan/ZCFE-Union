@@ -74,8 +74,14 @@ fun PrismSegmented(
                 .padding(3.dp)
                 .clip(pill)
                 .background(
-                    if (enabled) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
+                    if (enabled) {
+                        // 与 dock 一致的 tonal 选中态。
+                        MaterialTheme.colorScheme.primary.copy(
+                            alpha = if (LocalPrismDark.current) 0.18f else 0.12f,
+                        )
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track)
+                    },
                 ),
         )
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
@@ -84,7 +90,7 @@ fun PrismSegmented(
                     val textColor by animateColorAsState(
                         targetValue = when {
                             !enabled -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)
-                            optionIndex == index -> MaterialTheme.colorScheme.onPrimary
+                            optionIndex == index -> MaterialTheme.colorScheme.primary
                             else -> MaterialTheme.colorScheme.onSurfaceVariant
                         },
                         animationSpec = PrismMotion.tween(PrismMotion.Fast),
