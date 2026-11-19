@@ -21,8 +21,16 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.union.campus.UnionApplicationHolder
 import com.union.campus.domain.CourseCell
@@ -63,10 +71,24 @@ fun CourseDetailScreen(
         onBack = onBack,
         modifier = modifier,
     ) { padding ->
+        // 详情页"展开"入场：0.98→1 的轻微放大 + 淡入，替代整页硬切。
+        var entered by remember { mutableStateOf(false) }
+        LaunchedEffect(Unit) { entered = true }
+        val enter by animateFloatAsState(
+            targetValue = if (entered) 1f else 0f,
+            animationSpec = spring(dampingRatio = 1f, stiffness = 420f),
+            label = "course-detail-enter",
+        )
         Column(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
+                .graphicsLayer {
+                    val s = 0.98f + 0.02f * enter
+                    scaleX = s
+                    scaleY = s
+                    alpha = 0.4f + 0.6f * enter
+                }
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

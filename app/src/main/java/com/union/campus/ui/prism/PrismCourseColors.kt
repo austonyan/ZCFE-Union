@@ -6,25 +6,28 @@ import kotlin.math.abs
 
 /**
  * 课程色源：课表、今天页主卡与课程详情共用。
- * 六色按课程名稳定取色，亮/暗两套，避免在页面里各写一份调色板。
+ *
+ * 色相收敛在 teal→cyan→blue→indigo→violet→slate 这一段，容器明度固定（亮 tone≈92 / 暗 tone≈26），
+ * 只靠色相 + 相邻明度区分课程。原来的暖色（橙/粉/棕）会把课表拉成"彩虹墙"，
+ * 冷色段既好区分又不会抢主色。
  */
 @Composable
 fun prismCoursePalette(name: String): Pair<Color, Color> {
     val light = listOf(
-        Color(0xFFDDF3E4) to Color(0xFF145C3A),
-        Color(0xFFE7E2FA) to Color(0xFF3F347F),
-        Color(0xFFFCE7D6) to Color(0xFF7A431D),
-        Color(0xFFF9DEE8) to Color(0xFF7D2C4E),
-        Color(0xFFDDF1FA) to Color(0xFF15546E),
-        Color(0xFFF3EAD6) to Color(0xFF5E4A20),
+        Color(0xFFDDF1EC) to Color(0xFF13544A), // teal
+        Color(0xFFDCEFF7) to Color(0xFF12505F), // cyan
+        Color(0xFFDEE8FB) to Color(0xFF1D3F73), // blue
+        Color(0xFFE3E4FA) to Color(0xFF33357A), // indigo
+        Color(0xFFEAE2F8) to Color(0xFF4A3079), // violet
+        Color(0xFFE4E8EF) to Color(0xFF37455C), // slate
     )
     val dark = listOf(
-        Color(0xFF1F3A2B) to Color(0xFFC9F2DC),
-        Color(0xFF2E2A4A) to Color(0xFFDCD6FF),
-        Color(0xFF3A2A1C) to Color(0xFFF7D9BD),
-        Color(0xFF3A2330) to Color(0xFFF7CBDD),
-        Color(0xFF1B3440) to Color(0xFFC9ECFA),
-        Color(0xFF33301F) to Color(0xFFEFE2BE),
+        Color(0xFF14352F) to Color(0xFFBDEBE0), // teal
+        Color(0xFF123039) to Color(0xFFC3E7F4), // cyan
+        Color(0xFF1A2A44) to Color(0xFFCBDCFB), // blue
+        Color(0xFF272A4C) to Color(0xFFD5D7FF), // indigo
+        Color(0xFF2E2449) to Color(0xFFDCCBFB), // violet
+        Color(0xFF252C38) to Color(0xFFD3DCEA), // slate
     )
     val palette = if (LocalPrismDark.current) dark else light
     return palette[abs(name.hashCode()) % palette.size]
