@@ -4,7 +4,7 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.36.apk`** — 已签名 release APK（versionCode 30，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- **`郑财校园-release-v0.2.37.apk`** — 已签名 release APK（versionCode 30，v2 签名，CN=Zhengcai Union，有效期 10000 天）
 - 上一版 `郑财校园-release-v0.2.18.apk`（versionCode 23）保留，便于回滚
 ^- v0.2.26 变更：课表页头改为「学期第一行、日期第二行」
 - v0.2.25 变更：课表字号按 dp 锁定（不受系统字号放大影响）、「现在」徽标收进时间栏、页头副标题允许两行（学期名不再截断）、浅色页面压到 surfaceContainerHigh（页/卡对比 1.17→1.22:1）

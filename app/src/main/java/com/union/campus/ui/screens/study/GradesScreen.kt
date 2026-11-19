@@ -190,7 +190,6 @@ fun GradesScreen(
     UnionScreenScaffold(
         title = "成绩",
         onBack = onBack,
-        subtitle = cacheSubtitle(state),
         modifier = modifier,
         actions = {
             PrismIconButton(
@@ -561,18 +560,9 @@ private fun groupGrades(grades: List<Grade>): List<Pair<String, List<Grade>>> {
         }
 }
 
-private fun categoryGroupOf(category: String): String {
-    val c = category.trim()
-    return when {
-        // 教务的类别形如「公共课/限选课」「专业课/必修课」「公共课/任选课」：
-        // 先看后半段，任选是选修，限选/必修/学位算必修。
-        c.contains("任选") -> "选修"
-        c.contains("必修") || c.contains("限选") || c.contains("学位") -> "必修"
-        c.contains("选修") -> "选修"
-        c.contains("通识") || c.contains("公选") || c.contains("素质") || c.contains("拓展") -> "通识"
-        else -> "其他"
-    }
-}
+private fun categoryGroupOf(category: String): String =
+    // 教务只有「公共课/任选课」算选修，其余（必修/限选/公共/专业课）统一算必修。
+    if (category.contains("任选")) "选修" else "必修"
 
 /** 组内排序：分数降序，同分按学分降序，无法识别的成绩落底。 */
 private fun sortGrades(grades: List<Grade>): List<Grade> =
@@ -604,14 +594,6 @@ private fun gradeSubtitle(grade: Grade, band: GradeBand): String = buildList {
 
 private fun formatCredits(value: Double): String =
     String.format(Locale.ROOT, "%.1f", value).removeSuffix(".0")
-
-private fun cacheSubtitle(state: UiState<GradesData>): String? = when (state) {
-    is UiState.Ready -> state.updatedAt
-        .takeIf { it > 0 }
-        ?.let { "缓存于 ${SimpleDateFormat("HH:mm", Locale.CHINA).format(Date(it))}" }
-
-    else -> null
-}
 
 private suspend fun shareGrades(summary: GpaSummary?, data: GradesData?) {
     if (data == null) return
