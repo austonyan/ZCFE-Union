@@ -53,6 +53,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.disabled
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -114,7 +116,7 @@ fun PrismCard(
 
 /** 卡片头：图标 18 + 标题 headline/onSurface（不再叠 alpha，避免层级被压灰）。 */
 @Composable
-fun CardHeader(title: String, icon: ImageVector? = null, modifier: Modifier = Modifier) {
+fun CardHeader(title: String, modifier: Modifier = Modifier, icon: ImageVector? = null) {
     Row(
         modifier = modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -369,7 +371,7 @@ fun PrismMetricCard(
             Text(
                 label,
                 style = if (compact) footnoteStyle() else subheadlineStyle(),
-                color = contentColor.withAlpha(PrismAlpha.Secondary),
+                color = prismTextMuted(contentColor),
                 modifier = Modifier.weight(1f),
             )
             trailing?.invoke()
@@ -385,7 +387,7 @@ fun PrismMetricCard(
             Text(
                 subtitle,
                 style = footnoteStyle(),
-                color = contentColor.withAlpha(PrismAlpha.Secondary),
+                color = prismTextMuted(contentColor),
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -441,7 +443,7 @@ fun PrismEntryCard(
                 Text(
                     subtitle,
                     style = footnoteStyle(),
-                    color = contentColor.withAlpha(PrismAlpha.Secondary),
+                    color = prismTextMuted(contentColor),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -483,7 +485,7 @@ fun PrismEntryCard(
                         Text(
                             subtitle,
                             style = footnoteStyle(),
-                            color = contentColor.withAlpha(PrismAlpha.Secondary),
+                            color = prismTextMuted(contentColor),
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,
                         )
@@ -494,7 +496,7 @@ fun PrismEntryCard(
                     androidx.compose.material3.Icon(
                         Icons.Rounded.ChevronRight,
                         contentDescription = null,
-                        tint = contentColor.withAlpha(PrismAlpha.Hint),
+                        tint = prismTextFaint(contentColor),
                         modifier = Modifier.size(PrismIconSize.Chevron),
                     )
                 }
@@ -551,7 +553,7 @@ fun PrismNoticeBanner(
                     Text(
                         message,
                         style = footnoteStyle(),
-                        color = content.withAlpha(PrismAlpha.Secondary),
+                        color = prismTextMuted(content),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                     )
@@ -609,7 +611,7 @@ fun PrismToggleRow(
                 Text(
                     subtitle,
                     style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+                    color = prismTextMuted(),
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -639,7 +641,8 @@ fun PrismIconButton(
         modifier = modifier
             .size(48.dp)
             .clip(androidx.compose.foundation.shape.CircleShape)
-            .clickable(enabled = enabled) {
+            .semantics { if (!enabled) disabled() }
+            .clickable(enabled = enabled, role = Role.Button) {
                 haptics.tap()
                 onClick()
             },

@@ -27,15 +27,14 @@ import com.union.campus.BuildConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import com.union.campus.ui.prism.withAlpha
 
 /** 关于：版本、作者、版权与数据来源。 */
 @Composable
@@ -77,7 +76,7 @@ fun AboutScreen(
                         Text(
                             "郑州财经学院校园生活入口",
                             style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer.withAlpha(PrismAlpha.Secondary),
+                            color = prismTextMuted(MaterialTheme.colorScheme.onPrimaryContainer),
                         )
                     }
                 }

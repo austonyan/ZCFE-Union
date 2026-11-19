@@ -35,6 +35,8 @@ import com.union.campus.domain.ElectricStats
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismShape
+import com.union.campus.ui.prism.prismTextFaint
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
@@ -75,8 +77,9 @@ fun ElectricBarChart(
         else -> 7
     }
     val gridColor = MaterialTheme.colorScheme.outlineVariant.withAlpha(PrismAlpha.Hint)
-    val labelColor = MaterialTheme.colorScheme.onSurfaceVariant
-    val valueColor = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary)
+    // 轴标签/数值标签是文字：不叠二次 alpha；网格线与柱体仍是上面的非文字 alpha。
+    val labelColor = prismTextMuted()
+    val valueColor = prismTextFaint()
     val haptics = rememberPrismHaptics()
     val density = LocalDensity.current
     val barShape = remember(density.density) {
