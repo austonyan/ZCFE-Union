@@ -454,12 +454,12 @@ private fun NextClassHero(
         onClick = onClick,
         containerColor = container,
         corner = PrismCorner.Xxl,
-        contentPadding = PaddingValues(20.dp),
+        contentPadding = PaddingValues(if (cell == null) 16.dp else 20.dp),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
             Text(
                 text = cell?.name ?: if (hasClassesToday) "今天的课，上完了" else "留一点时间给自己",
-                style = MaterialTheme.typography.headlineMedium,
+                style = if (cell == null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = onContainer,
                 maxLines = 3,
@@ -534,7 +534,7 @@ private fun NextClassHero(
                 }
             }
         } else {
-            Spacer(Modifier.height(20.dp))
+            Spacer(Modifier.height(12.dp))
             Text(
                 if (hasClassesToday) "歇一会儿，明天再战" else "今天暂时没有课程，可以去自习或看看生活速览",
                 style = subheadlineStyle(),

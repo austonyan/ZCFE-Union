@@ -31,8 +31,8 @@ internal fun LifeServiceCard(
     value: String,
     detail: String,
     icon: ImageVector,
-    onClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null,
     container: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     onContainer: Color = MaterialTheme.colorScheme.onSurface,
     status: String? = null,
@@ -53,9 +53,14 @@ internal fun LifeServiceCard(
             }
             if (onClick != null) Icon(Icons.Rounded.ChevronRight, null, tint = onContainer)
         }
-        Spacer(Modifier.height(16.dp))
-        Text(value, style = MaterialTheme.typography.headlineLarge, color = onContainer)
-        Spacer(Modifier.height(4.dp))
+        if (value != "—") {
+            Spacer(Modifier.height(16.dp))
+            Text(value, style = MaterialTheme.typography.headlineLarge, color = onContainer)
+            Spacer(Modifier.height(4.dp))
+        } else {
+            // Missing data is guidance, not a giant metric; keep the next service in view.
+            Spacer(Modifier.height(12.dp))
+        }
         Text(detail, style = MaterialTheme.typography.bodyMedium, color = onContainer)
         status?.let {
             Spacer(Modifier.height(16.dp))
