@@ -86,6 +86,7 @@ fun PrismCard(
     if (onClick != null) {
         Surface(
             modifier = modifier
+                .prismEdge(shape)
                 .clip(shape)
                 .clickable(role = Role.Button, onClick = onClick),
             color = fill,
@@ -94,13 +95,13 @@ fun PrismCard(
             Column(Modifier.padding(contentPadding), content = content)
         }
     } else {
-        Surface(modifier = modifier, color = fill, shape = shape) {
+        Surface(modifier = modifier.prismEdge(shape), color = fill, shape = shape) {
             Column(Modifier.padding(contentPadding), content = content)
         }
     }
 }
 
-/** 卡片头：图标 20 + 标题 headline/onSurfaceVariant·α0.8。 */
+/** 卡片头：图标 18 + 标题 headline/onSurface（不再叠 alpha，避免层级被压灰）。 */
 @Composable
 fun CardHeader(title: String, icon: ImageVector? = null, modifier: Modifier = Modifier) {
     Row(
@@ -111,14 +112,14 @@ fun CardHeader(title: String, icon: ImageVector? = null, modifier: Modifier = Mo
         if (icon != null) {
             androidx.compose.material3.Icon(
                 icon, contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp),
             )
         }
         Text(
             title,
             style = headlineStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+            color = MaterialTheme.colorScheme.onSurface,
         )
     }
 }
@@ -140,7 +141,7 @@ fun PrismGroupedList(
 ) {
     val density = LocalDensity.current
     val shape = remember(density.density) { PrismShape(PrismCorner.Xl * density.density) }
-    val dividerColor = MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Divider)
+    val dividerColor = MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.DividerSoft)
     val dividerStartPx = with(density) { dividerStart.toPx() }
     val dividerWidth = with(density) { Dp.Hairline.toPx() }
     // measure 阶段写入，draw 阶段读取；同一次布局内即可画出分隔线。
@@ -149,6 +150,7 @@ fun PrismGroupedList(
         content = content,
         modifier = modifier
             .fillMaxWidth()
+            .prismEdge(shape)
             .clip(shape)
             .background(surfaceColorOf(SurfaceLevel.Card))
             .drawWithContent {
@@ -231,8 +233,8 @@ fun PrismRow(
                 androidx.compose.material3.Icon(
                     Icons.Rounded.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
-                    modifier = Modifier.size(PrismIconSize.Chevron),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled),
+                    modifier = Modifier.size(16.dp),
                 )
             }
         }
@@ -250,7 +252,7 @@ fun GroupDivider(
             .fillMaxWidth()
             .padding(start = startPadding)
             .height(1.dp)
-            .background(MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Divider)),
+            .background(MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.DividerSoft)),
     )
 }
 
@@ -289,8 +291,8 @@ fun SectionHeader(
     ) {
         Text(
             title,
-            style = headlineStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Secondary),
+            style = headlineStyle().copy(fontWeight = androidx.compose.ui.text.font.FontWeight(500)),
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier.weight(1f),
         )
         action?.invoke(this)
@@ -339,7 +341,8 @@ fun PrismMetricCard(
                 Box(
                     Modifier
                         .size(if (compact) 28.dp else 40.dp)
-                        .clip(prismShape(if (compact) PrismCorner.Sm else PrismCorner.Md))
+                        // 内圆角必须小于外圆角（卡 16 / padding 20），否则视觉上"嵌死"。
+                        .clip(prismShape(if (compact) PrismCorner.Sm else 12f))
                         .background(accent.withAlpha(PrismAlpha.ContainerTint)),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -438,7 +441,7 @@ fun PrismEntryCard(
                     Box(
                         Modifier
                             .size(40.dp)
-                            .clip(prismShape(PrismCorner.Md))
+                            .clip(prismShape(12f))
                             .background(accent.withAlpha(PrismAlpha.ContainerTint)),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -646,13 +649,13 @@ fun PrismIconButton(
 @Composable
 fun IconBadge(
     icon: ImageVector,
-    container: Color = MaterialTheme.colorScheme.primaryContainer,
-    tint: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    container: Color = MaterialTheme.colorScheme.primary.withAlpha(PrismAlpha.ContainerTint),
+    tint: Color = MaterialTheme.colorScheme.primary,
 ) {
     Box(
         modifier = Modifier
             .size(40.dp)
-            .clip(prismShape(PrismCorner.Md))
+            .clip(prismShape(12f))
             .background(container),
         contentAlignment = Alignment.Center,
     ) {
@@ -687,7 +690,7 @@ fun NullStatus(
             androidx.compose.material3.Icon(
                 icon, contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
-                modifier = Modifier.size(44.dp),
+                modifier = Modifier.size(56.dp),
             )
         }
         StaggerItem(shown, 1) {
@@ -723,7 +726,7 @@ fun MetaChip(text: String, modifier: Modifier = Modifier, color: Color = Color.U
     ) {
         Text(
             text,
-            style = MaterialTheme.typography.labelSmall,
+            style = caption2Style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 3.dp),
         )

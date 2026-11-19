@@ -78,14 +78,14 @@ object PrismType {
     /** 最小注记 11/14 w500 */
     val Caption2 = Defaults.labelSmall.sized(11f, 14f, 500)
 
-    /** 仪表盘大数字 40/44 w700 */
-    val Display = Defaults.displayMedium.sized(40f, 44f, 700)
+    /** 仪表盘大数字 40/44 w700（负字距，四位数不散） */
+    val Display = Defaults.displayMedium.sized(40f, 44f, 700).copy(letterSpacing = (-0.5).sp)
 
-    /** 指标主数字 34/40 w700 */
-    val Metric = Defaults.headlineSmall.sized(34f, 40f, 700)
+    /** 指标主数字 34/40 w700（负字距，单位缩到脚注后数字才"立"得住） */
+    val Metric = Defaults.headlineSmall.sized(34f, 40f, 700).copy(letterSpacing = (-0.4).sp)
 
     /** 指标次数字 24/28 w700 */
-    val MetricCompact = Defaults.titleLarge.sized(24f, 28f, 700)
+    val MetricCompact = Defaults.titleLarge.sized(24f, 28f, 700).copy(letterSpacing = (-0.3).sp)
 
     /** 指标小数字 20/24 w600 */
     val MetricSmall = Defaults.titleMedium.sized(20f, 24f, 600)

@@ -9,16 +9,19 @@ import androidx.compose.ui.graphics.Color
 
 /**
  * Surface 四级层（FlClash surface.dart 亮暗不对称规则）：
- * 亮色 page=灰、card=白（更亮）；暗色 page=近黑、card=tone15（更亮一档）。
+ * 亮色 page=灰、card=纯白（最亮）；暗色 page=更暗、card=tone15（更亮一档）。
+ *
+ * 亮色下 Page(#EFEDF0) 与 Card(#FFFFFF) 的对比约 1.22:1，深色下同样是两级明度差；
+ * 相邻层级低于 1.2:1 时边界不可辨，卡片会退化成"贴纸"。
  */
 enum class SurfaceLevel {
     Page, Card, Block, Inset,
 }
 
 private fun ColorScheme.colorOf(level: SurfaceLevel, dark: Boolean): Color = when (level) {
-    SurfaceLevel.Page -> if (dark) surface else surfaceContainer
-    SurfaceLevel.Card -> if (dark) surfaceContainer else surfaceBright
-    SurfaceLevel.Block -> if (dark) surfaceContainerHigh else surfaceContainer
+    SurfaceLevel.Page -> if (dark) surfaceDim else surfaceContainer
+    SurfaceLevel.Card -> if (dark) surfaceContainer else surfaceContainerLowest
+    SurfaceLevel.Block -> if (dark) surfaceContainerHigh else surfaceContainerLow
     SurfaceLevel.Inset -> surfaceContainerHighest
 }
 

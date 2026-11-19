@@ -36,7 +36,9 @@ import com.union.campus.ui.prism.SurfaceLevel
 @Composable
 fun UnionTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = true,
+    // 默认走品牌预设：动态取色在不同壁纸下会生成发灰/发绿的 surface，校园 App 的识别度
+    // 比"跟随壁纸"更重要；需要个性化时由设置页显式开启。
+    dynamicColor: Boolean = false,
     presetColor: String = "teal",
     content: @Composable () -> Unit,
 ) {

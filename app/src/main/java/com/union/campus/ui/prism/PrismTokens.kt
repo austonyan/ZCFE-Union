@@ -60,8 +60,11 @@ object PrismAlpha {
     /** 禁用。 */
     const val Disabled = 0.38f
 
-    /** 分隔线。 */
+    /** 分隔线（旧值，渐变/遮罩类仍可用）。 */
     const val Divider = 0.14f
+
+    /** 列表分隔线：深色下 0.14 会发白，统一降到 0.10。 */
+    const val DividerSoft = 0.10f
 
     /** 浅色底（chip、徽标容器）。 */
     const val ContainerTint = 0.14f
