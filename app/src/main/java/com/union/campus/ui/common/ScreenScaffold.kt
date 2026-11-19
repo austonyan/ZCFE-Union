@@ -35,6 +35,7 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
+import com.union.campus.ui.prism.rememberPrismMotion
 
 /** 统一页面框架：透明顶栏 + Page 底色；tab 页自带页头，不使用这里的顶栏。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,13 +111,14 @@ fun <T> StateContent(
     onRetry: () -> Unit = {},
     ready: @Composable (T) -> Unit,
 ) {
+    val motion = rememberPrismMotion()
     Box(modifier.fillMaxSize()) {
         AnimatedContent(
             targetState = state,
             contentKey = { it::class },
             transitionSpec = {
-                fadeIn(PrismMotion.tween(PrismMotion.Quick)) togetherWith
-                    fadeOut(PrismMotion.tween(PrismMotion.Fast))
+                fadeIn(motion.tween(PrismMotion.Quick)) togetherWith
+                    fadeOut(motion.tween(PrismMotion.Fast))
             },
             label = "state-content",
             modifier = Modifier.fillMaxSize(),

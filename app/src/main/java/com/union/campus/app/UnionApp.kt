@@ -1,6 +1,8 @@
 package com.union.campus.app
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -39,6 +41,7 @@ import com.union.campus.ui.prism.PrismDock
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSnackbarHost
 import com.union.campus.ui.prism.PrismSpec
+import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.screens.life.ClassroomDetailScreen
 import com.union.campus.ui.screens.life.DeviceDetailScreen
 import com.union.campus.ui.screens.life.ElectricScreen
@@ -94,6 +97,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
     val showerRepo = ServiceLocator.showerRepository
     val activeSession by showerRepo.activeSession.collectAsState(initial = null)
     val messenger = LocalPrismMessenger.current
+    val motion = rememberPrismMotion()
 
     // 已完成引导/绑定的用户冷启动直接进今天页
     val startRoute = produceState(initialValue = "", producer = {
@@ -107,8 +111,10 @@ fun UnionApp(modifier: Modifier = Modifier) {
         bottomBar = {
             AnimatedVisibility(
                 visible = currentScreen in Screen.Tabs,
-                enter = slideInVertically(PushOffsetSpec) { it } + fadeIn(TabFade),
-                exit = slideOutVertically(PushOffsetSpec) { it } + fadeOut(TabFade),
+                enter = if (motion.enabled) slideInVertically(PushOffsetSpec) { it } + fadeIn(TabFade)
+                    else EnterTransition.None,
+                exit = if (motion.enabled) slideOutVertically(PushOffsetSpec) { it } + fadeOut(TabFade)
+                    else ExitTransition.None,
             ) {
                 PrismDock(
                     tabs = Screen.Tabs,
@@ -132,10 +138,10 @@ fun UnionApp(modifier: Modifier = Modifier) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding),
-            enterTransition = { PrismSpec.pushEnter },
-            exitTransition = { PrismSpec.pushExit },
-            popEnterTransition = { PrismSpec.popEnter },
-            popExitTransition = { PrismSpec.popExit },
+            enterTransition = { if (motion.enabled) PrismSpec.pushEnter else EnterTransition.None },
+            exitTransition = { if (motion.enabled) PrismSpec.pushExit else ExitTransition.None },
+            popEnterTransition = { if (motion.enabled) PrismSpec.popEnter else EnterTransition.None },
+            popExitTransition = { if (motion.enabled) PrismSpec.popExit else ExitTransition.None },
         ) {
             // ---------- 绑定流程 ----------
             composable(Screen.Welcome.route) {
@@ -242,7 +248,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
 
             // ---------- 今天（tab） ----------
-            tabRoute(Screen.Today.route) {
+            tabRoute(Screen.Today.route, motion.enabled) {
                 TodayScreen(
                     onOpenTimetable = { navigateToTab(navController, Screen.Timetable) },
                     onOpenCourse = { navigateToTab(navController, Screen.Timetable) },
@@ -256,7 +262,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
 
             // ---------- 学习（tab） ----------
-            tabRoute(Screen.Timetable.route) {
+            tabRoute(Screen.Timetable.route, motion.enabled) {
                 TimetableRoute(
                     onOpenCourse = { cell ->
                         AppState.selectedCourse = cell
@@ -267,7 +273,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
 
             // ---------- 教务（tab） ----------
-            tabRoute(Screen.Academics.route) {
+            tabRoute(Screen.Academics.route, motion.enabled) {
                 AcademicsScreen(
                     onOpen = { link ->
                         when (link) {
@@ -291,7 +297,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
 
             // ---------- 生活（tab） ----------
-            tabRoute(Screen.Life.route) {
+            tabRoute(Screen.Life.route, motion.enabled) {
                 LifeScreen(
                     onOpenElectric = { navController.navigate(Screen.Electric.route) },
                     onOpenShower = { navController.navigate(Screen.Shower.route) },
@@ -301,7 +307,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
 
             // ---------- 我的（tab） ----------
-            tabRoute(Screen.Profile.route) {
+            tabRoute(Screen.Profile.route, motion.enabled) {
                 ProfileScreen(
                     onOpenCredentials = { navController.navigate(Screen.Credentials.route) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
@@ -549,14 +555,15 @@ fun UnionApp(modifier: Modifier = Modifier) {
 /** 标签页路由：fade-through + 0.98→1 微缩放。 */
 private fun NavGraphBuilder.tabRoute(
     route: String,
+    animationsEnabled: Boolean,
     content: @Composable () -> Unit,
 ) {
     composable(
         route = route,
-        enterTransition = { PrismSpec.tabEnter },
-        exitTransition = { PrismSpec.tabExit },
-        popEnterTransition = { PrismSpec.tabEnter },
-        popExitTransition = { PrismSpec.tabExit },
+        enterTransition = { if (animationsEnabled) PrismSpec.tabEnter else EnterTransition.None },
+        exitTransition = { if (animationsEnabled) PrismSpec.tabExit else ExitTransition.None },
+        popEnterTransition = { if (animationsEnabled) PrismSpec.tabEnter else EnterTransition.None },
+        popExitTransition = { if (animationsEnabled) PrismSpec.tabExit else ExitTransition.None },
     ) { content() }
 }
 
