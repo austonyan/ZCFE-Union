@@ -58,6 +58,7 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.TextUnit
@@ -84,6 +85,7 @@ import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.caption1Style
+import com.union.campus.ui.prism.buttonLabelStyle
 import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.prismCoursePalette
@@ -328,7 +330,7 @@ fun TimetableScreen(
 
 /** 周切换：方向按钮围绕周次，本周状态和返回动作占用同一位置。 */
 @Composable
-private fun WeekSwitcher(
+internal fun WeekSwitcher(
     week: Int,
     maxWeek: Int,
     currentWeek: Int,
@@ -338,6 +340,8 @@ private fun WeekSwitcher(
 ) {
     val density = LocalDensity.current
     val pill = remember(density.density) { PrismShape(64f * density.density) }
+    val labelWidth = rememberTextMeasurer().measure("回到本周", style = buttonLabelStyle(), maxLines = 1, softWrap = false).size.width
+    val returnWidth = maxOf(88.dp, with(density) { labelWidth.toDp() } + 26.dp)
     Row(
         Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -384,7 +388,7 @@ private fun WeekSwitcher(
                 )
             }
         }
-        Box(Modifier.width(88.dp), contentAlignment = Alignment.Center) {
+        Box(Modifier.width(returnWidth), contentAlignment = Alignment.Center) {
             if (week == currentWeek) {
                 Text(
                     "本周",
@@ -393,7 +397,7 @@ private fun WeekSwitcher(
                 )
             } else {
                 PrismTextButton(onClick = onThisWeek) {
-                    Text("回到本周")
+                    Text("回到本周", maxLines = 1, softWrap = false)
                 }
             }
         }

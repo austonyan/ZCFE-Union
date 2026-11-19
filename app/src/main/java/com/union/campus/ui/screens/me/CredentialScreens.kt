@@ -33,6 +33,7 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismActionRow
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismIconSize
@@ -293,12 +294,9 @@ private fun CredentialAccountCard(
         Spacer(Modifier.height(2.dp))
         Text(detail, style = footnoteStyle(), color = onContainer)
         Spacer(Modifier.height(12.dp))
-        Row(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        PrismActionRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
         ) {
-            Spacer(Modifier.weight(1f))
             if (bound) {
                 PrismTextButton(onClick = onLogout) {
                     Icon(
@@ -307,7 +305,7 @@ private fun CredentialAccountCard(
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(PrismIconSize.Chevron),
                     )
-                    Text("退出", color = MaterialTheme.colorScheme.error)
+                    Text("退出", color = MaterialTheme.colorScheme.error, maxLines = 1, softWrap = false)
                 }
             }
             PrismButton(

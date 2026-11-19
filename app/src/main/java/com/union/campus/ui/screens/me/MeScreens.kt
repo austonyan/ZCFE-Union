@@ -184,18 +184,21 @@ fun ProfileScreen(
                     title = "教务", subtitle = if (cred.jwStudentNo.isNotBlank()) "学号 ${cred.jwStudentNo.take(4)}****" else "登录后查看课表、成绩与考试",
                     leading = { IconBadge(Icons.Outlined.School) },
                     trailing = { AccountStatusBadge(cred.jwStudentNo.isNotBlank()) },
+                    subtitleMaxLines = Int.MAX_VALUE,
                     onClick = onOpenCredentials,
                 )
                 PrismRow(
                     title = "洗浴", subtitle = if (cred.showerToken.isNotBlank()) "手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "登录大白U帮，查看洗浴与账单",
                     leading = { IconBadge(Icons.Outlined.Shower) },
                     trailing = { AccountStatusBadge(cred.showerToken.isNotBlank()) },
+                    subtitleMaxLines = Int.MAX_VALUE,
                     onClick = onOpenCredentials,
                 )
                 PrismRow(
                     title = "电费", subtitle = if (cred.electricAccount.isNotBlank()) "学号 ${cred.electricAccount.take(4)}****" else "绑定本人宿舍，查看余额与用量",
                     leading = { IconBadge(Icons.Outlined.Bolt) },
                     trailing = { AccountStatusBadge(cred.electricAccount.isNotBlank()) },
+                    subtitleMaxLines = Int.MAX_VALUE,
                     onClick = onOpenCredentials,
                 )
             }

@@ -226,6 +226,7 @@ fun PrismRow(
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
     onClick: (() -> Unit)? = null,
+    subtitleMaxLines: Int = 2,
 ) {
     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Row(
@@ -257,7 +258,7 @@ fun PrismRow(
                         subtitle,
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 2,
+                        maxLines = subtitleMaxLines,
                         overflow = TextOverflow.Ellipsis,
                     )
                 }
@@ -982,37 +983,13 @@ fun PrismAlertDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     Spacer(Modifier.height(20.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        val actionPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
-                        if (dismissText != null) {
-                            Box(Modifier.weight(1f)) {
-                                PrismButton(
-                                    filled = false,
-                                    onClick = { close(onDismiss) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    contentPadding = actionPadding,
-                                ) {
-                                    Text(dismissText, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                                }
-                            }
-                        }
-                        Box(Modifier.weight(1f)) {
-                            PrismButton(
-                                onClick = {
-                                    close {
-                                        onDismiss()
-                                        onConfirm()
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                                contentPadding = actionPadding,
-                                containerColor = if (destructive) MaterialTheme.colorScheme.errorContainer else null,
-                                contentColor = if (destructive) MaterialTheme.colorScheme.onErrorContainer else null,
-                            ) {
-                                Text(confirmText, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                            }
-                        }
-                    }
+                    PrismDialogActions(
+                        confirmText = confirmText,
+                        dismissText = dismissText,
+                        destructive = destructive,
+                        onDismiss = { close(onDismiss) },
+                        onConfirm = { close { onDismiss(); onConfirm() } },
+                    )
                 }
             }
         }

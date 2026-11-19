@@ -47,6 +47,7 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismActionRow
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismIconButton
@@ -905,7 +906,7 @@ fun ShowerScreen(
                 else -> {
                     val using = devices.count { it.state == 1 }
                     val reserved = devices.count { it.state == 2 }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PrismActionRow {
                         com.union.campus.ui.prism.MetaChip("空闲 $idleCount", color = MaterialTheme.colorScheme.primaryContainer)
                         com.union.campus.ui.prism.MetaChip("使用中 $using")
                         com.union.campus.ui.prism.MetaChip("已预约 $reserved")

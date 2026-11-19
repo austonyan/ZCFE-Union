@@ -58,6 +58,7 @@ import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismActionRow
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismErrorState
@@ -492,14 +493,14 @@ fun ElectricScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
 
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        PrismButton(onClick = { topUpVisible = true }, modifier = Modifier.weight(1f)) {
+                    PrismActionRow {
+                        PrismButton(onClick = { topUpVisible = true }) {
                             Icon(Icons.Rounded.Payment, null)
                             Spacer(Modifier.width(8.dp))
-                            Text("去充值")
+                            Text("去充值", maxLines = 1, softWrap = false)
                         }
-                        PrismTextButton(onClick = onOpenUsage, modifier = Modifier.weight(1f)) {
-                            Text("用量明细")
+                        PrismTextButton(onClick = onOpenUsage) {
+                            Text("用量明细", maxLines = 1, softWrap = false)
                         }
                     }
 

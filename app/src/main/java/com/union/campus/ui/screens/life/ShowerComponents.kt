@@ -49,6 +49,7 @@ import com.union.campus.domain.ShowerOrg
 import com.union.campus.domain.ShowerReservation
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
+import com.union.campus.ui.prism.PrismActionRow
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismCheckMark
 import com.union.campus.ui.prism.PrismGroupedList
@@ -394,14 +395,14 @@ internal fun ReservationCard(
             }
         }
         Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PrismButton(onClick = onStart, enabled = remaining > 0 && !busy, loading = busy, modifier = Modifier.weight(1f)) {
+        PrismActionRow {
+            PrismButton(onClick = onStart, enabled = remaining > 0 && !busy, loading = busy) {
                 Icon(Icons.Rounded.PlayArrow, null)
                 Spacer(Modifier.width(6.dp))
-                Text("启动设备")
+                Text("启动设备", maxLines = 1, softWrap = false)
             }
             PrismTextButton(onClick = onCancel, enabled = !busy) {
-                Text("取消预约")
+                Text("取消预约", maxLines = 1, softWrap = false)
             }
         }
     }

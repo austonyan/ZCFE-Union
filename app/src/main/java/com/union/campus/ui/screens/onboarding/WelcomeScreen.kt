@@ -88,7 +88,11 @@ fun WelcomeScreen(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
-                    Row(Modifier.padding(horizontal = 12.dp, vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(
+                        Modifier.padding(horizontal = 8.dp, vertical = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
                         Icon(icon, null, Modifier.size(20.dp))
                         Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1)
                     }
