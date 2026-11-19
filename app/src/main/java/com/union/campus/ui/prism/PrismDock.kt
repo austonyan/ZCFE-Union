@@ -8,7 +8,6 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -45,6 +44,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import com.union.campus.navigation.Screen
 
@@ -62,6 +62,7 @@ fun PrismDock(
 ) {
     if (tabs.isEmpty()) return
     val haptics = rememberPrismHaptics()
+    val motion = rememberPrismMotion()
     val pill = prismShape(64f)
     val selectedIndex = tabs.indexOf(current).coerceAtLeast(0)
 
@@ -94,12 +95,13 @@ fun PrismDock(
             val itemWidth = maxWidth / tabs.size.toFloat()
             val indicatorOffset by animateDpAsState(
                 targetValue = itemWidth * selectedIndex,
-                animationSpec = PrismMotion.springSnappy(560f),
+                animationSpec = motion.springSnappy(560f),
                 label = "dock-indicator",
             )
             Box(
                 Modifier
-                    .offset(x = indicatorOffset)
+                    // lambda 重载：偏移量在布局阶段读取，动画每帧只触发布局而非重组。
+                    .offset { IntOffset(indicatorOffset.roundToPx(), 0) }
                     .fillMaxHeight()
                     .fillMaxWidth(1f / tabs.size)
                     .clip(pill)
@@ -117,22 +119,18 @@ fun PrismDock(
                     val pressed by interactionSource.collectIsPressedAsState()
                     val pressScale by animateFloatAsState(
                         targetValue = if (pressed) 0.94f else 1f,
-                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 900f),
+                        animationSpec = motion.spec(PrismSpec.pressDown),
                         label = "dock-press-scale",
                     )
                     val contentColor by animateColorAsState(
                         targetValue = if (selected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
-                        animationSpec = PrismMotion.tween(PrismMotion.Quick),
+                        animationSpec = motion.tween(PrismMotion.Quick),
                         label = "dock-color",
                     )
                     val iconScale by animateFloatAsState(
-                        targetValue = when {
-                            !prismAnimationsEnabled() -> 1f
-                            selected -> 1.12f
-                            else -> 1f
-                        },
-                        animationSpec = PrismMotion.springSnappy(),
+                        targetValue = if (selected && motion.enabled) 1.12f else 1f,
+                        animationSpec = motion.springSnappy(),
                         label = "dock-icon-scale",
                     )
                     Box(
@@ -185,7 +183,7 @@ fun PrismDock(
                                     )
                                     PrismStatusDot(
                                         color = PrismStatus.success().withAlpha(
-                                            if (prismAnimationsEnabled()) pulse else 1f,
+                                            if (motion.enabled) pulse else 1f,
                                         ),
                                         modifier = Modifier
                                             .align(Alignment.TopEnd)

@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 
 /**
@@ -35,6 +36,7 @@ fun PrismSwitch(
     interactive: Boolean = true,
 ) {
     val haptics = rememberPrismHaptics()
+    val motion = rememberPrismMotion()
     val interactionSource = remember { MutableInteractionSource() }
     val pill = prismShape(32f)
     val trackColor by animateColorAsState(
@@ -43,7 +45,7 @@ fun PrismSwitch(
             checked -> MaterialTheme.colorScheme.primary
             else -> MaterialTheme.colorScheme.surfaceContainerHighest
         },
-        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        animationSpec = motion.tween(PrismMotion.Standard),
         label = "switch-track",
     )
     val thumbColor by animateColorAsState(
@@ -52,12 +54,12 @@ fun PrismSwitch(
             checked -> MaterialTheme.colorScheme.onPrimary
             else -> MaterialTheme.colorScheme.outline
         },
-        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        animationSpec = motion.tween(PrismMotion.Standard),
         label = "switch-thumb",
     )
     val thumbOffset by animateDpAsState(
         targetValue = if (checked) 24.dp else 4.dp,
-        animationSpec = PrismMotion.springSnappy(),
+        animationSpec = motion.springSnappy(),
         label = "switch-offset",
     )
 
@@ -91,7 +93,7 @@ fun PrismSwitch(
         ) {
             Box(
                 Modifier
-                    .offset(x = thumbOffset)
+                    .offset { IntOffset(thumbOffset.roundToPx(), 0) }
                     .size(24.dp)
                     .shadow(2.dp, CircleShape)
                     .clip(CircleShape)

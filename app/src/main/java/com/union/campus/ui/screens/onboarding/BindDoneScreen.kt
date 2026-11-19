@@ -1,7 +1,6 @@
 package com.union.campus.ui.screens.onboarding
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.spring
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -43,9 +42,11 @@ import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
+import com.union.campus.ui.prism.PrismSpec
 import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
+import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
@@ -66,9 +67,10 @@ fun BindDoneScreen(
         shown = true
     }
 
+    val motion = rememberPrismMotion()
     val checkScale by animateFloatAsState(
         targetValue = if (shown) 1f else 0f,
-        animationSpec = spring(dampingRatio = 0.7f, stiffness = 320f),
+        animationSpec = motion.spec(PrismSpec.entranceBouncy),
         label = "bind-done-check",
     )
 

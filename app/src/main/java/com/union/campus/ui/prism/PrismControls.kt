@@ -7,8 +7,10 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
@@ -63,6 +66,8 @@ fun PrismChip(
 ) {
     val density = LocalDensity.current
     val haptics = rememberPrismHaptics()
+    val motion = rememberPrismMotion()
+    val interactionSource = remember { MutableInteractionSource() }
     val pill = remember(density.density) { PrismShape(Float.MAX_VALUE) }
     val container by animateColorAsState(
         targetValue = when {
@@ -70,7 +75,7 @@ fun PrismChip(
             selected -> MaterialTheme.colorScheme.primary
             else -> surfaceColorOf(SurfaceLevel.Inset)
         },
-        animationSpec = PrismMotion.tween(PrismMotion.Fast),
+        animationSpec = motion.tween(PrismMotion.Fast),
         label = "chip-container",
     )
     val content by animateColorAsState(
@@ -79,19 +84,29 @@ fun PrismChip(
             selected -> MaterialTheme.colorScheme.onPrimary
             else -> MaterialTheme.colorScheme.onSurfaceVariant
         },
-        animationSpec = PrismMotion.tween(PrismMotion.Fast),
+        animationSpec = motion.tween(PrismMotion.Fast),
         label = "chip-content",
     )
     WithPressLook(PressLook.Tint) {
         Surface(
-            onClick = {
-                if (enabled && !selected) {
-                    haptics.select()
-                    onClick()
-                }
-            },
-            enabled = enabled,
-            modifier = modifier.minimumInteractiveComponentSize(),
+            modifier = modifier
+                .minimumInteractiveComponentSize()
+                // 单选筛选语义：TalkBack 读作「单选按钮，已选中/未选中」。
+                // 调用方在外层 Row 上补 Modifier.selectableGroup() 即可获得分组语义。
+                .selectable(
+                    selected = selected,
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    enabled = enabled,
+                    role = Role.RadioButton,
+                    onClick = {
+                        // 保持原行为：已选中的 chip 再次点击不重复触发。
+                        if (enabled && !selected) {
+                            haptics.select()
+                            onClick()
+                        }
+                    },
+                ),
             shape = pill,
             color = container,
         ) {
@@ -358,14 +373,15 @@ fun PrismCheckMark(
     checked: Boolean,
     modifier: Modifier = Modifier,
 ) {
+    val motion = rememberPrismMotion()
     val scale by animateFloatAsState(
         targetValue = if (checked) 1f else 0.72f,
-        animationSpec = PrismMotion.springSnappy(),
+        animationSpec = motion.springSnappy(),
         label = "check-scale",
     )
     val alpha by animateFloatAsState(
         targetValue = if (checked) 1f else 0.28f,
-        animationSpec = PrismMotion.tween(PrismMotion.Fast),
+        animationSpec = motion.tween(PrismMotion.Fast),
         label = "check-alpha",
     )
     Icon(
