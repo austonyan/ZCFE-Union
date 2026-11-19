@@ -2,14 +2,19 @@ package com.union.campus.ui.screens.study
 
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
@@ -17,9 +22,13 @@ import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Info
+import androidx.compose.material.icons.rounded.MeetingRoom
+import androidx.compose.material.icons.rounded.MenuBook
+import androidx.compose.material.icons.rounded.Person
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.runtime.Composable
@@ -29,6 +38,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.unit.dp
 import com.union.campus.UnionApplicationHolder
@@ -73,7 +83,7 @@ fun CourseDetailScreen(
         onBack = onBack,
         modifier = modifier,
     ) { padding ->
-        // 详情页"展开"入场：0.98→1 的轻微放大 + 淡入，替代整页硬切。
+        // 只让来源色面板轻微展开，正文与操作保持稳定。
         var entered by remember { mutableStateOf(false) }
         LaunchedEffect(Unit) { entered = true }
         val motion = rememberPrismMotion()
@@ -86,38 +96,79 @@ fun CourseDetailScreen(
             Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .graphicsLayer {
-                    val s = 0.98f + 0.02f * enter
-                    scaleX = s
-                    scaleY = s
-                    alpha = 0.4f + 0.6f * enter
-                }
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PrismCard(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth().graphicsLayer {
+                    val scale = 0.98f + 0.02f * enter
+                    scaleX = scale
+                    scaleY = scale
+                },
                 containerColor = prismCourseContainer(cell.name),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
+                corner = 28f,
+                contentPadding = PaddingValues(20.dp),
             ) {
-                Text(cell.name, style = pageTitleStyle(), color = prismCourseOnContainer(cell.name))
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "${cell.teacher} · ${cell.weeks.ifBlank { "本学期" }}\n${cell.sections} · ${cell.location}",
-                    style = subheadlineStyle(),
-                    color = prismCourseOnContainer(cell.name),
-                )
-            }
-
-            PrismSection(title = "本周安排") {
-                PrismGroupedList {
-                    PrismRow(
-                        title = cell.sections,
-                        subtitle = "${cell.location} · ${cell.teacher}",
-                        leading = { IconBadge(Icons.Rounded.CalendarMonth) },
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text(
+                        cell.name,
+                        style = pageTitleStyle(),
+                        color = prismCourseOnContainer(cell.name),
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        Icons.Rounded.MenuBook,
+                        contentDescription = null,
+                        tint = prismCourseOnContainer(cell.name),
+                        modifier = Modifier.size(28.dp),
                     )
                 }
+                Spacer(Modifier.height(20.dp))
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        Icons.Rounded.CalendarMonth,
+                        contentDescription = null,
+                        tint = prismCourseOnContainer(cell.name),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        cell.weeks.ifBlank { "本学期" },
+                        style = subheadlineStyle(),
+                        color = prismCourseOnContainer(cell.name),
+                    )
+                }
+            }
+
+            PrismSection(title = "上课安排") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "上课节次",
+                        subtitle = cell.sections.ifBlank { "以教务课表为准" },
+                        leading = { CourseDetailIcon(Icons.Rounded.CalendarMonth, cell.name) },
+                    )
+                    PrismRow(
+                        title = "上课地点",
+                        subtitle = cell.location.ifBlank { "暂未提供" },
+                        leading = { CourseDetailIcon(Icons.Rounded.MeetingRoom, cell.name) },
+                    )
+                    PrismRow(
+                        title = "授课教师",
+                        subtitle = cell.teacher.ifBlank { "暂未提供" },
+                        leading = { CourseDetailIcon(Icons.Rounded.Person, cell.name) },
+                    )
+                }
+                Text(
+                    "来自教务课程表，与课表中的课程颜色对应",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
 
             if (cell.note.isNotBlank()) {
@@ -143,6 +194,19 @@ fun CourseDetailScreen(
                 Text("加入日历")
             }
             Spacer(Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun CourseDetailIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, courseName: String) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = prismCourseContainer(courseName),
+        contentColor = prismCourseOnContainer(courseName),
+    ) {
+        Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(20.dp))
         }
     }
 }

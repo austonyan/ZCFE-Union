@@ -23,14 +23,12 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
-import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -74,7 +72,6 @@ import com.union.campus.domain.SemesterCalc
 import com.union.campus.domain.TimetableData
 import com.union.campus.domain.TimetableSchedule
 import com.union.campus.domain.TimetableScheduleConfig
-import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.NullStatus
@@ -86,7 +83,6 @@ import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismTextButton
-import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.caption1Style
 import com.union.campus.ui.prism.caption2Style
 import com.union.campus.ui.prism.footnoteStyle
@@ -94,7 +90,7 @@ import com.union.campus.ui.prism.prismCoursePalette
 import com.union.campus.ui.prism.prismTextFaint
 import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.rememberPrismHaptics
-import com.union.campus.ui.prism.surfaceColorOf
+import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 import java.time.LocalDate
@@ -114,6 +110,7 @@ fun TimetableScreen(
     val entities = ServiceLocator.entities
     val settings = ServiceLocator.settings
     val haptics = rememberPrismHaptics()
+    val motion = rememberPrismMotion()
 
     var semesters by remember { mutableStateOf<List<Semester>>(emptyList()) }
     // 学期/周次用 rememberSaveable：进入课程详情再返回时，恢复用户翻到的那一周。
@@ -302,14 +299,14 @@ fun TimetableScreen(
                     modifier = Modifier.fillMaxSize(),
                     transitionSpec = {
                         if (weekDirection == 0) {
-                            fadeIn(PrismMotion.tween(PrismMotion.Quick)) togetherWith
-                                fadeOut(PrismMotion.tween(PrismMotion.Fast))
+                            fadeIn(motion.tween(PrismMotion.Quick)) togetherWith
+                                fadeOut(motion.tween(PrismMotion.Fast))
                         } else {
                             val direction = if (weekDirection > 0) 1 else -1
-                            (slideInHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { it / 2 * direction } +
-                                fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
-                                (slideOutHorizontally(PrismMotion.tween(PrismMotion.Emphasized)) { -it / 2 * direction } +
-                                    fadeOut(PrismMotion.tween(PrismMotion.Fast)))
+                            (slideInHorizontally(motion.tween(PrismMotion.Emphasized)) { it / 6 * direction } +
+                                fadeIn(motion.tween(PrismMotion.Quick))) togetherWith
+                                (slideOutHorizontally(motion.tween(PrismMotion.Emphasized)) { -it / 6 * direction } +
+                                    fadeOut(motion.tween(PrismMotion.Fast)))
                         }
                     },
                     label = "timetable-week",
@@ -329,7 +326,7 @@ fun TimetableScreen(
     }
 }
 
-/** 周切换：胶囊里左右翻周，右侧「回到本周」只在离开本周后可用。 */
+/** 周切换：方向按钮围绕周次，本周状态和返回动作占用同一位置。 */
 @Composable
 private fun WeekSwitcher(
     week: Int,
@@ -341,34 +338,63 @@ private fun WeekSwitcher(
 ) {
     val density = LocalDensity.current
     val pill = remember(density.density) { PrismShape(64f * density.density) }
-    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        Surface(shape = pill, color = surfaceColorOf(SurfaceLevel.Inset)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Surface(
+            modifier = Modifier.weight(1f),
+            shape = pill,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 PrismIconButton(
                     icon = Icons.AutoMirrored.Outlined.KeyboardArrowLeft,
                     contentDescription = "上一周",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     onClick = onPrevious,
                     enabled = week > 1,
                 )
-                Text(
-                    text = "第 $week 周",
-                    style = caption1Style(),
-                    color = MaterialTheme.colorScheme.onSurface,
-                    textAlign = TextAlign.Center,
-                    maxLines = 1,
-                    modifier = Modifier.widthIn(min = 52.dp),
-                )
+                Column(
+                    Modifier.weight(1f).padding(vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text(
+                        text = "第 $week 周",
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        textAlign = TextAlign.Center,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = "共 $maxWeek 周",
+                        style = caption2Style(),
+                        color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        maxLines = 1,
+                    )
+                }
                 PrismIconButton(
                     icon = Icons.AutoMirrored.Outlined.KeyboardArrowRight,
                     contentDescription = "下一周",
+                    tint = MaterialTheme.colorScheme.onSecondaryContainer,
                     onClick = onNext,
                     enabled = week < maxWeek,
                 )
             }
         }
-        Spacer(Modifier.weight(1f))
-        PrismTextButton(onClick = onThisWeek, enabled = week != currentWeek) {
-            Text("回到本周")
+        if (week == currentWeek) {
+            Text(
+                "本周",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.padding(horizontal = 16.dp),
+            )
+        } else {
+            PrismTextButton(onClick = onThisWeek) {
+                Text("回到本周")
+            }
         }
     }
 }

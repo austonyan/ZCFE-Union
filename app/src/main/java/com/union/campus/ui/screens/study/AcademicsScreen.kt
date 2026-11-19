@@ -1,6 +1,7 @@
 package com.union.campus.ui.screens.study
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -9,10 +10,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.Campaign
@@ -26,6 +30,7 @@ import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.SwapHoriz
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -36,6 +41,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.JwNotice
@@ -45,7 +52,6 @@ import com.union.campus.domain.TimetableSchedule
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismEntryCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
@@ -53,7 +59,6 @@ import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
-import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.subheadlineStyle
 import kotlinx.coroutines.flow.first
 
@@ -111,71 +116,86 @@ fun AcademicsScreen(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onOpen("timetable") },
             containerColor = MaterialTheme.colorScheme.primaryContainer,
+            corner = 28f,
             contentPadding = PaddingValues(20.dp),
         ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    semesterLabel.ifBlank { "当前学期" },
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                Surface(
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                ) {
+                    Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Rounded.School, contentDescription = null)
+                    }
+                }
+            }
+            Spacer(Modifier.height(20.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    "本周课表与教室",
+                    style = subheadlineStyle(),
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.weight(1f),
+                )
+                Text("看课表", style = footnoteStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Spacer(Modifier.width(4.dp))
                 Icon(
-                    Icons.Rounded.School,
+                    Icons.AutoMirrored.Rounded.ArrowForward,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
-                Spacer(Modifier.width(10.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        semesterLabel.ifBlank { "当前学期" },
-                        style = headlineStyle(),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                    Text(
-                        "本周课表、教室与调课提醒",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    )
-                }
-                Text(
-                    "看课表",
-                    style = footnoteStyle(),
-                    color = prismTextMuted(MaterialTheme.colorScheme.onPrimaryContainer),
+                    modifier = Modifier.size(18.dp),
                 )
             }
         }
 
         PrismSection(title = "常用功能") {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrismEntryCard(
-                    title = "成绩查询",
-                    subtitle = "学分与绩点",
-                    icon = Icons.Rounded.Grade,
-                    compact = true,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("grades") },
-                )
-                PrismEntryCard(
-                    title = "考试安排",
-                    subtitle = "时间与考场",
-                    icon = Icons.Rounded.Event,
-                    compact = true,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("exams") },
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                PrismEntryCard(
-                    title = "选课",
-                    subtitle = "轮次与提交",
-                    icon = Icons.Rounded.Assignment,
-                    compact = true,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("select") },
-                )
-                PrismEntryCard(
-                    title = "教学评价",
-                    subtitle = "待评课程",
-                    icon = Icons.Rounded.RateReview,
-                    compact = true,
-                    modifier = Modifier.weight(1f),
-                    onClick = { onOpen("evaluation") },
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AcademicAction(
+                        title = "成绩查询",
+                        subtitle = "学分与绩点",
+                        icon = Icons.Rounded.Grade,
+                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp, bottomStart = 8.dp),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOpen("grades") },
+                    )
+                    AcademicAction(
+                        title = "考试安排",
+                        subtitle = "时间与考场",
+                        icon = Icons.Rounded.Event,
+                        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 24.dp, bottomEnd = 8.dp, bottomStart = 8.dp),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOpen("exams") },
+                    )
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    AcademicAction(
+                        title = "选课",
+                        subtitle = "轮次与提交",
+                        icon = Icons.Rounded.Assignment,
+                        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomEnd = 8.dp, bottomStart = 24.dp),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOpen("select") },
+                    )
+                    AcademicAction(
+                        title = "教学评价",
+                        subtitle = "待评课程",
+                        icon = Icons.Rounded.RateReview,
+                        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomEnd = 24.dp, bottomStart = 8.dp),
+                        modifier = Modifier.weight(1f),
+                        onClick = { onOpen("evaluation") },
+                    )
+                }
             }
         }
 
@@ -248,5 +268,40 @@ fun AcademicsScreen(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(24.dp))
+    }
+}
+
+/** 四个入口共用图标底与次级色调；小内角将它们连接成一组，而非四张独立卡片。 */
+@Composable
+private fun AcademicAction(
+    title: String,
+    subtitle: String,
+    icon: ImageVector,
+    shape: RoundedCornerShape,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        onClick = onClick,
+        modifier = modifier,
+        shape = shape,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Surface(
+                shape = RoundedCornerShape(14.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(22.dp))
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = headlineStyle(), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(subtitle, style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
     }
 }
