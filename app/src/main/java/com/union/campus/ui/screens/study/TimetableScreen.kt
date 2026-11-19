@@ -61,6 +61,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.union.campus.di.ServiceLocator
@@ -378,31 +379,38 @@ private fun TimetableGrid(
     val dayShape = remember(density.density) { PrismShape(8f * density.density) }
     val blockShape = remember(density.density) { PrismShape(10f * density.density) }
     val tagShape = remember(density.density) { PrismShape(4f * density.density) }
-    // 时间栏只放「节次 + 开始时间」，宽度压到 34dp 左右，剩下的全给课程卡片。
+    // 课表是固定网格：字号按 dp 锁死（除以系统 fontScale），不跟着系统字号一起放大，
+    // 否则 1.25/1.4 倍字号下格子只能容下三四个字，永远和参考图对不齐。
+    fun fixedSp(dp: Float): TextUnit = (dp / fontScale).sp
     val timeStyle = caption2Style().copy(
-        fontSize = (if (isCompact) 9f else 9.5f).sp,
-        lineHeight = (if (isCompact) 10f else 10.5f).sp,
+        fontSize = fixedSp(if (isCompact) 9f else 9.5f),
+        lineHeight = fixedSp(if (isCompact) 10f else 10.5f),
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
     val sectionStyle = footnoteStyle().copy(
-        fontSize = 12.sp,
-        lineHeight = 14.sp,
+        fontSize = fixedSp(12f),
+        lineHeight = fixedSp(14f),
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
+    val headerStyle = footnoteStyle().copy(
+        fontSize = fixedSp(if (isCompact) 11.5f else 13f),
+        lineHeight = fixedSp(if (isCompact) 14f else 16f),
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
 
-    // 字号对齐参考图：课名 12sp、地点/教师 10sp；7 列时各降 0.5~1sp。
-    val nameLineSp = if (isCompact) 11.5f else 13.5f
-    val metaLineSp = if (isCompact) 9.5f else 11f
+    // 课名 12.5dp、地点/教师 10dp，与参考图一致；7 列时各降 1dp。
+    val nameLineDp = if (isCompact) 12.5f else 13.5f
+    val metaLineDp = if (isCompact) 10f else 11f
     val cellNameStyle = caption1Style().copy(
-        fontSize = (if (isCompact) 11f else 12f).sp,
-        lineHeight = nameLineSp.sp,
+        fontSize = fixedSp(if (isCompact) 11.5f else 12.5f),
+        lineHeight = fixedSp(nameLineDp),
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
     val cellMetaStyle = caption2Style().copy(
-        fontSize = (if (isCompact) 9f else 10f).sp,
-        lineHeight = metaLineSp.sp,
+        fontSize = fixedSp(if (isCompact) 9f else 10f),
+        lineHeight = fixedSp(metaLineDp),
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
@@ -439,7 +447,7 @@ private fun TimetableGrid(
         val breakHeight = 18.dp * fontScale
         val headerHeight = 40.dp * fontScale
         val gridPadding = 4.dp
-        val timeWidth = (if (isCompact) 33.dp else 38.dp) * fontScale
+        val timeWidth = if (isCompact) 33.dp else 38.dp
         val breakCount = (if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) 1 else 0) +
             (if (visibleEnd > TimetableSchedule.DINNER_AFTER_SECTION) 1 else 0)
         val rowsRoom = maxHeight - gridPadding * 2 - headerHeight - 4.dp - breakHeight * breakCount
@@ -518,7 +526,7 @@ private fun TimetableGrid(
                     ) {
                         Text(
                             dayName(day),
-                            style = if (isCompact) caption2Style() else footnoteStyle(),
+                            style = headerStyle,
                             fontWeight = if (isToday) FontWeight(700) else FontWeight(500),
                             color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -528,7 +536,7 @@ private fun TimetableGrid(
                         if (date != null) {
                             Text(
                                 date.format(dateFmt),
-                                style = if (isCompact) caption2Style() else footnoteStyle(),
+                                style = headerStyle,
                                 color = if (isToday) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -652,8 +660,7 @@ private fun TimetableGrid(
                                         val innerVertical = 2.dp
                                         val usable = blockH.value - innerVertical.value * 2
                                         // 系统字号放大后行高按 dp 一起涨，行数要按缩放后的行高算。
-                                        val nameLineDp = nameLineSp * fontScale
-                                        val metaLineDp = metaLineSp * fontScale
+                                        
                                         // 先给教室/教师留位，课名最多 4 行：超长课名一律省略号，不能把下面信息挤出去。
                                         val wantMeta = (if (shownLocation.isNotBlank()) 1 else 0) +
                                             (if (cell.teacher.isNotBlank()) 1 else 0)
@@ -747,14 +754,15 @@ private fun TimetableGrid(
                     )
                     Box(
                         Modifier
-                            .offset(x = timeWidth + 3.dp, y = y - 9.dp)
+                            // 徽标收在时间栏里，不再盖住周一第一节课的名字。
+                            .offset(x = timeWidth - 32.dp, y = y - 9.dp)
                             .clip(tagShape)
                             .background(MaterialTheme.colorScheme.primary)
                             .padding(horizontal = 4.dp, vertical = 1.dp),
                     ) {
                         Text(
                             "现在",
-                            style = caption2Style(),
+                            style = caption2Style().copy(fontSize = fixedSp(10f)),
                             fontWeight = FontWeight(700),
                             color = MaterialTheme.colorScheme.onPrimary,
                             maxLines = 1,
