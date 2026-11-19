@@ -82,6 +82,8 @@ import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.metricStyle
 import com.union.campus.ui.prism.prismCourseContainer
 import com.union.campus.ui.prism.prismCourseOnContainer
+import com.union.campus.ui.prism.prismTextFaint
+import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
@@ -465,7 +467,7 @@ private fun NextClassHero(
                 },
                 style = footnoteStyle(),
                 fontWeight = FontWeight(600),
-                color = onContainer.withAlpha(PrismAlpha.Secondary),
+                color = prismTextMuted(onContainer),
             )
             Spacer(Modifier.weight(1f))
             if (current != null) {
@@ -497,7 +499,7 @@ private fun NextClassHero(
                 "今天暂时没有课程，可以去自习或看看生活速览"
             },
             style = subheadlineStyle(),
-            color = onContainer.withAlpha(PrismAlpha.Secondary),
+            color = prismTextMuted(onContainer),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
         )
@@ -512,7 +514,7 @@ private fun NextClassHero(
                         color = onContainer,
                     )
                     Spacer(Modifier.width(6.dp))
-                    Text("后开始", style = footnoteStyle(), color = onContainer.withAlpha(PrismAlpha.Secondary))
+                    Text("后开始", style = footnoteStyle(), color = prismTextMuted(onContainer))
                 }
             } else if (current != null) {
                 Text(
@@ -607,7 +609,7 @@ private fun TodayCourseRail(
                     Text(
                         info?.end.orEmpty(),
                         style = caption2Style(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                        color = prismTextFaint(),
                     )
                 }
                 Box(Modifier.width(18.dp).fillMaxHeight()) {
@@ -660,7 +662,7 @@ private fun TodayCourseRail(
                             cell.location.takeIf { it.isNotBlank() },
                         ).joinToString(" · "),
                         style = footnoteStyle(),
-                        color = onContainer.withAlpha(PrismAlpha.Secondary),
+                        color = prismTextMuted(onContainer),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )

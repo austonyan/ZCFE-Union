@@ -41,7 +41,6 @@ import com.union.campus.domain.ElectricRoom
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismAlertDialog
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismIconButton
@@ -52,7 +51,7 @@ import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.withAlpha
+import com.union.campus.ui.prism.prismTextMuted
 
 /** 绑定电费：学号带入 → 园区 → 楼栋 → 楼层 → 房间（写操作，上游不校验身份，只查本人房间）。 */
 @Composable
@@ -287,7 +286,7 @@ fun BindElectricScreen(
                                 Text(
                                     bound.roomVerify,
                                     style = footnoteStyle(),
-                                    color = MaterialTheme.colorScheme.onSecondaryContainer.withAlpha(PrismAlpha.Secondary),
+                                    color = prismTextMuted(MaterialTheme.colorScheme.onSecondaryContainer),
                                 )
                             }
                             PrismTextButton(
@@ -301,7 +300,7 @@ fun BindElectricScreen(
                     Text(
                         "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
                         style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer.withAlpha(PrismAlpha.Secondary),
+                        color = prismTextMuted(MaterialTheme.colorScheme.onSecondaryContainer),
                     )
                 }
                 Text("绑定新房间", style = headlineStyle())

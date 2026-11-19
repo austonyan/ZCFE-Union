@@ -65,7 +65,7 @@ fun PrismProgressRail(
                         text = label,
                         style = footnoteStyle(),
                         color = if (index < step) MaterialTheme.colorScheme.onSurface
-                        else MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                        else prismTextFaint(),
                         modifier = Modifier.weight(1f),
                     )
                 }
