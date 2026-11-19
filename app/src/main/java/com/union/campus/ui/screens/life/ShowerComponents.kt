@@ -18,6 +18,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -34,10 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.union.campus.data.remote.shower.formatShowerCountdown
 import com.union.campus.domain.ShowerArea
 import com.union.campus.domain.ShowerBuilding
 import com.union.campus.domain.ShowerDevice
@@ -52,7 +56,6 @@ import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSnapSheet
 import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismStatus
-import com.union.campus.ui.prism.PrismStatusDot
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.SectionHeader
 import com.union.campus.ui.prism.caption2Style
@@ -61,6 +64,7 @@ import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.prismTextMuted
 import com.union.campus.ui.prism.rememberPrismHaptics
+import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.withAlpha
 
@@ -237,6 +241,14 @@ private fun SelectorRow(
     }
 }
 @Composable
+internal fun deviceStatusColors(state: Int, reservedByMe: Boolean): Triple<Color, Color, ImageVector> = when {
+    reservedByMe || state == 2 -> Triple(MaterialTheme.colorScheme.secondaryContainer, MaterialTheme.colorScheme.onSecondaryContainer, Icons.Rounded.Schedule)
+    state == 0 -> Triple(MaterialTheme.colorScheme.surfaceContainerLow, MaterialTheme.colorScheme.onSurface, Icons.Rounded.WaterDrop)
+    state == 1 -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, Icons.Rounded.WaterDrop)
+    else -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, Icons.Rounded.WarningAmber)
+}
+
+@Composable
 internal fun DeviceCard(
     device: ShowerDevice,
     reservedByMe: Boolean = false,
@@ -244,54 +256,44 @@ internal fun DeviceCard(
     modifier: Modifier = Modifier,
 ) {
     val haptics = rememberPrismHaptics()
-    val (targetBg, targetOnBg, statusText) = when {
-        reservedByMe -> Triple(
-            MaterialTheme.colorScheme.tertiaryContainer,
-            MaterialTheme.colorScheme.onTertiaryContainer,
-            "已预约 · 等待启动",
-        )
-        device.state == 0 -> Triple(MaterialTheme.colorScheme.primaryContainer, MaterialTheme.colorScheme.onPrimaryContainer, "空闲 · 可预约")
-        device.state == 1 -> Triple(MaterialTheme.colorScheme.surfaceContainerHigh, MaterialTheme.colorScheme.onSurface, "使用中 · ${device.remainingText.ifBlank { "计时中" }}")
-        device.state == 2 -> Triple(MaterialTheme.colorScheme.tertiaryContainer, MaterialTheme.colorScheme.onTertiaryContainer, "已预约" + if (device.remainingText.isNotBlank()) " · ${device.remainingText}" else "")
-        else -> Triple(MaterialTheme.colorScheme.errorContainer, MaterialTheme.colorScheme.onErrorContainer, "故障/维护")
+    val motion = rememberPrismMotion()
+    val (targetBg, targetOnBg, statusIcon) = deviceStatusColors(device.state, reservedByMe)
+    val statusText = when {
+        reservedByMe -> "已预约 · 等待启动"
+        device.state == 0 -> "空闲 · 可预约"
+        device.state == 1 -> "使用中 · ${device.remainingText.ifBlank { "计时中" }}"
+        device.state == 2 -> "已预约" + if (device.remainingText.isNotBlank()) " · ${device.remainingText}" else ""
+        else -> "故障/维护"
     }
     val bg by animateColorAsState(
         targetValue = targetBg,
-        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        animationSpec = motion.tween(PrismMotion.Standard),
         label = "device-bg",
     )
     val onBg by animateColorAsState(
         targetValue = targetOnBg,
-        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        animationSpec = motion.tween(PrismMotion.Standard),
         label = "device-content",
     )
-    val dotColor = when {
-        reservedByMe -> MaterialTheme.colorScheme.tertiary
-        device.state == 0 -> PrismStatus.success()
-        device.state == 1 -> PrismStatus.warning()
-        device.state == 2 -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.error
-    }
     PrismCard(
         onClick = {
             haptics.tap()
             onClick()
         },
         containerColor = bg,
+        corner = if (reservedByMe) 28f else 16f,
         modifier = modifier,
         contentPadding = PaddingValues(16.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            PrismStatusDot(dotColor, size = 8)
-            Spacer(Modifier.width(6.dp))
-            Text(
-                device.name,
-                style = headlineStyle(),
-                color = onBg,
-                maxLines = 1,
-                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
-            )
-        }
+        Icon(statusIcon, null, tint = onBg, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.height(12.dp))
+        Text(
+            device.name,
+            style = headlineStyle(),
+            color = onBg,
+            maxLines = 2,
+            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+        )
         Spacer(Modifier.height(4.dp))
         Text(statusText, style = footnoteStyle(), color = onBg, textAlign = TextAlign.Start)
     }
@@ -324,17 +326,21 @@ internal fun ReservationCard(
     LaunchedEffect(remaining) {
         if (remaining <= 0) onExpired()
     }
-    val onContainer = MaterialTheme.colorScheme.onTertiaryContainer
+    val motion = rememberPrismMotion()
+    val urgent = remaining <= 60
+    val container = if (urgent) PrismStatus.warningContainer() else MaterialTheme.colorScheme.secondaryContainer
+    val onContainer = if (urgent) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSecondaryContainer
     val ringColor by animateColorAsState(
-        targetValue = if (remaining <= 60) PrismStatus.warning() else MaterialTheme.colorScheme.tertiary,
-        animationSpec = PrismMotion.tween(PrismMotion.Standard),
+        targetValue = onContainer,
+        animationSpec = motion.tween(PrismMotion.Standard),
         label = "reservation-ring",
     )
     val total = reservation.maxWaitSeconds.coerceAtLeast(1)
     val fraction = (remaining.toFloat() / total).coerceIn(0f, 1f)
     PrismCard(
         modifier = Modifier.fillMaxWidth(),
-        containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+        containerColor = container,
+        corner = 28f,
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(56.dp), contentAlignment = Alignment.Center) {
@@ -362,7 +368,7 @@ internal fun ReservationCard(
                 }
                 Text(
                     text = "%d:%02d".format(remaining / 60, remaining % 60),
-                    style = caption2Style(),
+                    style = caption2Style().copy(fontFeatureSettings = "tnum"),
                     color = onContainer,
                 )
             }
@@ -372,7 +378,7 @@ internal fun ReservationCard(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     if (remaining > 0) {
-                        "请在 ${formatShowerCountdown(remaining)} 内启动设备，超时自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
+                        "请在倒计时结束前启动设备，超时自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
                     } else {
                         "预约已过期，正在自动取消，请重新预约"
                     },
@@ -389,7 +395,7 @@ internal fun ReservationCard(
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PrismButton(onClick = onStart, enabled = remaining > 0 && !busy, loading = busy) {
+            PrismButton(onClick = onStart, enabled = remaining > 0 && !busy, loading = busy, modifier = Modifier.weight(1f)) {
                 Icon(Icons.Rounded.PlayArrow, null)
                 Spacer(Modifier.width(6.dp))
                 Text("启动设备")

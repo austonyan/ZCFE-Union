@@ -538,11 +538,11 @@ fun ShowerScreen(
                 expiredGuard = null
                 devices = runCatching { shower.devices(areaId, forceRefresh = true) }
                     .getOrDefault(devices)
-                haptics.success()
                 if (r != null) {
+                    haptics.success()
                     messenger.success("预约成功，请在倒计时内启动设备")
                 } else {
-                    messenger.success("预约已提交，请稍候刷新预约状态")
+                    messenger.info("预约已提交，请稍候刷新确认预约状态")
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -624,7 +624,7 @@ fun ShowerScreen(
             reservation = runCatching { shower.refreshReservation() }.getOrNull()
             devices = runCatching { shower.devices(areaId, forceRefresh = true) }
                 .getOrDefault(devices)
-            messenger.warning("预约已超时并自动取消，请重新预约")
+            messenger.warning("预约已超时，已尝试取消，请刷新确认设备状态")
         }
     }
 
@@ -798,17 +798,22 @@ fun ShowerScreen(
             if (!loading && error == null && reservation == null && selectedArea != null && shower.isBound() &&
                 !queueElsewhere && (idleCount == 0 || myQueueAtArea != null)
             ) {
-                PrismCard {
-                    CardHeader("排队")
+                val queueContainer = if (queueTurn) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.tertiaryContainer
+                val queueOnContainer = if (queueTurn) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onTertiaryContainer
+                PrismCard(containerColor = queueContainer, corner = 28f, modifier = Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Icon(Icons.Rounded.Schedule, null, tint = queueOnContainer)
+                        Text("排队", style = headlineStyle(), color = queueOnContainer)
+                    }
                     Spacer(Modifier.height(6.dp))
                     if (myQueueAtArea != null) {
                         val pos = myQueueAtArea.position
                         Text(
                             if (queueTurn) "轮到你了" else if (pos > 0) "排队中 · 第 $pos 位" else "排队中",
-                            style = headlineStyle(),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = queueOnContainer,
                         )
                         val wait = myQueueAtArea.waitMinutes.takeIf { it > 0 }
-                            ?: (pos * 2).takeIf { it > 0 }
                             ?: 0
                         Text(
                             when {
@@ -817,7 +822,7 @@ fun ShowerScreen(
                                 else -> "轮到时会通知"
                             },
                             style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = queueOnContainer,
                         )
                         if (queueTurn) {
                             Spacer(Modifier.height(8.dp))
@@ -845,12 +850,12 @@ fun ShowerScreen(
                             Text("取消排队")
                         }
                     } else {
-                        Text("当前区域没有空闲设备", style = headlineStyle())
+                        Text("当前区域没有空闲设备", style = headlineStyle(), color = queueOnContainer)
                         Text(
-                            if (queueNumAtArea > 0) "前方排队 $queueNumAtArea 人，预计等待 ${queueNumAtArea * 2} 分钟"
+                            if (queueNumAtArea > 0) "前方排队 $queueNumAtArea 人，等待时间以实际设备释放为准"
                             else "当前无人排队，加入后轮到你会通知",
                             style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = queueOnContainer,
                         )
                         val otherQueue = queueInfo != null && queueInfo!!.areaId.isNotBlank() && queueInfo!!.areaId != areaId
                         PrismButton(
@@ -880,7 +885,7 @@ fun ShowerScreen(
 
             when {
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4, showHero = false)
-                error != null -> PrismErrorState(
+                error != null && shower.isBound() -> PrismErrorState(
                     message = error ?: "",
                     onRetry = { reload() },
                 )

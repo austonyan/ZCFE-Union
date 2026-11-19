@@ -30,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
@@ -44,7 +43,7 @@ import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismErrorState
-import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.caption2Style
 import kotlinx.coroutines.coroutineScope
@@ -66,6 +65,7 @@ fun FreeClassroomsScreen(
     val entities = ServiceLocator.entities
     val settings = ServiceLocator.settings
     val messenger = LocalPrismMessenger.current
+    val motion = rememberPrismMotion()
 
     val today = remember { LocalDate.now() }
     val todayIso = remember(today) { today.toString() }
@@ -220,62 +220,59 @@ fun FreeClassroomsScreen(
                 .fillMaxSize()
                 .padding(padding),
         ) {
-            // 筛选栏：日期 / 节次 / 楼栋，固定三等分，不横滑。
-            Row(
+            // 日期单独一行；节次与楼栋成组，给长名称和清除按钮留出空间。
+            Column(
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 DateFilterControl(
                     weekday = "周" + WeekdayLabels[selectedDate.dayOfWeek.value - 1],
                     dateText = "%02d/%02d".format(selectedDate.monthValue, selectedDate.dayOfMonth),
                     isToday = dayOffset == 0,
-                    modifier = Modifier.weight(1.15f),
+                    modifier = Modifier.fillMaxWidth(),
                     canGoBack = dayOffset > 0,
                     canGoForward = dayOffset < DateRangeDays,
                     onBack = { dateIso = selectedDate.minusDays(1).toString() },
                     onForward = { dateIso = selectedDate.plusDays(1).toString() },
                     onClick = { datePickerOpen = true },
                 )
-                FilterPill(
-                    label = sectionFilters.takeIf { it.isNotEmpty() }
-                        ?.let { sectionLabel(it) }
-                        ?: "节次",
-                    selected = sectionFilters.isNotEmpty(),
-                    onClick = { sectionSheetOpen = true },
-                    modifier = Modifier.weight(1f),
-                    fillWidth = true,
-                    onClear = if (sectionFilters.isNotEmpty()) {
-                        { sectionFilters = emptyList() }
-                    } else {
-                        null
-                    },
-                )
-                FilterPill(
-                    label = buildings.firstOrNull { it.dm == buildingId }?.name ?: "全部楼栋",
-                    selected = buildingId.isNotBlank(),
-                    onClick = { buildingSheetOpen = true },
-                    onClear = if (buildingId.isNotBlank()) {
-                        { buildingId = "" }
-                    } else {
-                        null
-                    },
-                    modifier = Modifier.weight(1f),
-                    fillWidth = true,
-                )
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterPill(
+                        label = sectionFilters.takeIf { it.isNotEmpty() }
+                            ?.let { sectionLabel(it) }
+                            ?: "节次",
+                        selected = sectionFilters.isNotEmpty(),
+                        onClick = { sectionSheetOpen = true },
+                        modifier = Modifier.weight(1f),
+                        fillWidth = true,
+                        onClear = if (sectionFilters.isNotEmpty()) {
+                            { sectionFilters = emptyList() }
+                        } else {
+                            null
+                        },
+                    )
+                    FilterPill(
+                        label = buildings.firstOrNull { it.dm == buildingId }?.name ?: "全部楼栋",
+                        selected = buildingId.isNotBlank(),
+                        onClick = { buildingSheetOpen = true },
+                        onClear = if (buildingId.isNotBlank()) {
+                            { buildingId = "" }
+                        } else {
+                            null
+                        },
+                        modifier = Modifier.weight(1f),
+                        fillWidth = true,
+                    )
+                }
             }
-
-            val hasFilter = sectionFilters.isNotEmpty() ||
-                buildingId.isNotBlank() ||
-                dateIso != todayIso
 
             AnimatedContent(
                 targetState = dateIso,
                 transitionSpec = {
-                    fadeIn(PrismMotion.tween(210, delayMillis = 90)) togetherWith
-                        fadeOut(PrismMotion.tween(90))
+                    fadeIn(motion.tween(210, delayMillis = 90)) togetherWith
+                        fadeOut(motion.tween(90))
                 },
                 modifier = Modifier
                     .weight(1f)
@@ -337,12 +334,12 @@ fun FreeClassroomsScreen(
                             modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
                         )
                     }
-                    if (hasFilter && matchingRooms.isNotEmpty()) {
+                    if (matchingRooms.isNotEmpty()) {
                         Text(
-                            "${matchingRooms.size} 间教室符合 · ${matchingGroups.size} 栋楼",
-                            style = caption2Style(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 2.dp),
+                            "${matchingRooms.size} 间教室 · ${matchingGroups.size} 栋楼" + if (awaiting) "（查询中）" else "",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                         )
                     }
                     if (sectionFilters.isEmpty() && matchingRooms.isNotEmpty()) {

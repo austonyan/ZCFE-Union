@@ -24,6 +24,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.CalendarMonth
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -125,7 +126,7 @@ internal fun SectionNumbersHeader(modifier: Modifier = Modifier) {
     Row(
         modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp),
+            .padding(horizontal = 32.dp, vertical = 4.dp),
         verticalAlignment = Alignment.Bottom,
     ) {
         Spacer(Modifier.weight(1f))
@@ -181,7 +182,15 @@ internal fun ClassroomList(
                 val sorted = list.sortedBy { it.name }
                 itemsIndexed(sorted, key = { index, room -> "${building.dm}-$type-$index-${room.name}" }) { index, room ->
                     // item 里只能有一个根节点，行和分隔线要包在 Column 里。
-                    Column(Modifier.fillMaxWidth()) {
+                    val topCorner = if (index == 0) 20.dp else 0.dp
+                    val bottomCorner = if (index == sorted.lastIndex) 20.dp else 0.dp
+                    Column(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp)
+                            .clip(RoundedCornerShape(topStart = topCorner, topEnd = topCorner, bottomStart = bottomCorner, bottomEnd = bottomCorner))
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow),
+                    ) {
                         ClassroomRow(
                             room = room,
                             filtered = filtered,
@@ -242,13 +251,7 @@ private fun ClassroomRow(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(
-                Modifier
-                    .width(3.dp)
-                    .height(36.dp)
-                    .clip(prismShape(2f))
-                    .background(MaterialTheme.colorScheme.primary),
-            )
+            Icon(Icons.Rounded.MeetingRoom, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(24.dp))
             Spacer(Modifier.width(16.dp))
             Column(Modifier.weight(1f)) {
                 Text(

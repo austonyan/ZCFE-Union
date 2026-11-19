@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -106,6 +107,7 @@ internal fun DateFilterControl(
                     .weight(1f)
                     .clip(shape)
                     .clickable(role = Role.Button, onClickLabel = "选择日期", onClick = onClick)
+                    .heightIn(min = 48.dp)
                     .padding(vertical = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -139,7 +141,7 @@ private fun DateArrow(
     val haptics = rememberPrismHaptics()
     Box(
         Modifier
-            .size(36.dp)
+            .size(48.dp)
             .clip(CircleShape)
             .clickable(enabled = enabled, role = Role.Button) {
                 haptics.tap()
@@ -172,8 +174,8 @@ internal fun FilterPill(
 ) {
     val haptics = rememberPrismHaptics()
     val shape = remember { PrismShape(Float.MAX_VALUE) }
-    val container = if (selected) MaterialTheme.colorScheme.primary else surfaceColorOf(SurfaceLevel.Inset)
-    val content = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    val container = if (selected) MaterialTheme.colorScheme.secondaryContainer else surfaceColorOf(SurfaceLevel.Inset)
+    val content = if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
     Surface(
         modifier = modifier.minimumInteractiveComponentSize(),
         shape = shape,
@@ -187,10 +189,12 @@ internal fun FilterPill(
                 text = label,
                 style = caption1Style(),
                 color = content,
-                maxLines = 1,
+                maxLines = 2,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                 textAlign = if (fillWidth) TextAlign.Center else TextAlign.Start,
                 modifier = Modifier
                     .then(if (fillWidth) Modifier.weight(1f) else Modifier)
+                    .heightIn(min = 48.dp)
                     .clip(shape)
                     .clickable(role = Role.Button) {
                         haptics.select()
@@ -206,7 +210,7 @@ internal fun FilterPill(
             if (onClear != null) {
                 Box(
                     Modifier
-                        .size(30.dp)
+                        .size(48.dp)
                         .clip(CircleShape)
                         .clickable(role = Role.Button, onClickLabel = "清除筛选") {
                             haptics.tap()

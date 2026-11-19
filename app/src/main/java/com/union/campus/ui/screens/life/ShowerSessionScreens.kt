@@ -1,12 +1,7 @@
 package com.union.campus.ui.screens.life
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -36,10 +31,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
@@ -54,17 +45,12 @@ import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.LocalPrismMessenger
-import com.union.campus.ui.prism.PrismMotion
 import com.union.campus.ui.prism.PrismSwitch
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.SectionHeader
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
-import com.union.campus.ui.prism.metricStyle
-import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
-import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.SurfaceLevel
 
@@ -150,83 +136,39 @@ fun ShowerSessionScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismCard(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
-            ) {
-                Text(session.deviceName, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Text("${session.buildingName} ${session.areaName}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
+            LifeServiceCard(
+                title = session.deviceName,
+                location = "${session.buildingName} ${session.areaName}",
+                value = "使用中",
+                detail = "离开前请结束洗浴，并确认设备已关闭。",
+                icon = Icons.Rounded.Schedule,
+                container = MaterialTheme.colorScheme.tertiaryContainer,
+                onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
+            )
             SectionHeader("本次洗浴")
             val minutes = elapsedSec / 60
             val secs = elapsedSec % 60
-            val progressTarget = (elapsedSec / (40f * 60f)).coerceIn(0f, 1f)
-            val progress by animateFloatAsState(
-                targetValue = progressTarget,
-                animationSpec = PrismMotion.tween(PrismMotion.Slow),
-                label = "session-progress",
-            )
             PrismCard(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = surfaceColorOf(SurfaceLevel.Card),
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(Modifier.size(148.dp), contentAlignment = Alignment.Center) {
-                        val ringTrack = MaterialTheme.colorScheme.secondaryContainer
-                        val ringActive = MaterialTheme.colorScheme.primary
-                        Canvas(Modifier.fillMaxSize()) {
-                            val stroke = 8.dp.toPx()
-                            val inset = stroke / 2f
-                            drawArc(
-                                color = ringTrack,
-                                startAngle = -90f,
-                                sweepAngle = 360f,
-                                useCenter = false,
-                                topLeft = Offset(inset, inset),
-                                size = Size(size.width - stroke, size.height - stroke),
-                                style = Stroke(width = stroke, cap = StrokeCap.Round),
-                            )
-                            drawArc(
-                                color = ringActive,
-                                startAngle = -90f,
-                                sweepAngle = 360f * progress,
-                                useCenter = false,
-                                topLeft = Offset(inset, inset),
-                                size = Size(size.width - stroke, size.height - stroke),
-                                style = Stroke(width = stroke, cap = StrokeCap.Round),
-                            )
-                        }
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = String.format("%02d:%02d", minutes, secs),
-                                style = metricStyle(),
-                                color = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                "已使用",
-                                style = footnoteStyle(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                    Spacer(Modifier.width(16.dp))
-                    Column(Modifier.weight(1f)) {
-                        Text(session.deviceName, style = headlineStyle())
-                        Spacer(Modifier.height(2.dp))
-                        Text(
-                            "${session.buildingName} ${session.areaName}",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            "圆环按 40 分钟参考，实际费用以结束后的账单为准。",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(
+                        text = String.format("%02d:%02d", minutes, secs),
+                        style = MaterialTheme.typography.displayMedium.copy(fontFeatureSettings = "tnum"),
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    Text(
+                        "已使用",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        "按实际使用时长计费，以结束后的账单为准。",
+                        style = footnoteStyle(),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {

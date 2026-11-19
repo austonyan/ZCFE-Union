@@ -15,6 +15,8 @@ import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.WaterDrop
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -37,12 +39,9 @@ import com.union.campus.domain.ElectricStats
 import com.union.campus.domain.ShowerArea
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
-import com.union.campus.ui.prism.MetaChip
-import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismEntryCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
-import com.union.campus.ui.prism.PrismMetricCard
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSpace
@@ -51,7 +50,6 @@ import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 
 /** 生活：洗浴、电费与空闲教室的生活总览，含低余额提醒开关。 */
@@ -142,64 +140,57 @@ fun LifeScreen(
             // 正常态用中性卡面 + 主色强调；低余额时整卡保留告警色。
             val electricContainer = if (low) PrismStatus.warningContainer() else surfaceColorOf(SurfaceLevel.Card)
             val electricOn = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface
-            val electricAccent = if (low) PrismStatus.warning() else MaterialTheme.colorScheme.primary
-            val roomName = b?.fullName?.takeIf { it.isNotBlank() } ?: "电费未绑定"
+            val roomName = b?.fullName?.takeIf { it.isNotBlank() } ?: "电费信息待获取"
             val days = b?.let { estimateDays(it) } ?: "—"
             val todayCost = b?.let {
                 ElectricStats.cost(ElectricStats.useValue(it.todayUse), ElectricStats.unitPrice(it))
             }
 
-            PrismMetricCard(
-                label = "电费",
+            LifeServiceCard(
+                title = "电费",
+                location = roomName,
                 value = b?.let { "${it.kwh} 度" } ?: "—",
-                subtitle = if (b != null) {
+                detail = if (b != null) {
                     buildString {
-                        append(roomName)
-                        append(" · 预计可用 $days 天")
+                        append("预计可用 $days 天")
                         append(" · 今日 ${b.todayUse.ifBlank { "—" }} 度")
                         if (todayCost != null) append(" · 约 ¥${ElectricStats.formatMoney(todayCost)}")
                         if (b.price.isNotBlank()) append(" · 单价 ${b.price} 元/度")
                     }
                 } else {
-                    "绑定房间后查看余额与用量"
+                    "进入电费查看绑定状态；已有房间可下拉刷新重试"
                 },
                 icon = Icons.Rounded.Bolt,
-                trailing = if (low) {
-                    { MetaChip("余额偏低", color = electricOn.withAlpha(PrismAlpha.ContainerTint)) }
-                } else {
-                    null
-                },
+                status = if (low) "余额偏低 · 建议及时充值" else null,
+                statusIcon = Icons.Rounded.WarningAmber,
                 onClick = onOpenElectric,
-                containerColor = electricContainer,
-                contentColor = electricOn,
-                accent = electricAccent,
+                container = electricContainer,
+                onContainer = electricOn,
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            PrismMetricCard(
-                label = "洗浴",
-                value = a?.let { "${it.idleNum} / ${it.totalNum}" } ?: "—",
-                subtitle = if (a != null) {
-                    "${a.name} · 排队 ${a.queueNum} 人"
+            val queueing = a != null && a.queueNum > 0
+            LifeServiceCard(
+                title = "洗浴",
+                location = a?.name ?: "洗浴信息待获取",
+                value = a?.let { "${it.idleNum} 个空闲" } ?: "—",
+                detail = if (a != null) {
+                    "共 ${a.totalNum} 个位置 · 排队 ${a.queueNum} 人"
                 } else {
-                    "登录大白U帮后查看空闲与排队"
+                    "进入洗浴确认账号与区域；已登录可下拉刷新重试"
                 },
                 icon = Icons.Rounded.WaterDrop,
-                trailing = if (a != null) {
-                    { MetaChip("空闲 ${a.idleNum}/${a.totalNum}", color = MaterialTheme.colorScheme.tertiary.withAlpha(PrismAlpha.ContainerTint)) }
-                } else {
-                    null
-                },
+                status = if (queueing) "当前有人排队 · 进入查看实时状态" else null,
+                statusIcon = Icons.Rounded.Schedule,
                 onClick = onOpenShower,
-                containerColor = surfaceColorOf(SurfaceLevel.Card),
-                contentColor = MaterialTheme.colorScheme.onSurface,
-                accent = MaterialTheme.colorScheme.tertiary,
+                container = if (queueing) MaterialTheme.colorScheme.tertiaryContainer else surfaceColorOf(SurfaceLevel.Card),
+                onContainer = if (queueing) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.fillMaxWidth(),
             )
 
             PrismEntryCard(
                 title = "空闲教室",
-                subtitle = "今天 14:00–16:00 按教学楼查询",
+                subtitle = "按日期、节次和教学楼查找空闲位置",
                 icon = Icons.Rounded.MeetingRoom,
                 onClick = onOpenFreeClassrooms,
                 modifier = Modifier.fillMaxWidth(),

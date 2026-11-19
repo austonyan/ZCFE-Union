@@ -119,7 +119,7 @@ fun DeviceDetailScreen(
         launchUi {
             runCatching { shower.cancelReserve(r.deviceUuid) }
             reservation = runCatching { shower.refreshReservation() }.getOrNull()
-            messenger.warning("预约已超时并自动取消，请重新预约")
+            messenger.warning("预约已超时，已尝试取消，请刷新确认设备状态")
         }
     }
 
@@ -160,14 +160,12 @@ fun DeviceDetailScreen(
                         val r = shower.reserveDevice(device, areaName)
                         reservation = r
                         expiredGuard = null
-                        haptics.success()
-                        messenger.success(
-                            if (r != null) {
-                                "预约成功，请在倒计时内启动设备"
-                            } else {
-                                "预约已提交，请刷新后查看等待时间"
-                            },
-                        )
+                        if (r != null) {
+                            haptics.success()
+                            messenger.success("预约成功，请在倒计时内启动设备")
+                        } else {
+                            messenger.info("预约已提交，请刷新确认预约状态与等待时间")
+                        }
                     } catch (e: AppError) { result = e.userMessage }
                     catch (e: Exception) { result = "预约失败：${e.message}" }
                 }
@@ -195,22 +193,27 @@ fun DeviceDetailScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            val (deviceContainer, deviceOnContainer, deviceIcon) = deviceStatusColors(device.state, reservedHere)
             PrismCard(
                 modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                containerColor = deviceContainer,
+                corner = 28f,
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
             ) {
-                Text(device.name, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Icon(deviceIcon, null, tint = deviceOnContainer)
+                Spacer(Modifier.height(12.dp))
+                Text(device.name, style = pageTitleStyle(), color = deviceOnContainer)
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    "$areaName · " + when (device.state) {
-                        0 -> "空闲 · 可预约"
-                        1 -> "使用中"
-                        2 -> "已预约"
+                    "$areaName · " + when {
+                        reservedHere -> "已预约 · 等待启动"
+                        device.state == 0 -> "空闲 · 可预约"
+                        device.state == 1 -> "使用中"
+                        device.state == 2 -> "已预约"
                         else -> "故障/维护"
                     } + "\n按实际使用时长计费，以账单为准",
                     style = subheadlineStyle(),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    color = deviceOnContainer,
                 )
             }
             if (activeSession != null) {
@@ -249,7 +252,7 @@ fun DeviceDetailScreen(
                     else -> "故障"
                 }, leading = { IconBadge(Icons.Rounded.WaterDrop) })
                 PrismRow(title = "最近使用", subtitle = device.remainingText.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.History) })
-                PrismRow(title = "故障码", subtitle = "无", leading = { IconBadge(Icons.Rounded.Info) })
+                PrismRow(title = "故障信息", subtitle = if (device.state !in 0..2) "设备返回异常状态，请更换设备或联系管理人员" else "接口未提供故障码", leading = { IconBadge(Icons.Rounded.Info) })
             }
             when {
                 reservedHere -> PrismButton(

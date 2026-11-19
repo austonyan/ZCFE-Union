@@ -63,7 +63,7 @@ import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
-import com.union.campus.ui.prism.PrismMetricCard
+import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismNoticeBanner
 import com.union.campus.ui.prism.PrismNoticeTone
 import com.union.campus.ui.prism.PrismRow
@@ -143,16 +143,16 @@ fun WalletScreen(
                     val w = wallet
                     PrismCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
                     ) {
-                        Text("余额 ¥ ${w?.balance ?: "—"}", style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        Text("余额 ¥ ${w?.balance ?: "—"}", style = pageTitleStyle(), color = MaterialTheme.colorScheme.onSurface)
                         Spacer(Modifier.height(4.dp))
                         Text(
                             "可用 ¥ ${w?.availableBalance ?: "—"} · 押金 ¥ ${w?.deposit ?: "—"}" +
                                 (w?.giftBalance?.takeIf { it.isNotBlank() }?.let { " · 赠送 ¥ $it" } ?: ""),
                             style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                     }
                     PrismButton(
@@ -405,9 +405,11 @@ fun ElectricScreen(
                     enabled = rooms.size > 1,
                 ) {
                     Text(
-                        currentRoom?.fullName ?: "11#宿舍 · 未指定",
+                        currentRoom?.fullName ?: "尚未选择房间",
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                     )
                     if (rooms.size > 1) {
                         Icon(Icons.Rounded.ArrowDropDown, contentDescription = "切换房间")
@@ -442,7 +444,7 @@ fun ElectricScreen(
 
             when {
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
-                error != null -> PrismErrorState(
+                error != null && electric.isBound() -> PrismErrorState(
                     message = error ?: "",
                     onRetry = { load(true) },
                 )
@@ -470,10 +472,11 @@ fun ElectricScreen(
                     var metric by rememberSaveable { mutableStateOf("use") }
                     val effectiveMetric = if (price == null) "use" else metric
 
-                    PrismMetricCard(
-                        label = "剩余",
+                    LifeServiceCard(
+                        title = "剩余电量",
+                        location = b.fullName.ifBlank { currentRoom?.fullName ?: "当前房间" },
                         value = "${b.kwh} 度",
-                        subtitle = buildString {
+                        detail = buildString {
                             append("预计可用 $days 天 · 今日 ${b.todayUse.ifBlank { "—" }} 度")
                             if (price != null && remainingValue != null) {
                                 append("\n单价 ¥${ElectricStats.formatMoney(price)}/度 · 剩余估值 ¥${ElectricStats.formatMoney(remainingValue)}")
@@ -481,10 +484,24 @@ fun ElectricScreen(
                                 append("\n电价未返回 · 暂不估算费用")
                             }
                         },
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
-                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                        icon = Icons.Rounded.Bolt,
+                        container = if (isLow) PrismStatus.warningContainer() else MaterialTheme.colorScheme.surfaceContainerLow,
+                        onContainer = if (isLow) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface,
+                        status = if (isLow) "余额低于 $lowThreshold 度" else null,
+                        statusIcon = Icons.Rounded.WarningAmber,
                         modifier = Modifier.fillMaxWidth(),
                     )
+
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        PrismButton(onClick = { topUpVisible = true }, modifier = Modifier.weight(1f)) {
+                            Icon(Icons.Rounded.Payment, null)
+                            Spacer(Modifier.width(8.dp))
+                            Text("去充值")
+                        }
+                        PrismTextButton(onClick = onOpenUsage, modifier = Modifier.weight(1f)) {
+                            Text("用量明细")
+                        }
+                    }
 
                     if (isLow) {
                         PrismNoticeBanner(
@@ -607,11 +624,6 @@ fun ElectricScreen(
                             Spacer(Modifier.height(6.dp))
                             Text(b.lineStatus, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                    }
-                    PrismButton(onClick = { topUpVisible = true }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Rounded.Payment, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("去充值")
                     }
                 }
             }
@@ -737,13 +749,13 @@ fun UsageDetailScreen(
 
                     PrismCard(
                         modifier = Modifier.fillMaxWidth(),
-                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
                     ) {
                         Text(
                             "区间用电 ${ElectricStats.formatKwh(totalUse)} 度",
                             style = headlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         Spacer(Modifier.height(4.dp))
                         Text(
@@ -756,14 +768,14 @@ fun UsageDetailScreen(
                                 }
                             },
                             style = subheadlineStyle(),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                            color = MaterialTheme.colorScheme.onSurface,
                         )
                         if (maxDay != null) {
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 "最高 ${maxDay.date} · ${ElectricStats.formatKwh(ElectricStats.useValue(maxDay.use))} 度",
                                 style = footnoteStyle(),
-                                color = MaterialTheme.colorScheme.onPrimaryContainer,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
                     }
