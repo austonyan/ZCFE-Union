@@ -223,10 +223,11 @@ fun TimetableScreen(
     ) {
         PrismPageHeader(
             title = "课程表",
+            // 第一行学期，第二行日期：学期名长，放上面读起来更稳。
             subtitle = listOfNotNull(
-                weekRange.takeIf { it.isNotBlank() },
                 semesterLabel.takeIf { it.isNotBlank() },
-            ).joinToString(" · "),
+                weekRange.takeIf { it.isNotBlank() },
+            ).joinToString("\n"),
             actions = {
                 PrismIconButton(
                     icon = Icons.Outlined.Settings,
