@@ -4,8 +4,9 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.17.apk`** — 已签名 release APK（versionCode 22，v2 签名，CN=Zhengcai Union，有效期 10000 天）
-- 上一版 `郑财校园-release-v0.2.16.apk`（versionCode 21）保留，便于回滚
+- **`郑财校园-release-v0.2.18.apk`** — 已签名 release APK（versionCode 23，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- 上一版 `郑财校园-release-v0.2.17.apk`（versionCode 22）保留，便于回滚
+- v0.2.18 变更：课表单元格按块高等比排版（课名/地点/教师完整显示）、去掉「本周 N 节课」与「显示周末」开关、周末有课时自动出列
 - v0.2.17 变更：UI 质感与动效第一批（表面层级 / 1px 边缘 / 文字层级 / tab fade-through / 按压形变 / Dock tonal 选中态），详见 `docs/ui-polish-direction.md`
 - 签名密钥：`app/union-release.keystore`（store/key 密码 `***REMOVED***`，alias `union`）
 

@@ -114,7 +114,7 @@ fun TimetableScreen(
     var week by remember { mutableIntStateOf(1) }
     var maxWeek by remember { mutableIntStateOf(25) }
     var timetable by remember { mutableStateOf<TimetableData?>(null) }
-    var showWeekend by remember { mutableStateOf(false) }
+    
     var weekDirection by remember { mutableIntStateOf(0) }
     var currentWeek by remember { mutableIntStateOf(1) }
     var nowTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
@@ -179,12 +179,17 @@ fun TimetableScreen(
         }
     }
 
-    val weekCourseCount = timetable?.days?.sumOf { day ->
-        day.cells.count { it.startSection <= TimetableSchedule.MAX_SECTION && it.endSection >= 1 }
-    } ?: 0
-    val weekendCount = timetable?.days?.filter { it.day >= 6 }?.sumOf { day ->
-        day.cells.count { it.startSection <= TimetableSchedule.MAX_SECTION && it.endSection >= 1 }
-    } ?: 0
+    // 周末不设开关：哪边有课就显示到哪一列，周六没课时不硬留一个空列。
+    fun hasCourses(day: Int): Boolean = timetable?.days
+        ?.firstOrNull { it.day == day }
+        ?.cells
+        ?.any { it.startSection <= TimetableSchedule.MAX_SECTION && it.endSection >= 1 }
+        ?: false
+    val dayCount = when {
+        hasCourses(7) -> 7
+        hasCourses(6) -> 6
+        else -> 5
+    }
     val semesterLabel = timetable?.semesterName?.takeIf { it.isNotBlank() }
         ?: semesters.firstOrNull { it.dm == semesterDm }?.name
         ?: semesterDm
@@ -242,22 +247,6 @@ fun TimetableScreen(
             onThisWeek = { goThisWeek() },
         )
 
-        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                if (weekCourseCount > 0) "本周 $weekCourseCount 节课" else "本周暂无课程",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.weight(1f))
-            PrismTextButton(onClick = { showWeekend = !showWeekend }) {
-                Text(
-                    if (showWeekend) "隐藏周末"
-                    else if (weekendCount > 0) "显示周末 · $weekendCount"
-                    else "显示周末",
-                )
-            }
-        }
-
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (!jw.isBound() && timetable == null) {
                 NullStatus(
@@ -285,7 +274,7 @@ fun TimetableScreen(
                 ) { _ ->
                     TimetableGrid(
                         timetable = timetable,
-                        dayCount = if (showWeekend) 7 else 5,
+                        dayCount = dayCount,
                         config = scheduleConfig,
                         nowTick = nowTick,
                         isCurrentWeek = week == currentWeek,
@@ -377,6 +366,23 @@ private fun TimetableGrid(
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
 
+    // 6/7 列时每列只剩约 44dp，字号和留白都要跟着收，否则课名只能看到两三个字。
+    val isCompact = dayCount > 5
+    val nameLineHeight = if (isCompact) 11.5f else 12.5f
+    val metaLineHeight = if (isCompact) 9.5f else 10.5f
+    val cellNameStyle = caption1Style().copy(
+        fontSize = (if (isCompact) 10f else 11f).sp,
+        lineHeight = nameLineHeight.sp,
+        letterSpacing = 0.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
+    val cellMetaStyle = caption2Style().copy(
+        fontSize = (if (isCompact) 8.5f else 9.5f).sp,
+        lineHeight = metaLineHeight.sp,
+        letterSpacing = 0.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
+
     // 只有显示本周时才有「今天」；翻到其他周不沿用今天的列高亮。
     val today = if (isCurrentWeek) SemesterCalc.dayOfWeek(nowTick) else 0
     val weekStart = runCatching { LocalDate.parse(timetable.weekStart) }.getOrNull()
@@ -400,8 +406,8 @@ private fun TimetableGrid(
 
         val breakHeight = 18.dp * fontScale
         val headerHeight = 40.dp * fontScale
-        val gridPadding = 8.dp
-        val timeWidth = 52.dp * fontScale
+        val gridPadding = if (isCompact) 5.dp else 8.dp
+        val timeWidth = (if (isCompact) 44.dp else 52.dp) * fontScale
         val breakCount = (if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) 1 else 0) +
             (if (visibleEnd > TimetableSchedule.DINNER_AFTER_SECTION) 1 else 0)
         val rowsRoom = maxHeight - gridPadding * 2 - headerHeight - 4.dp - breakHeight * breakCount
@@ -452,7 +458,10 @@ private fun TimetableGrid(
 
         PrismCard(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 6.dp, vertical = gridPadding),
+            contentPadding = PaddingValues(
+                horizontal = if (isCompact) 4.dp else 6.dp,
+                vertical = gridPadding,
+            ),
         ) {
             Column(
                 Modifier
@@ -466,7 +475,7 @@ private fun TimetableGrid(
                     Column(
                         Modifier
                             .weight(1f)
-                            .padding(horizontal = 2.dp)
+                            .padding(horizontal = if (isCompact) 1.dp else 2.dp)
                             .clip(dayShape)
                             .background(
                                 if (isToday) MaterialTheme.colorScheme.primaryContainer.withAlpha(PrismAlpha.ContainerTint)
@@ -477,7 +486,7 @@ private fun TimetableGrid(
                     ) {
                         Text(
                             dayName(day),
-                            style = footnoteStyle(),
+                            style = if (isCompact) caption2Style() else footnoteStyle(),
                             fontWeight = if (isToday) FontWeight(700) else FontWeight(500),
                             color = if (isToday) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
@@ -487,7 +496,7 @@ private fun TimetableGrid(
                         if (date != null) {
                             Text(
                                 date.format(dateFmt),
-                                style = footnoteStyle(),
+                                style = if (isCompact) caption2Style() else footnoteStyle(),
                                 color = if (isToday) MaterialTheme.colorScheme.primary
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
@@ -610,7 +619,7 @@ private fun TimetableGrid(
                                             .offset(y = sectionTop(start))
                                             .height(blockH)
                                             .fillMaxWidth()
-                                            .padding(horizontal = 2.dp, vertical = 1.dp)
+                                            .padding(horizontal = if (isCompact) 1.dp else 1.5.dp, vertical = 1.dp)
                                             .clip(blockShape)
                                             .background(bg)
                                             // 先清空内部所有语义，再挂一条完整描述；触摸仍由 clickable 处理。
@@ -623,48 +632,51 @@ private fun TimetableGrid(
                                             }
                                             .clickable { onOpenCourse(cell) },
                                     ) {
-                                        Row(Modifier.fillMaxSize()) {
-                                            Box(
-                                                Modifier
-                                                    .width(3.dp)
-                                                    .fillMaxHeight()
-                                                    .background(onBg.withAlpha(PrismAlpha.ContainerTint)),
+                                        // 行数按块高算：先保证课名，再依次给地点、教师、时间留位，
+                                        // 短块不硬塞三行元信息，长块也不会只显示两行课名。
+                                        val innerVertical = 2.dp
+                                        val usable = blockH.value - innerVertical.value * 2
+                                        val showLocationRow = shownLocation.isNotBlank() &&
+                                            usable >= metaLineHeight + nameLineHeight * 2
+                                        val showTeacherRow = showLocationRow && cell.teacher.isNotBlank() &&
+                                            usable >= metaLineHeight * 2 + nameLineHeight * 2
+                                        // 不再在格子里画上下课时间：时间栏已经逐节标了，格子留给课名。
+                                        val metaRows = (if (showLocationRow) 1 else 0) +
+                                            (if (showTeacherRow) 1 else 0)
+                                        val nameLines = ((usable - metaRows * metaLineHeight) / nameLineHeight)
+                                            .toInt().coerceAtLeast(1)
+                                        Column(
+                                            Modifier
+                                                .fillMaxSize()
+                                                .padding(
+                                                    horizontal = if (isCompact) 3.dp else 4.dp,
+                                                    vertical = innerVertical,
+                                                ),
+                                        ) {
+                                            Text(
+                                                cell.name,
+                                                style = cellNameStyle,
+                                                color = onBg,
+                                                maxLines = nameLines,
+                                                overflow = TextOverflow.Ellipsis,
                                             )
-                                            Column(Modifier.padding(horizontal = 5.dp, vertical = 2.dp)) {
+                                            if (showLocationRow) {
                                                 Text(
-                                                    cell.name,
-                                                    style = caption1Style(),
-                                                    color = onBg,
-                                                    maxLines = if (blockH >= 52.dp) 2 else 1,
+                                                    "@$shownLocation",
+                                                    style = cellMetaStyle,
+                                                    color = onBg.withAlpha(PrismAlpha.Secondary),
+                                                    maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis,
                                                 )
-                                                if (shownLocation.isNotBlank() && blockH >= 36.dp) {
-                                                    Text(
-                                                        "@$shownLocation",
-                                                        style = caption2Style(),
-                                                        color = onBg.withAlpha(PrismAlpha.Secondary),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
-                                                if (cell.teacher.isNotBlank() && blockH >= 66.dp) {
-                                                    Text(
-                                                        cell.teacher,
-                                                        style = caption2Style(),
-                                                        color = onBg.withAlpha(PrismAlpha.Secondary),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
-                                                if (scheduleInfo != null && blockH >= 80.dp) {
-                                                    Text(
-                                                        "${scheduleInfo.start}–${scheduleInfo.end}",
-                                                        style = caption2Style(),
-                                                        color = onBg.withAlpha(PrismAlpha.Hint),
-                                                        maxLines = 1,
-                                                        overflow = TextOverflow.Ellipsis,
-                                                    )
-                                                }
+                                            }
+                                            if (showTeacherRow) {
+                                                Text(
+                                                    cell.teacher,
+                                                    style = cellMetaStyle,
+                                                    color = onBg.withAlpha(PrismAlpha.Secondary),
+                                                    maxLines = 1,
+                                                    overflow = TextOverflow.Ellipsis,
+                                                )
                                             }
                                         }
                                     }
