@@ -17,6 +17,7 @@
         亮色 vs surfaceContainerHigh，暗色 vs surface >= 4.5
     * outline vs surface、vs surfaceContainerHigh >= 3.0
     * *Fixed 角色对 on*Fixed >= 4.5
+    * onSurface / onSurfaceVariant 在页面、卡片和连接分组表面上 >= 4.5
     * surfaceDim / surfaceContainer >= 1.2（PrismSurface 的层级可辨阈值），
       且 surfaceContainerLowest -> Low -> Container -> High -> Highest
       的明度排序单调（亮色递减、暗色递增）
@@ -153,6 +154,12 @@ def text_pairs(scheme: Scheme) -> list[tuple[str, str, str, float]]:
 
     pairs.append(("onError/error", "onError", "error", MIN_TEXT))
     pairs.append(("onErrorContainer/errorContainer", "onErrorContainer", "errorContainer", MIN_TEXT))
+
+    # Expressive 连接式分组会使用 Low/High 等不同层级；同时约束正文和说明文字。
+    # 仅检查中性表面；彩色容器必须使用上面已经校验的配套 on*Container。
+    for background in ("surface", "surfaceDim", *LAYER_ROLES):
+        for foreground in ("onSurface", "onSurfaceVariant"):
+            pairs.append((f"{foreground}/{background}", foreground, background, MIN_TEXT))
 
     # outline 既可能画在页面底色上，也可能画在卡片（surfaceContainerHigh）上
     pairs.append(("outline/surface", "outline", "surface", MIN_OUTLINE))

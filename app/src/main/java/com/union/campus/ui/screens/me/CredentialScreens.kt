@@ -18,7 +18,6 @@ import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -311,7 +310,11 @@ private fun CredentialAccountCard(
                     Text("退出", color = MaterialTheme.colorScheme.error)
                 }
             }
-            FilledTonalButton(onClick = onAction) {
+            PrismButton(
+                onClick = onAction,
+                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
                 Text(actionLabel, maxLines = 1)
             }
         }

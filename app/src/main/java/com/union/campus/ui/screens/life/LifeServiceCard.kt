@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismShapeRole
 
 /** 生活入口：位置、实时读数和下一步分层，不把长名称挤进指标行。 */
 @Composable
@@ -41,7 +42,7 @@ internal fun LifeServiceCard(
         modifier = modifier.fillMaxWidth(),
         onClick = onClick,
         containerColor = container,
-        corner = 28f,
+        corner = PrismShapeRole.Hero,
         contentPadding = PaddingValues(20.dp),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
