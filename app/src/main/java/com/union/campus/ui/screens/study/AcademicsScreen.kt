@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
@@ -41,8 +40,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.JwNotice
@@ -52,6 +55,8 @@ import com.union.campus.domain.TimetableSchedule
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismCorner
+import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
@@ -59,6 +64,7 @@ import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
+import com.union.campus.ui.prism.prismShape
 import com.union.campus.ui.prism.subheadlineStyle
 import kotlinx.coroutines.flow.first
 
@@ -116,7 +122,7 @@ fun AcademicsScreen(
             modifier = Modifier.fillMaxWidth(),
             onClick = { onOpen("timetable") },
             containerColor = MaterialTheme.colorScheme.primaryContainer,
-            corner = 28f,
+            corner = PrismCorner.Xxl,
             contentPadding = PaddingValues(20.dp),
         ) {
             Row(
@@ -130,7 +136,7 @@ fun AcademicsScreen(
                     modifier = Modifier.weight(1f),
                 )
                 Surface(
-                    shape = RoundedCornerShape(16.dp),
+                    shape = prismShape(PrismCorner.Md),
                     color = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
                 ) {
@@ -165,7 +171,7 @@ fun AcademicsScreen(
                         title = "成绩查询",
                         subtitle = "学分与绩点",
                         icon = Icons.Rounded.Grade,
-                        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 8.dp, bottomEnd = 8.dp, bottomStart = 8.dp),
+                        shape = academicActionShape(topStart = PrismCorner.Xl),
                         modifier = Modifier.weight(1f),
                         onClick = { onOpen("grades") },
                     )
@@ -173,7 +179,7 @@ fun AcademicsScreen(
                         title = "考试安排",
                         subtitle = "时间与考场",
                         icon = Icons.Rounded.Event,
-                        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 24.dp, bottomEnd = 8.dp, bottomStart = 8.dp),
+                        shape = academicActionShape(topEnd = PrismCorner.Xl),
                         modifier = Modifier.weight(1f),
                         onClick = { onOpen("exams") },
                     )
@@ -183,7 +189,7 @@ fun AcademicsScreen(
                         title = "选课",
                         subtitle = "轮次与提交",
                         icon = Icons.Rounded.Assignment,
-                        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomEnd = 8.dp, bottomStart = 24.dp),
+                        shape = academicActionShape(bottomStart = PrismCorner.Xl),
                         modifier = Modifier.weight(1f),
                         onClick = { onOpen("select") },
                     )
@@ -191,7 +197,7 @@ fun AcademicsScreen(
                         title = "教学评价",
                         subtitle = "待评课程",
                         icon = Icons.Rounded.RateReview,
-                        shape = RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp, bottomEnd = 24.dp, bottomStart = 8.dp),
+                        shape = academicActionShape(bottomEnd = PrismCorner.Xl),
                         modifier = Modifier.weight(1f),
                         onClick = { onOpen("evaluation") },
                     )
@@ -277,7 +283,7 @@ private fun AcademicAction(
     title: String,
     subtitle: String,
     icon: ImageVector,
-    shape: RoundedCornerShape,
+    shape: Shape,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -290,7 +296,7 @@ private fun AcademicAction(
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Surface(
-                shape = RoundedCornerShape(14.dp),
+                shape = prismShape(PrismCorner.Md),
                 color = MaterialTheme.colorScheme.secondaryContainer,
                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
             ) {
@@ -303,5 +309,28 @@ private fun AcademicAction(
                 Text(subtitle, style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+/** Prism 分角 API 使用物理角顺序；入口布局的首尾角随 RTL 一起映射。 */
+@Composable
+private fun academicActionShape(
+    topStart: Float = PrismCorner.Sm,
+    topEnd: Float = PrismCorner.Sm,
+    bottomEnd: Float = PrismCorner.Sm,
+    bottomStart: Float = PrismCorner.Sm,
+): Shape {
+    val density = LocalDensity.current.density
+    val direction = LocalLayoutDirection.current
+    return remember(density, direction, topStart, topEnd, bottomEnd, bottomStart) {
+        val corners = if (direction == LayoutDirection.Ltr) {
+            floatArrayOf(topStart, topEnd, bottomEnd, bottomStart)
+        } else {
+            floatArrayOf(topEnd, topStart, bottomStart, bottomEnd)
+        }
+        PrismShape(
+            radius = PrismCorner.Md * density,
+            corners = FloatArray(4) { corners[it] * density },
+        )
     }
 }

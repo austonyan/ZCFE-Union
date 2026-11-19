@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
@@ -51,6 +50,7 @@ import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismCorner
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
@@ -64,6 +64,7 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.prismCourseContainer
 import com.union.campus.ui.prism.prismCourseOnContainer
+import com.union.campus.ui.prism.prismShape
 import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
 
@@ -107,7 +108,7 @@ fun CourseDetailScreen(
                     scaleY = scale
                 },
                 containerColor = prismCourseContainer(cell.name),
-                corner = 28f,
+                corner = PrismCorner.Xxl,
                 contentPadding = PaddingValues(20.dp),
             ) {
                 Row(
@@ -201,7 +202,7 @@ fun CourseDetailScreen(
 @Composable
 private fun CourseDetailIcon(icon: androidx.compose.ui.graphics.vector.ImageVector, courseName: String) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = prismShape(PrismCorner.Md),
         color = prismCourseContainer(courseName),
         contentColor = prismCourseOnContainer(courseName),
     ) {

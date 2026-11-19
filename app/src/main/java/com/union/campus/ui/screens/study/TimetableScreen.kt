@@ -384,16 +384,17 @@ private fun WeekSwitcher(
                 )
             }
         }
-        if (week == currentWeek) {
-            Text(
-                "本周",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.padding(horizontal = 16.dp),
-            )
-        } else {
-            PrismTextButton(onClick = onThisWeek) {
-                Text("回到本周")
+        Box(Modifier.width(88.dp), contentAlignment = Alignment.Center) {
+            if (week == currentWeek) {
+                Text(
+                    "本周",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                PrismTextButton(onClick = onThisWeek) {
+                    Text("回到本周")
+                }
             }
         }
     }
