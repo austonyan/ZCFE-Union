@@ -132,16 +132,31 @@ data class TeachingBuilding(
     val campus: String = "",
 )
 
-/** 空闲教室（getJsxx）：freeSections 为各节次是否空闲的标记串。 */
+/**
+ * 空闲教室（getJsxx）：freeSections 为各节次是否空闲的标记串（旧缓存兼容）。
+ * sections 与 zdjc 对齐：true 空闲 / false 占用 / null 未知。
+ */
 @Serializable
 data class FreeClassroom(
     val name: String,
     val type: String = "",
     val capacity: String = "",
     val freeSections: String = "",
+    val sections: List<Boolean?> = emptyList(),
+    val maxSection: Int = 10,
 ) {
     val freeCount: Int get() = freeSections.split(',').count { it.trim() == "1" }
     val sectionCount: Int get() = freeSections.split(',').count { it.isNotBlank() }
+
+    /** 由 sections 计算的可空闲节次（1 基）；旧缓存没有 sections 时回落到 freeSections。 */
+    val freeSectionNumbers: List<Int>
+        get() = if (sections.isNotEmpty()) {
+            sections.mapIndexedNotNull { index, free -> (index + 1).takeIf { free == true } }
+        } else {
+            freeSections.split(',').mapIndexedNotNull { index, flag ->
+                (index + 1).takeIf { flag.trim() == "1" }
+            }
+        }
 }
 
 @Serializable

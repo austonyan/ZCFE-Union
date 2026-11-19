@@ -7,6 +7,7 @@ import com.union.campus.data.repo.parseTeachingBuildings
 import com.union.campus.data.repo.parseTimetableData
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /** 教务真实响应结构解析回归（20260 学期实测字段）。 */
@@ -67,6 +68,34 @@ class JwParsingTest {
         assertEquals("100", rooms[0].capacity)
         assertEquals(3, rooms[0].freeCount)
         assertEquals(4, rooms[0].sectionCount)
+        // sfkx 定长到 zdjc：1,1,0,1 后面补 6 个未知
+        assertEquals(10, rooms[0].sections.size)
+        assertEquals(listOf(true, true, false, true), rooms[0].sections.take(4))
+        assertTrue(rooms[0].sections.drop(4).all { it == null })
+        assertEquals(listOf(1, 2, 4), rooms[0].freeSectionNumbers)
+    }
+
+    @Test
+    fun parsesFreeClassroomSectionsWithZdjcAlignment() {
+        val raw = """{"result":{"zdjc":"6","jsxx":[{"jsmc":"A-101","jsrl":"40","jslxmc":"普通教室","sfkx":"1,0,,1,0,1,1"}]}}"""
+
+        val room = parseFreeClassrooms(Json.parseToJsonElement(raw)).single()
+
+        assertEquals(6, room.maxSection)
+        // 长了截断：第 7 个标记不进入结果
+        assertEquals(listOf(true, false, null, true, false, true), room.sections)
+        assertEquals(listOf(1, 4, 6), room.freeSectionNumbers)
+    }
+
+    @Test
+    fun padsShortFreeClassroomSectionsWithUnknown() {
+        val raw = """{"result":{"zdjc":"10","jsxx":[{"jsmc":"A-101","sfkx":"1"}]}}"""
+
+        val room = parseFreeClassrooms(Json.parseToJsonElement(raw)).single()
+
+        assertEquals(10, room.sections.size)
+        assertEquals(true, room.sections.first())
+        assertTrue(room.sections.drop(1).all { it == null })
     }
 
     @Test

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
@@ -38,6 +39,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,6 +78,7 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.metricSmallStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.prismShape
+import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.withAlpha
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -101,6 +105,22 @@ fun GradesScreen(
     // 用户手动选过学期后，不再自动跳到"最近一个有成绩的学期"。
     var userPicked by rememberSaveable { mutableStateOf(false) }
     var state by remember { mutableStateOf<UiState<GradesData>>(UiState.Loading) }
+    // 补考标记：只读原始成绩缓存里不及格的课程代码，不额外发网络请求。
+    var rawFailCodes by remember { mutableStateOf<Set<String>>(emptySet()) }
+
+    LaunchedEffect(semesterDm, effective) {
+        rawFailCodes = if (!effective || semesterDm.isBlank()) {
+            emptySet()
+        } else {
+            entities.read("jw.grades.$semesterDm.0", GradesData.serializer())
+                ?.data?.grades
+                ?.filter { gradeBandOf(it.score, it.gpa) == GradeBand.Fail }
+                ?.map { it.courseCode }
+                ?.filter { it.isNotBlank() }
+                ?.toSet()
+                .orEmpty()
+        }
+    }
 
     suspend fun loadInner() {
         state = if (!jw.isBound()) {
@@ -247,6 +267,7 @@ fun GradesScreen(
                     GradesContent(
                         data = current.data,
                         summary = computeGpa(current.data.grades),
+                        rawFailCodes = rawFailCodes,
                         onOpenGrade = onOpenGrade,
                     )
                 }
@@ -356,6 +377,7 @@ private fun RulerSkeleton() {
 private fun GradesContent(
     data: GradesData,
     summary: GpaSummary,
+    rawFailCodes: Set<String>,
     onOpenGrade: (Grade) -> Unit,
 ) {
     PrismGpaRuler(
@@ -379,7 +401,12 @@ private fun GradesContent(
             }
             PrismGroupedList {
                 grades.forEach { grade ->
-                    GradeRow(grade = grade, onClick = { onOpenGrade(grade) })
+                    GradeRow(
+                        grade = grade,
+                        makeup = grade.courseCode in rawFailCodes &&
+                            gradeBandOf(grade.score, grade.gpa) != GradeBand.Fail,
+                        onClick = { onOpenGrade(grade) },
+                    )
                 }
             }
         }
@@ -436,38 +463,83 @@ private fun LedgerCell(value: String, label: String, modifier: Modifier = Modifi
     }
 }
 
-/** 课程行：3dp 等级色标 + 课名/元信息 + 右对齐分数。 */
+/** 课程行：3dp 等级色标 + 课名/元信息（可带补考标签）+ 右对齐分数。 */
 @Composable
-private fun GradeRow(grade: Grade, onClick: () -> Unit) {
+private fun GradeRow(grade: Grade, makeup: Boolean, onClick: () -> Unit) {
     val band = gradeBandOf(grade.score, grade.gpa)
-    PrismRow(
-        title = grade.courseName,
-        subtitle = gradeSubtitle(grade, band),
-        leading = {
-            Box(
-                Modifier
-                    .width(3.dp)
-                    .height(36.dp)
-                    .clip(prismShape(2f))
-                    .background(bandColor(band)),
-            )
-        },
-        trailing = {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(role = Role.Button, onClick = onClick)
+            .defaultMinSize(minHeight = 56.dp)
+            .padding(horizontal = PrismSpace.RowHorizontal, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+    ) {
+        Box(
+            Modifier
+                .width(3.dp)
+                .height(36.dp)
+                .clip(prismShape(2f))
+                .background(bandColor(band)),
+        )
+        Column(Modifier.weight(1f)) {
             Text(
-                text = grade.score.ifBlank { "—" },
-                style = metricSmallStyle(),
-                color = if (band == GradeBand.Fail) {
-                    MaterialTheme.colorScheme.error
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
-                textAlign = TextAlign.End,
-                maxLines = 1,
+                grade.courseName,
+                style = bodyStyle(),
+                color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
-        },
-        onClick = onClick,
-    )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Text(
+                    gradeSubtitle(grade, band),
+                    style = subheadlineStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                if (makeup) MakeupBadge()
+            }
+        }
+        Text(
+            text = grade.score.ifBlank { "—" },
+            style = metricSmallStyle(),
+            color = if (band == GradeBand.Fail) {
+                MaterialTheme.colorScheme.error
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+            textAlign = TextAlign.End,
+            maxLines = 1,
+        )
+    }
 }
+
+/** 补考通过小标签：11dp 主色文字、主色 12% 底、4dp 圆角、左右 5dp 内边距。 */
+@Composable
+private fun MakeupBadge() {
+    Box(
+        Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(MaterialTheme.colorScheme.primary.withAlpha(MakeupBadgeAlpha))
+            .clearAndSetSemantics { contentDescription = "补考通过" }
+            .padding(horizontal = 5.dp, vertical = 1.dp),
+    ) {
+        Text(
+            "补考",
+            style = caption2Style(),
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+        )
+    }
+}
+
+private const val MakeupBadgeAlpha = 0.12f
 
 /** 成绩分布：按学分加权的堆叠条 + 图例。 */
 @Composable

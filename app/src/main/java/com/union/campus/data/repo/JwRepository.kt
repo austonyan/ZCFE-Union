@@ -596,15 +596,39 @@ internal fun parseTeachingBuildings(element: JsonElement): List<TeachingBuilding
         else TeachingBuilding(dm, name, Parse.str(b, "xqmc", "campus"))
     }.distinctBy { it.dm }
 
-/** 空闲教室：`{"result":{"jsxx":[{jsmc,jsrl,jslxmc,sfkx}]}}`。 */
-internal fun parseFreeClassrooms(element: JsonElement): List<FreeClassroom> =
-    Parse.objects(Parse.array(element)).mapNotNull { r ->
+/** 空闲教室：`{"result":{"zdjc":"10","jsxx":[{jsmc,jsrl,jslxmc,sfkx}]}}`。 */
+internal fun parseFreeClassrooms(element: JsonElement): List<FreeClassroom> {
+    val root = element as? JsonObject
+    val result = root?.get("result") as? JsonObject
+    // zdjc 决定最大的节次列数；上游缺失时按 10 节处理。
+    val maxSection = Parse.int(result ?: root ?: JsonObject(emptyMap()), "zdjc")
+        .takeIf { it > 0 } ?: 10
+    return Parse.objects(Parse.array(element)).mapNotNull { r ->
         val name = Parse.str(r, "jsmc", "jsdm", "room", "name")
+        val rawSections = Parse.str(r, "sfkx")
         if (name.isBlank()) null
         else FreeClassroom(
             name = name,
             type = Parse.str(r, "jslxmc", "jslxdm"),
             capacity = Parse.str(r, "jsrl", "rl"),
-            freeSections = Parse.str(r, "sfkx"),
+            freeSections = rawSections,
+            sections = parseSectionFlags(rawSections, maxSection),
+            maxSection = maxSection,
         )
     }
+}
+
+/**
+ * sfkx（逗号分隔）按位置映射成定长节次列：
+ * `1` = 空闲、其他非空 = 占用、空串 = 未知；不足 zdjc 补 null，超出截断。
+ */
+private fun parseSectionFlags(raw: String, maxSection: Int): List<Boolean?> {
+    val parts = raw.split(',')
+    return List(maxSection) { index ->
+        when (val flag = parts.getOrNull(index)?.trim().orEmpty()) {
+            "" -> null
+            "1" -> true
+            else -> false
+        }
+    }
+}
