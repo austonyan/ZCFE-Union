@@ -9,6 +9,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -63,12 +64,18 @@ fun PrismSkeleton(
     androidx.compose.foundation.layout.Box(modifier.clip(shape).background(brush))
 }
 
-/** 页面级骨架：一张主卡 + 若干列表行。 */
+/**
+ * 页面级骨架：按真实页面形状排（主卡 → 双列指标 → 列表行）。
+ *
+ * 统一的大方块会让加载态看起来"卡住了"；骨架的形状越接近内容，
+ * 加载完成时布局越不跳。
+ */
 @Composable
 fun PrismSkeletonList(
     modifier: Modifier = Modifier,
     rows: Int = 4,
     showHero: Boolean = true,
+    showMetricRow: Boolean = true,
 ) {
     Column(
         modifier = modifier
@@ -79,12 +86,24 @@ fun PrismSkeletonList(
         if (showHero) {
             PrismSkeleton(
                 modifier = Modifier.fillMaxWidth().height(132.dp),
-                corner = 18f,
+                corner = PrismCorner.Md,
             )
+        }
+        if (showMetricRow) {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                PrismSkeleton(
+                    modifier = Modifier.weight(1f).height(96.dp),
+                    corner = PrismCorner.Md,
+                )
+                PrismSkeleton(
+                    modifier = Modifier.weight(1f).height(96.dp),
+                    corner = PrismCorner.Md,
+                )
+            }
         }
         repeat(rows.coerceAtLeast(1)) {
             PrismSkeleton(
-                modifier = Modifier.fillMaxWidth().height(64.dp),
+                modifier = Modifier.fillMaxWidth().height(56.dp),
                 corner = PrismCorner.Md,
             )
         }

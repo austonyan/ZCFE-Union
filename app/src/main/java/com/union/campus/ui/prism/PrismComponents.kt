@@ -48,6 +48,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
@@ -697,11 +698,20 @@ fun NullStatus(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         StaggerItem(shown, 0) {
-            androidx.compose.material3.Icon(
-                icon, contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
-                modifier = Modifier.size(56.dp),
-            )
+            // 空态不是错误页：给一个品牌色的圆形底座，比一个 55% 灰的大图标更"有人管"。
+            Box(
+                modifier = Modifier
+                    .size(72.dp)
+                    .clip(androidx.compose.foundation.shape.CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.withAlpha(0.08f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                androidx.compose.material3.Icon(
+                    icon, contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary.withAlpha(0.72f),
+                    modifier = Modifier.size(32.dp),
+                )
+            }
         }
         StaggerItem(shown, 1) {
             Text(title, style = headlineStyle(), color = MaterialTheme.colorScheme.onSurface, textAlign = TextAlign.Center)
@@ -800,21 +810,29 @@ fun PrismButton(
                     ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
             ) else null,
         ) {
-            Row(
-                Modifier
-                    .padding(contentPadding),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                ProvideContentColor(colors.second.takeIf { enabled }
-                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) {
-                    CompositionLocalProvider(LocalTextStyle provides buttonLabelStyle()) {
-                        if (loading) {
-                            PrismLoadingIndicator(size = 18.dp, strokeWidth = 2.dp, color = colors.second)
-                        } else {
+            // 加载时保留文字宽度（只把 alpha 压到 0），按钮不会因为换成转圈而抽缩。
+            Box {
+                Row(
+                    Modifier
+                        .padding(contentPadding)
+                        .graphicsLayer { alpha = if (loading) 0f else 1f },
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    ProvideContentColor(colors.second.takeIf { enabled }
+                        ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) {
+                        CompositionLocalProvider(LocalTextStyle provides buttonLabelStyle()) {
                             content()
                         }
                     }
+                }
+                if (loading) {
+                    PrismLoadingIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        size = 18.dp,
+                        strokeWidth = 2.dp,
+                        color = colors.second,
+                    )
                 }
             }
         }
