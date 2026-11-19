@@ -391,16 +391,17 @@ private fun TimetableGrid(
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
 
-    val nameLineSp = if (isCompact) 11.5f else 12.5f
-    val metaLineSp = if (isCompact) 9.5f else 10.5f
+    // 字号对齐参考图：课名 12sp、地点/教师 10sp；7 列时各降 0.5~1sp。
+    val nameLineSp = if (isCompact) 11.5f else 13.5f
+    val metaLineSp = if (isCompact) 9.5f else 11f
     val cellNameStyle = caption1Style().copy(
-        fontSize = (if (isCompact) 10f else 11f).sp,
+        fontSize = (if (isCompact) 11f else 12f).sp,
         lineHeight = nameLineSp.sp,
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
     val cellMetaStyle = caption2Style().copy(
-        fontSize = (if (isCompact) 8.5f else 9.5f).sp,
+        fontSize = (if (isCompact) 9f else 10f).sp,
         lineHeight = metaLineSp.sp,
         letterSpacing = 0.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
@@ -438,7 +439,7 @@ private fun TimetableGrid(
         val breakHeight = 18.dp * fontScale
         val headerHeight = 40.dp * fontScale
         val gridPadding = 4.dp
-        val timeWidth = (if (isCompact) 30.dp else 34.dp) * fontScale
+        val timeWidth = (if (isCompact) 33.dp else 38.dp) * fontScale
         val breakCount = (if (visibleEnd > TimetableSchedule.LUNCH_AFTER_SECTION) 1 else 0) +
             (if (visibleEnd > TimetableSchedule.DINNER_AFTER_SECTION) 1 else 0)
         val rowsRoom = maxHeight - gridPadding * 2 - headerHeight - 4.dp - breakHeight * breakCount
@@ -568,6 +569,13 @@ private fun TimetableGrid(
                                         maxLines = 1,
                                         softWrap = false,
                                     )
+                                    Text(
+                                        time.end,
+                                        style = timeStyle,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Hint),
+                                        maxLines = 1,
+                                        softWrap = false,
+                                    )
                                 }
                             }
                         }
@@ -662,6 +670,8 @@ private fun TimetableGrid(
                                                     horizontal = if (isCompact) 2.5.dp else 3.dp,
                                                     vertical = innerVertical,
                                                 ),
+                                            // 内容整体垂直居中：短课名的块不会顶在卡片上沿。
+                                            verticalArrangement = Arrangement.Center,
                                         ) {
                                             Text(
                                                 cell.name,
