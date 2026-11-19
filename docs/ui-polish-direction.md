@@ -13,8 +13,20 @@ Date: 2026-11-19
 | P0-1 表面与文字 | Surface 层级重排（Card→`surfaceContainerLowest`、Page→`surfaceContainer`/`surfaceDim`）、`PrismEdge` 1px 描边接入卡片与分组列表、CardHeader/SectionHeader 取消双重 alpha、分隔线 0.14→0.10、chevron 18→16、IconBadge 圆角 16→12、空态图标 44→56、数字负字距 | 已完成 |
 | P0-2 动效编排 | `PrismSpec`（tab fade-through / 24dp push-pop / sheet 弹簧 / 按压两段）、5 个 tab 独立转场、`prismPressScale` 接入卡片与按钮、Sheet 入场弹簧 + 把手 32×4、数字位移 1/2→1/3、shimmer 1500ms | 已完成 |
 | P1 组件层 | Dock 实心药丸→`primary` 12%/18% tonal、选中图标 1.12 + 按压 0.94、暗色阴影 24→16、分段控件同步 tonal、生活页与今天页改中性卡面 + 强调色 | 已完成 |
-| P1 余项 | 空态主按钮、骨架按内容形状排、PullToRefresh 品牌化、CJK 字体 | 待做 |
-| P2 | 课程容器变换、课程色板 HCT 化、大屏 ListDetail | 待做 |
+| P1 余项 | 空态插图（72dp 品牌色圆底 + 32dp 图标）、骨架按内容形状排（主卡/双列/行）、按钮加载保留文字宽度 | 已完成 |
+| P2 | 课程色板收敛到冷色段（teal→slate，亮 tone≈92 / 暗 tone≈26）、课程详情 0.98→1 展开入场 | 已完成 |
+
+剩余（需要你拍板或需要真机迭代）：
+
+- **CJK 字体**：Roboto Flex 无中文字形，中文仍走 OEM 字体。要统一得内置 MiSans / 思源黑体 VF 并子集化（约 +1.2MB），属资源决策，没动。
+- **容器变换**：`SharedTransitionLayout` 需要把共享作用域从 `NavHost` 一路传进课表/详情，改动面大且必须靠真机调时序；先用课程详情的展开入场顶住，没做真正的 sharedBounds。
+- **大屏 ListDetail**：App 仍锁定竖屏（`screenOrientation="portrait"`），在放开旋转前做双栏没有意义。
+- **PullToRefresh**：默认指示器已经是 `colorScheme.primary` 的品牌色，没有额外换皮。
+
+### 已知问题（需要产品决策，未擅自改）
+
+浅色预设的 `primary = #007AFF` 对白底只有 **4.0:1**，作为 15sp 按钮文字不满足 AA（4.5:1），作为图标/填充则没问题。
+要修只有两条路：把浅色 primary 压到 tone 40 附近（约 `#0061A4`，会明显偏离 iOS 蓝），或规定 `primary` 只用于图标/填充、文字一律走 `onSurface`。
 
 验证：`:app:compileDebugKotlin` 通过、`:app:testDebugUnitTest` 通过、`:app:assembleDebug` 产出 APK。
 **尚未做真机/模拟器视觉走查**（本机无 AVD），亮/暗两套截图对比待补。
