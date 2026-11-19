@@ -36,15 +36,18 @@ import androidx.compose.ui.unit.dp
 import java.util.Locale
 import kotlin.math.roundToInt
 
-/** 绩点尺分档阈值：0–4.0 三等分。 */
+/**
+ * 绩点尺分档阈值：按学校分数段对齐（70 分≈2.0、80 分≈3.0）。
+ * 等分 1.33/2.67 会把 2.79 判成"优秀"，明显不合理。
+ */
 object GpaRulerBands {
     const val Max = 4f
 
-    /** 较差 → 中等 的分界。 */
-    const val Medium = 1.33f
+    /** 较差 → 中等 的分界（约 70 分）。 */
+    const val Medium = 2f
 
-    /** 中等 → 优秀 的分界。 */
-    const val Excellent = 2.67f
+    /** 中等 → 优秀 的分界（约 80 分）。 */
+    const val Excellent = 3f
 
     fun labelOf(gpa: Double): String = when {
         gpa >= Excellent -> "优秀"
@@ -119,9 +122,9 @@ fun PrismGpaRuler(
         RulerTrack(gpa = gpa, pointer = pointer)
         Spacer(Modifier.height(6.dp))
         Row(Modifier.fillMaxWidth()) {
-            RulerLabel("较差", Modifier.weight(1f))
-            RulerLabel("中等", Modifier.weight(1f))
-            RulerLabel("优秀", Modifier.weight(1f))
+            RulerLabel("较差", Modifier.weight(GpaRulerBands.Medium))
+            RulerLabel("中等", Modifier.weight(GpaRulerBands.Excellent - GpaRulerBands.Medium))
+            RulerLabel("优秀", Modifier.weight(GpaRulerBands.Max - GpaRulerBands.Excellent))
         }
     }
 }
@@ -142,9 +145,20 @@ private fun RulerTrack(gpa: Double?, pointer: Float) {
                 .clip(PrismShape(Float.MAX_VALUE)),
         ) {
             val surface = MaterialTheme.colorScheme.onSurface
-            Box(Modifier.weight(1f).fillMaxHeight().background(surface.withAlpha(0.06f)))
-            Box(Modifier.weight(1f).fillMaxHeight().background(surface.withAlpha(0.09f)))
-            Box(Modifier.weight(1f).fillMaxHeight().background(surface.withAlpha(0.12f)))
+            // 段宽按阈值比例：0–2.0 占一半，2.0–3.0 与 3.0–4.0 各占四分之一。
+            Box(Modifier.weight(GpaRulerBands.Medium).fillMaxHeight().background(surface.withAlpha(0.06f)))
+            Box(
+                Modifier
+                    .weight(GpaRulerBands.Excellent - GpaRulerBands.Medium)
+                    .fillMaxHeight()
+                    .background(surface.withAlpha(0.09f)),
+            )
+            Box(
+                Modifier
+                    .weight(GpaRulerBands.Max - GpaRulerBands.Excellent)
+                    .fillMaxHeight()
+                    .background(surface.withAlpha(0.12f)),
+            )
         }
         if (gpa != null) {
             Box(

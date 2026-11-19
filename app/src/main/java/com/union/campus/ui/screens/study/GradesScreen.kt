@@ -495,11 +495,14 @@ private fun groupGrades(grades: List<Grade>): List<Pair<String, List<Grade>>> {
         }
 }
 
-private fun categoryGroupOf(category: String): String = when {
-    category.contains("必修") -> "必修"
-    category.contains("选修") -> "选修"
-    category.contains("通识") -> "通识"
-    else -> "其他"
+private fun categoryGroupOf(category: String): String {
+    val c = category.trim()
+    return when {
+        c.contains("必修") || c.contains("学位") -> "必修"
+        c.contains("选修") || c.contains("限选") || c.contains("任选") -> "选修"
+        c.contains("通识") || c.contains("公选") || c.contains("素质") || c.contains("拓展") -> "通识"
+        else -> "其他"
+    }
 }
 
 /** 组内排序：分数降序，同分按学分降序，无法识别的成绩落底。 */
