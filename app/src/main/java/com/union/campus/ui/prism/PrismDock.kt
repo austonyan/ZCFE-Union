@@ -8,9 +8,12 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
@@ -40,6 +43,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.union.campus.navigation.Screen
@@ -67,7 +71,7 @@ fun PrismDock(
             .height(62.dp)
             // 双层阴影：大范围柔光 + 贴边细影（dark 下由系统自动加深）。
             .shadow(
-                elevation = 24.dp,
+                elevation = if (LocalPrismDark.current) 16.dp else 24.dp,
                 shape = pill,
                 clip = false,
                 ambientColor = Color.Black.withAlpha(PrismAlpha.Border),
@@ -99,13 +103,25 @@ fun PrismDock(
                     .fillMaxHeight()
                     .fillMaxWidth(1f / tabs.size)
                     .clip(pill)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(
+                        // 选中态降为 tonal 药丸，避免整格实心主色抢视觉。
+                        MaterialTheme.colorScheme.primary.copy(
+                            alpha = if (LocalPrismDark.current) 0.18f else 0.12f,
+                        ),
+                    ),
             )
             Row(Modifier.fillMaxSize().selectableGroup()) {
                 tabs.forEach { tab ->
                     val selected = tab == current
+                    val interactionSource = remember { MutableInteractionSource() }
+                    val pressed by interactionSource.collectIsPressedAsState()
+                    val pressScale by animateFloatAsState(
+                        targetValue = if (pressed) 0.94f else 1f,
+                        animationSpec = spring(dampingRatio = 0.7f, stiffness = 900f),
+                        label = "dock-press-scale",
+                    )
                     val contentColor by animateColorAsState(
-                        targetValue = if (selected) MaterialTheme.colorScheme.onPrimary
+                        targetValue = if (selected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.onSurfaceVariant,
                         animationSpec = PrismMotion.tween(PrismMotion.Quick),
                         label = "dock-color",
@@ -113,7 +129,7 @@ fun PrismDock(
                     val iconScale by animateFloatAsState(
                         targetValue = when {
                             !prismAnimationsEnabled() -> 1f
-                            selected -> 1.08f
+                            selected -> 1.12f
                             else -> 1f
                         },
                         animationSpec = PrismMotion.springSnappy(),
@@ -125,6 +141,8 @@ fun PrismDock(
                             .fillMaxHeight()
                             .selectable(
                                 selected = selected,
+                                interactionSource = interactionSource,
+                                indication = null,
                                 role = Role.Tab,
                                 onClick = {
                                     if (!selected) {
@@ -138,6 +156,10 @@ fun PrismDock(
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.Center,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = pressScale
+                                scaleY = pressScale
+                            },
                         ) {
                             Box {
                                 Icon(

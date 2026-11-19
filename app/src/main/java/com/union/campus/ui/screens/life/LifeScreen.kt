@@ -47,7 +47,9 @@ import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSpace
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismToggleRow
+import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.rememberPrismHaptics
+import com.union.campus.ui.prism.surfaceColorOf
 import com.union.campus.ui.prism.withAlpha
 import kotlinx.coroutines.flow.first
 
@@ -135,8 +137,10 @@ fun LifeScreen(
             val b = balance
             val a = area
             val low = ElectricLowState.isLow(b, lowThreshold)
-            val electricContainer = if (low) PrismStatus.warningContainer() else MaterialTheme.colorScheme.secondaryContainer
-            val electricOn = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSecondaryContainer
+            // 正常态用中性卡面 + 主色强调；低余额时整卡保留告警色。
+            val electricContainer = if (low) PrismStatus.warningContainer() else surfaceColorOf(SurfaceLevel.Card)
+            val electricOn = if (low) PrismStatus.onWarningContainer() else MaterialTheme.colorScheme.onSurface
+            val electricAccent = if (low) PrismStatus.warning() else MaterialTheme.colorScheme.primary
             val roomName = b?.fullName?.takeIf { it.isNotBlank() } ?: "电费未绑定"
             val days = b?.let { estimateDays(it) } ?: "—"
             val todayCost = b?.let {
@@ -166,7 +170,7 @@ fun LifeScreen(
                 onClick = onOpenElectric,
                 containerColor = electricContainer,
                 contentColor = electricOn,
-                accent = electricOn,
+                accent = electricAccent,
                 modifier = Modifier.fillMaxWidth(),
             )
 
@@ -180,14 +184,14 @@ fun LifeScreen(
                 },
                 icon = Icons.Rounded.WaterDrop,
                 trailing = if (a != null) {
-                    { MetaChip("空闲 ${a.idleNum}/${a.totalNum}", color = PrismStatus.success().withAlpha(PrismAlpha.ContainerTint)) }
+                    { MetaChip("空闲 ${a.idleNum}/${a.totalNum}", color = MaterialTheme.colorScheme.tertiary.withAlpha(PrismAlpha.ContainerTint)) }
                 } else {
                     null
                 },
                 onClick = onOpenShower,
-                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                accent = MaterialTheme.colorScheme.onTertiaryContainer,
+                containerColor = surfaceColorOf(SurfaceLevel.Card),
+                contentColor = MaterialTheme.colorScheme.onSurface,
+                accent = MaterialTheme.colorScheme.tertiary,
                 modifier = Modifier.fillMaxWidth(),
             )
 

@@ -398,12 +398,12 @@ fun TodayScreen(
                 PrismCard(
                     modifier = Modifier.fillMaxWidth(),
                     onClick = onOpenLife,
-                    containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                    containerColor = surfaceColorOf(SurfaceLevel.Card),
                     contentPadding = PaddingValues(16.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("全部生活入口", style = bodyStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer, modifier = Modifier.weight(1f))
-                        Text("去生活", style = footnoteStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer.withAlpha(PrismAlpha.Secondary))
+                        Text("全部生活入口", style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                        Text("去生活", style = footnoteStyle(), color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
