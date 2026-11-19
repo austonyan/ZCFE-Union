@@ -4,9 +4,10 @@
 
 ## 交付物
 
-- **`郑财校园-release-v0.2.44.apk`** — 已签名 release APK（versionCode 30，v2 签名，CN=Zhengcai Union，有效期 10000 天）
-- 上一版 `郑财校园-release-v0.2.18.apk`（versionCode 23）保留，便于回滚
-^- v0.2.26 变更：课表页头改为「学期第一行、日期第二行」
+- **`郑财校园-release-v0.2.45.apk`** — 已签名 release APK（versionCode 50，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- 上一版 `郑财校园-release-v0.2.44.apk`（versionCode 49）保留，便于回滚
+- v0.2.45 变更：MD3 全量审查修复（8 套预设按 M3 tone 重算、文字层级去掉二次 alpha、品牌暗色页/卡层级 1.13→1.20、`pageWidth` 大屏限宽铺到 6 个根页、Chip 选中语义 + IconButton 禁用语义、动效接入 reduce-motion、三个超大屏文件拆分、androidTest 从 0 到 4 类、lint 25→12 warning），详见 `docs/m3-audit-v0.2.44.md`
+- v0.2.26 变更：课表页头改为「学期第一行、日期第二行」
 - v0.2.25 变更：课表字号按 dp 锁定（不受系统字号放大影响）、「现在」徽标收进时间栏、页头副标题允许两行（学期名不再截断）、浅色页面压到 surfaceContainerHigh（页/卡对比 1.17→1.22:1）
 - v0.2.23 变更：字号锁定 + 时间栏宽度固定 38dp
 - v0.2.21 变更：课程卡内容水平+垂直居中、课名最多 4 行（超长走省略号并保证教室/教师可见）、地点方括号内的中文说明自动过滤
