@@ -54,7 +54,7 @@ fun ScreenPlaceholder(
                 )
                 PrismCard {
                     Text(
-                        text = "此屏幕为壳阶段占位，完整功能将在后续阶段实现。",
+                        text = "功能开发中。",
                         style = bodyStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

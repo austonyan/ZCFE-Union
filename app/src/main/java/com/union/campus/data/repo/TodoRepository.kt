@@ -36,8 +36,8 @@ class TodoRepository constructor(
                     id = "evaluations",
                     source = "jw",
                     type = "evaluation",
-                    title = "评教还有 ${pending.size} 门",
-                    subtitle = "截止以教务为准 · 逐门确认提交",
+                    title = "待评 ${pending.size} 门",
+                    subtitle = "截止以教务为准 · 请逐门确认提交",
                     dueText = "",
                     deepLink = "evaluation",
                 )

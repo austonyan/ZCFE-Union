@@ -107,7 +107,7 @@ fun WalletScreen(
         } catch (e: AppError) {
             error = e.userMessage
         } catch (e: Exception) {
-            error = "钱包信息获取失败：${e.message}"
+            error = "钱包加载失败：${e.message}"
         }
         loading = false
     }
@@ -116,7 +116,7 @@ fun WalletScreen(
         PrismAlertDialog(
             title = "充值",
             body = ExternalLinks.TopUpTip,
-            confirmText = "知道了", dismissText = null,
+            confirmText = "确定", dismissText = null,
             onConfirm = {
                 topUpVisible = false
                 openExternalLink(ExternalLinks.ShowerTopUp)
@@ -138,7 +138,7 @@ fun WalletScreen(
                 loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 4)
                 error != null -> PrismErrorState(
                     message = error ?: "",
-                    hint = "洗浴账号未绑定或会话过期时可到凭证中心处理",
+                    hint = "洗浴账号未绑定或登录失效，请在凭证中心登录",
                 )
                 else -> {
                     val w = wallet
@@ -162,10 +162,10 @@ fun WalletScreen(
                     ) {
                         Icon(Icons.Rounded.Payment, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("去充值")
+                        Text("充值")
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                        Text("充值将跳转至支付宝官方充值页面", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text("充值将跳转至支付宝官方小程序充值页面", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     PrismSection(
                         title = "最近订单",
@@ -176,7 +176,7 @@ fun WalletScreen(
                         },
                     ) {
                         if (orders.isEmpty()) {
-                            NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后账单会显示在这里")
+                            NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后显示账单")
                         } else {
                             PrismGroupedList {
                                 orders.forEach { o ->
@@ -247,13 +247,13 @@ fun ShowerOrdersScreen(
                 orders.isEmpty() && loading -> PrismSkeletonList(Modifier.fillMaxWidth(), rows = 6)
                 orders.isEmpty() && error != null -> PrismErrorState(
                     message = error ?: "",
-                    hint = "洗浴账号未绑定或会话过期时可到凭证中心处理",
+                    hint = "洗浴账号未绑定或登录失效，请在凭证中心登录",
                     onRetry = { loadNext() },
                 )
-                orders.isEmpty() -> NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后账单会显示在这里")
+                orders.isEmpty() -> NullStatus(Icons.Rounded.ReceiptLong, "暂无消费记录", "洗浴结束后显示账单")
                 else -> {
                     Text(
-                        "共 ${orders.size} 条消费记录",
+                        "${orders.size} 条消费记录",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -323,7 +323,7 @@ fun ElectricScreen(
         launchUi {
             try {
                 if (!electric.isBound()) {
-                    error = "电费未绑定房间，请到绑定页完成绑定"
+                    error = "请先绑定电费房间"
                 } else {
                     rooms = electric.rooms(force)
                     val lastRoomVerify = settings.lastElectricRoom.first()
@@ -333,7 +333,7 @@ fun ElectricScreen(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "电费信息获取失败：${e.message}"
+                error = "电费加载失败：${e.message}"
             }
             loading = false
         }
@@ -343,14 +343,14 @@ fun ElectricScreen(
     if (unbindConfirm) {
         PrismAlertDialog(
             title = "解绑房间",
-            body = "解绑后将无法查看该房间的余额与用量（写操作，以完美校园为准）。确认解绑？",
+            body = "解绑后将无法查看该房间的余额与用量。确认解绑？",
             confirmText = "解绑", destructive = true,
             onConfirm = {
                 unbindConfirm = false
                 launchUi {
                     try {
                         currentRoom?.let { electric.unbindRooms(listOf(it.roomVerify)) }
-                        messenger.success("解绑完成")
+                        messenger.success("已解绑")
                         balance = null; currentRoom = null
                     } catch (e: AppError) { result = e.userMessage }
                 }
@@ -359,14 +359,14 @@ fun ElectricScreen(
         )
     }
     if (result != null) {
-        PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "知道了", dismissText = null,
+        PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "确定", dismissText = null,
             onConfirm = { result = null }, onDismiss = { result = null })
     }
     if (topUpVisible) {
         PrismAlertDialog(
             title = "充值",
             body = ExternalLinks.TopUpTip,
-            confirmText = "知道了", dismissText = null,
+            confirmText = "确定", dismissText = null,
             onConfirm = {
                 topUpVisible = false
                 openExternalLink(ExternalLinks.ElectricTopUp)
@@ -406,7 +406,7 @@ fun ElectricScreen(
                     enabled = rooms.size > 1,
                 ) {
                     Text(
-                        currentRoom?.fullName ?: "尚未选择房间",
+                        currentRoom?.fullName ?: "未选择房间",
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 2,
@@ -432,7 +432,7 @@ fun ElectricScreen(
                                     } catch (e: AppError) {
                                         error = e.userMessage
                                     } catch (e: Exception) {
-                                        error = "电量信息获取失败：${e.message}"
+                                        error = "电量加载失败：${e.message}"
                                     } finally {
                                         loading = false
                                     }
@@ -450,14 +450,14 @@ fun ElectricScreen(
                     onRetry = { load(true) },
                 )
                 !electric.isBound() -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NullStatus(Icons.Rounded.Bolt, "电费未绑定", "绑定宿舍房间后可查看余额与用量")
+                    NullStatus(Icons.Rounded.Bolt, "电费未绑定", "绑定宿舍后查看余额与用量")
                     PrismButton(onClick = onOpenBind, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Rounded.Link, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("去绑定房间")
+                        Text("绑定房间")
                     }
                 }
-                balance == null -> NullStatus(Icons.Rounded.Bolt, "暂无电量数据", "该房间未返回用电信息（可能未绑定）")
+                balance == null -> NullStatus(Icons.Rounded.Bolt, "暂无电量数据", "暂无用电信息，请检查绑定状态")
                 else -> {
                     val b = balance!!
                     val price = ElectricStats.unitPrice(b)
@@ -482,7 +482,7 @@ fun ElectricScreen(
                             if (price != null && remainingValue != null) {
                                 append("\n单价 ¥${ElectricStats.formatMoney(price)}/度 · 剩余估值 ¥${ElectricStats.formatMoney(remainingValue)}")
                             } else {
-                                append("\n电价未返回 · 暂不估算费用")
+                                append("\n电价未返回，暂不计算费用")
                             }
                         },
                         icon = Icons.Rounded.Bolt,
@@ -497,7 +497,7 @@ fun ElectricScreen(
                         PrismButton(onClick = { topUpVisible = true }) {
                             Icon(Icons.Rounded.Payment, null)
                             Spacer(Modifier.width(8.dp))
-                            Text("去充值", maxLines = 1, softWrap = false)
+                            Text("充值", maxLines = 1, softWrap = false)
                         }
                         PrismTextButton(onClick = onOpenUsage) {
                             Text("用量明细", maxLines = 1, softWrap = false)
@@ -506,10 +506,10 @@ fun ElectricScreen(
 
                     if (isLow) {
                         PrismNoticeBanner(
-                            title = "余额低于 $lowThreshold 度，建议及时充值",
+                            title = "余额低于 $lowThreshold 度，请及时充值",
                             tone = PrismNoticeTone.Warning,
                             icon = Icons.Rounded.WarningAmber,
-                            actionLabel = "去充值",
+                            actionLabel = "充值",
                             onAction = { topUpVisible = true },
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -517,7 +517,7 @@ fun ElectricScreen(
 
                     if (price != null) {
                         PrismCard(modifier = Modifier.fillMaxWidth()) {
-                            CardHeader("费用估算", icon = Icons.Rounded.Payment)
+                            CardHeader("费用计算", icon = Icons.Rounded.Payment)
                             Spacer(Modifier.height(10.dp))
                             Row(
                                 Modifier.fillMaxWidth(),
@@ -529,7 +529,7 @@ fun ElectricScreen(
                             }
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "按 ¥${ElectricStats.formatMoney(price)}/度估算，不含阶梯电价与附加费用，以完美校园账单为准。",
+                                "按 ¥${ElectricStats.formatMoney(price)}/度计算，以完美校园账单为准",
                                 style = footnoteStyle(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -613,7 +613,7 @@ fun ElectricScreen(
 
                     PrismGroupedList {
                         PrismRow(
-                            title = "查看用量明细",
+                            title = "用量明细",
                             subtitle = "近 30 天每日用量与费用估算",
                             leading = { IconBadge(Icons.Rounded.BarChart) },
                             onClick = onOpenUsage,
@@ -738,7 +738,7 @@ fun UsageDetailScreen(
                     message = error ?: "",
                     onRetry = { load() },
                 )
-                usage == null || usage!!.days.isEmpty() -> NullStatus(Icons.Rounded.BarChart, "暂无用量数据", "绑定房间后可查看每日用量")
+                usage == null || usage!!.days.isEmpty() -> NullStatus(Icons.Rounded.BarChart, "暂无用量数据", "绑定房间后查看每日用量")
                 else -> {
                     val u = usage!!
                     val effectiveMetric = if (price == null) "use" else metric
@@ -765,7 +765,7 @@ fun UsageDetailScreen(
                                 if (totalCost != null && avgCost != null) {
                                     append("\n估算 ¥${ElectricStats.formatMoney(totalCost)} · 日均 ¥${ElectricStats.formatMoney(avgCost)}")
                                 } else {
-                                    append("\n电价未返回 · 暂不估算费用")
+                                    append("\n电价未返回，暂不计算费用")
                                 }
                             },
                             style = subheadlineStyle(),
@@ -844,7 +844,7 @@ fun UsageDetailScreen(
                         }
                         if (!showAll && sorted.size > 7) {
                             Text(
-                                "默认显示最近 7 天，点「展开全部」查看全部明细",
+                                "默认显示近 7 天，选择「展开全部」查看完整明细",
                                 style = footnoteStyle(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -852,9 +852,9 @@ fun UsageDetailScreen(
                     }
                     Text(
                         if (price != null) {
-                            "费用按 ¥${ElectricStats.formatMoney(price!!)}/度估算，不含阶梯电价与附加费用，以完美校园账单为准。"
+                            "按 ¥${ElectricStats.formatMoney(price!!)}/度计算，以完美校园账单为准。"
                         } else {
-                            "电费接口未返回单价，当前仅展示用量。"
+                            "暂无电价，仅显示用量。"
                         },
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

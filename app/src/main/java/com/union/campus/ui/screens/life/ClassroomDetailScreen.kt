@@ -59,13 +59,13 @@ fun ClassroomDetailScreen(
                 NullStatus(
                     Icons.Rounded.CalendarMonth,
                     "暂无分时段数据",
-                    "空闲时段以上游返回为准；可在空闲教室页按日期/教学楼重新查询",
+                    "空闲时段以教务返回为准",
                 )
             }
             PrismCard {
                 CardHeader("说明")
                 Spacer(Modifier.height(6.dp))
-                Text("教室容量、设备与分时段空闲情况均以教务系统为准。", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("教室容量、设备及空闲时段以教务系统为准。", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(12.dp))
         }

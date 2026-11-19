@@ -140,8 +140,8 @@ fun LoginAcademicScreen(
     if (helpVisible) {
         PrismAlertDialog(
             title = "提示",
-            body = "使用学号与教务系统密码；如提示验证码，请按图片输入。",
-            confirmText = "知道了",
+            body = "使用学号与教务密码登录；如需验证码，请按图输入。",
+            confirmText = "确定",
             dismissText = null,
             onConfirm = { helpVisible = false },
             onDismiss = { helpVisible = false },
@@ -177,8 +177,8 @@ fun LoginAcademicScreen(
             }
 
             OnboardingIntro(
-                title = "连接你的课表",
-                description = "使用学号与教务密码，登录后查看课表、成绩与考试。",
+                title = "同步课表",
+                description = "使用学号与教务密码登录，查看课表、成绩及考试。",
                 icon = Icons.Rounded.Person,
             )
             Text("教务账号", style = MaterialTheme.typography.titleMedium)
@@ -240,15 +240,15 @@ fun LoginAcademicScreen(
                         )
                     }
                     PrismTextButton(onClick = { refreshCaptcha() }, enabled = !captchaLoading) {
-                        Text("换一张")
+                        Text("刷新验证码")
                     }
                 }
             }
             PrismTextField(
                 value = captcha,
                 onValueChange = { captcha = it },
-                label = if (needCaptcha) "验证码" else "验证码（如需要）",
-                supportingText = if (needCaptcha) "按上方图片输入；看不清可换一张" else "未提示验证码时可留空",
+                label = if (needCaptcha) "验证码" else "验证码（按需填写）",
+                supportingText = if (needCaptcha) "按图输入，无法识别时可刷新" else "无需验证码时留空",
                 leadingIcon = Icons.Rounded.VerifiedUser,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
             )
@@ -264,7 +264,7 @@ fun LoginAcademicScreen(
             ) {
                 Icon(Icons.Rounded.Login, null)
                 Spacer(Modifier.width(8.dp))
-                Text("登录教务", maxLines = 1)
+                Text("登录教务系统", maxLines = 1)
             }
 
             Column(Modifier.fillMaxWidth()) {
@@ -285,8 +285,8 @@ fun LoginAcademicScreen(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                Text("为什么需要教务账号", style = headlineStyle())
-                Text("课表、成绩、考试、评教都来自教务系统。", style = subheadlineStyle())
+                Text("教务账号用途", style = headlineStyle())
+                Text("课表、成绩、考试及评教来自教务系统。", style = subheadlineStyle())
             }
 
             Text(

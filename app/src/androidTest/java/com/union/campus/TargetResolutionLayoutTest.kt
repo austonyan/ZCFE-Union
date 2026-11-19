@@ -176,7 +176,7 @@ class TargetResolutionLayoutTest(private val widthDp: Int, private val fontScale
     fun weekSwitcher_preservesLabelsOutsideCurrentWeek() {
         show { WeekSwitcher(25, 30, 12, {}, {}, {}) }
         screenshot("week")
-        assertSingleLine("回到本周")
+        assertSingleLine("返回本周")
         assertSingleLine("第 25 周")
         assertSingleLine("共 30 周")
     }

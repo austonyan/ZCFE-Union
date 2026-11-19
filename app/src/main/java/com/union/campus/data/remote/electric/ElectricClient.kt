@@ -89,7 +89,7 @@ class ElectricClient {
                     if (attempt < attempts - 1) Thread.sleep(400L * (attempt + 1))
                 }
             }
-            throw AppError.Network("电费数据源连接失败（已重试 $attempts 次）：${lastError?.message}")
+            throw AppError.Network("电费连接失败（已重试 $attempts 次）：${lastError?.message}")
         }
 
     /** 内层业务错误映射。 */
@@ -109,9 +109,9 @@ class ElectricClient {
         when {
             // bindroom 重复绑定：网关返回 result=-1, message=绑定失败,已有该绑定房间
             result == "-1" && message?.contains("已有该绑定") == true ->
-                throw AppError.Validation("该房间已经绑定，无需重复绑定")
-            result == "-90004" -> throw AppError.Validation("未查询到该房间的绑定信息")
-            result == "-87" -> throw AppError.Validation("该学号查不到绑定信息")
+                throw AppError.Validation("房间已绑定，无需重复绑定")
+            result == "-90004" -> throw AppError.Validation("未查询到房间绑定信息")
+            result == "-87" -> throw AppError.Validation("未查询到该学号的绑定信息")
             result == "-20005" -> throw AppError.Validation("房间不存在")
             result == "-90002" -> throw AppError.Validation("房间列表为空")
             result == "-62001" -> throw AppError.Validation("缺少必要参数")

@@ -51,7 +51,7 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             if (kwh != null && kwh < threshold) {
                 notify(
                     title = "电费低于 $threshold 度",
-                    text = "${room.fullName} 剩余 ${balance.kwh} 度，预计需要充值",
+                    text = "${room.fullName} 剩余 ${balance.kwh} 度，建议充值",
                 )
             }
             Result.success()

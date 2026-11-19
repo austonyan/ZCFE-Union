@@ -250,7 +250,7 @@ internal fun SectionFilterSheet(
         ) {
             Text("选择节次", style = pageTitleStyle())
             Text(
-                "选多个节次时，这些节必须同时空闲。",
+                "所选节次须同时空闲。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -326,7 +326,7 @@ internal fun BuildingFilterSheet(
             PrismGroupedList {
                 PrismRow(
                     title = "全部楼栋",
-                    subtitle = "跨楼栋查询，结果按楼栋分组",
+                    subtitle = "跨楼栋查询，按楼栋分组",
                     onClick = {
                         onSelect("")
                         onDismiss()

@@ -281,15 +281,15 @@ class ShowerRepository constructor(
      */
     suspend fun startShower(device: ShowerDevice, areaName: String, buildingName: String) {
         if (_activeSession.value != null) {
-            throw AppError.Validation("已有正在进行的洗浴，请先结束当前洗浴")
+            throw AppError.Validation("请先结束当前洗浴")
         }
         val reservation = _reservation.value
         if (reservation == null || reservation.deviceUuid != device.uuid) {
-            throw AppError.Validation("请先预约该设备，等预约成功后再启动洗浴")
+            throw AppError.Validation("请先预约，成功后再启动设备")
         }
         if (!canStartReservedShower(reservation, device.uuid)) {
             _reservation.value = null
-            throw AppError.Validation("预约已超时并自动取消，请重新预约")
+            throw AppError.Validation("预约超时已取消，请重新预约")
         }
         val result = try {
             client.turnOn(device.uuid)
@@ -297,13 +297,13 @@ class ShowerRepository constructor(
             // 预约已过期/被释放时，上游会回到“尚未预约任何设备”
             if (showerNeedsReserveMessage(e.userMessage)) {
                 _reservation.value = null
-                throw AppError.Validation("预约已失效，请重新预约后再启动")
+                throw AppError.Validation("预约已失效，请重新预约后启动")
             }
             throw e
         } catch (e: AppError.Upstream) {
             // 上游仅给错误码/技术文案时，给出可执行提示，避免“数据源返回异常”
-            throw AppError.Validation("暂时无法启动洗浴，请确认设备状态后重试")
-        } ?: throw AppError.Validation("设备没有返回启动结果，请刷新设备状态后重试")
+            throw AppError.Validation("启动失败，请检查设备状态后重试")
+        } ?: throw AppError.Validation("未收到启动结果，请刷新设备状态后重试")
         val orderSn = parse.str(result, "order_sn", "orderSn")
         val session = ShowerSessionState(
             deviceUuid = device.uuid,
@@ -422,14 +422,14 @@ class ShowerRepository constructor(
      */
     suspend fun reserveDevice(device: ShowerDevice, areaName: String): ShowerReservation? {
         if (_activeSession.value != null) {
-            throw AppError.Validation("已有正在进行的洗浴，请先结束当前洗浴")
+            throw AppError.Validation("请先结束当前洗浴")
         }
         val existing = _reservation.value
         if (existing != null &&
             existing.deviceUuid != device.uuid &&
             existing.expiresAt > System.currentTimeMillis()
         ) {
-            throw AppError.Validation("已有其他设备的预约，请先启动或取消当前预约")
+            throw AppError.Validation("已有其他预约，请先启动或取消")
         }
         val result = client.reserve(device.uuid)
         val serverReservation = try {

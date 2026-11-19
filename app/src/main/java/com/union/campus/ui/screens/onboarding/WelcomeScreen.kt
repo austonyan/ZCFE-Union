@@ -76,8 +76,8 @@ fun WelcomeScreen(
         Spacer(Modifier.height(8.dp))
 
         OnboardingIntro(
-            title = "校园日常，一个入口",
-            description = "依次连接教务、洗浴与电费。每一步都可跳过，之后随时补充。",
+            title = "校园服务统一入口",
+            description = "依次绑定教务、洗浴与电费账号，可跳过并稍后补充。",
             icon = Icons.Rounded.School,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -106,7 +106,7 @@ fun WelcomeScreen(
             modifier = Modifier.padding(top = 4.dp),
         )
         Text(
-            text = "学校同时运行两套作息：S1–S6、J7 一套，J1–J6 一套。按你主要上课的楼号选择；之后也可在「课表设置」中修改。",
+            text = "两套作息：S1–S6、J7 与 J1–J6。请按主要上课楼号选择，可在「课表设置」修改。",
             style = footnoteStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -140,7 +140,7 @@ fun WelcomeScreen(
         ) {
             Icon(Icons.Rounded.Explore, contentDescription = null)
             Spacer(Modifier.width(8.dp))
-            Text("先逛逛")
+            Text("暂不绑定")
         }
 
         Row(verticalAlignment = Alignment.CenterVertically) {

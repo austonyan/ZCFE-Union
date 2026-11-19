@@ -53,7 +53,7 @@ fun TimetableSchedulePicker(
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text(
-            "两套作息同时运行，不是二选一；这里只设置楼号和时间怎么对应。",
+            "设置楼号和时间作息怎么对应",
             style = footnoteStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -75,7 +75,7 @@ fun TimetableSchedulePicker(
             modifier = Modifier.fillMaxWidth(),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(14.dp),
         ) {
-            Text("课程地点没有识别出楼号时", style = subheadlineStyle())
+            Text("课程地点未识别出楼号时", style = subheadlineStyle())
             Spacer(Modifier.height(6.dp))
             PrismSegmented(
                 options = listOf("按 J1–J6", "按 S1–S6、J7"),
@@ -88,7 +88,7 @@ fun TimetableSchedulePicker(
             )
             Spacer(Modifier.height(4.dp))
             Text(
-                "只影响地点里没有 J1–J6 / S1–S6 / J7 标记的课程；能识别楼号的课程会自动使用对应作息。",
+                "仅影响未识别楼号课程，识别楼号课程自动匹配作息。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

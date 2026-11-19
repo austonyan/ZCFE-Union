@@ -95,13 +95,13 @@ fun CourseSelectScreen(
                     time = com.union.campus.data.repo.Parse.str(c, "sksj", "time"),
                 )
             }
-            if (list.isEmpty()) UiState.Empty("当前没有开放的可选课程或选课未开始") else UiState.Ready(list)
+            if (list.isEmpty()) UiState.Empty("暂无可选课程或选课未开始") else UiState.Ready(list)
         } catch (e: AppError.AuthExpired) {
             UiState.Failed(e.userMessage, isAuth = true)
         } catch (e: AppError) {
             UiState.Failed(e.userMessage)
         } catch (e: Exception) {
-            UiState.Failed("选课信息获取失败：${e.message}")
+            UiState.Failed("选课加载失败：${e.message}")
         }
     }
 
@@ -121,10 +121,10 @@ fun CourseSelectScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when (val s = state) {
-                is UiState.Loading -> PrismLoadingBlock(label = "正在加载可选课程")
+                is UiState.Loading -> PrismLoadingBlock(label = "可选课程加载中")
                 is UiState.Failed -> PrismErrorState(
                     message = s.message,
-                    hint = "可到「我的 → 凭证中心」重新登录".takeIf { s.isAuth },
+                    hint = "请在「我的 → 凭证中心」重新登录".takeIf { s.isAuth },
                 )
                 is UiState.Empty -> NullStatus(Icons.Rounded.HowToVote, "选课未开放", s.hint)
                 is UiState.Ready -> {
@@ -196,7 +196,7 @@ fun ConfirmSelectionScreen(
                     mapOf("xktype" to "1", "njzy" to "", "sellx" to "", "xh" to ""),
                 )
                 submitting = false
-                result = "选课请求已提交，结果以教务系统为准。请稍后在「已选结果」中确认。"
+                result = "选课已提交，结果以教务系统为准，请在「已选结果」确认。"
             } catch (e: AppError) {
                 submitting = false
                 result = "提交失败：${e.userMessage}"
@@ -244,7 +244,7 @@ fun ConfirmSelectionScreen(
                 PrismGroupedList {
                     PrismRow(title = "课程冲突", subtitle = "以教务校验结果为准", leading = { IconBadge(Icons.Rounded.Check) })
                     PrismRow(title = "学分上限", subtitle = "本门 ${course.credit} 学分", leading = { IconBadge(Icons.Rounded.Storage) })
-                    PrismRow(title = "选课轮次", subtitle = "以教务当前开放轮次为准", leading = { IconBadge(Icons.Rounded.HowToVote) })
+                    PrismRow(title = "选课轮次", subtitle = "以当前教务轮次为准", leading = { IconBadge(Icons.Rounded.HowToVote) })
                 }
             }
             PrismButton(
@@ -295,7 +295,7 @@ fun EvaluationScreen(
         } catch (e: AppError) {
             error = e.userMessage
         } catch (e: Exception) {
-            error = "评教信息获取失败：${e.message}"
+            error = "评教加载失败：${e.message}"
         }
         loading = false
     }
@@ -303,7 +303,7 @@ fun EvaluationScreen(
     if (confirmSubmit) {
         PrismAlertDialog(
             title = "提交评教",
-            body = "确认提交对「${current?.courseName ?: "课程"}」的评价？提交后以教务结果为准。",
+            body = "确认提交「${current?.courseName ?: "课程"}」评价？结果以教务为准。",
             confirmText = "确认提交",
             onConfirm = {
                 confirmSubmit = false
@@ -321,7 +321,7 @@ fun EvaluationScreen(
                             ),
                         )
                         submitting = false
-                        result = "已提交，评教结果仅在教务系统生效。"
+                        result = "已提交，结果仅在教务系统生效。"
                     } catch (e: AppError) {
                         submitting = false
                         result = "提交失败：${e.userMessage}（草稿已保留）"
@@ -338,7 +338,7 @@ fun EvaluationScreen(
         PrismAlertDialog(
             title = "评教结果",
             body = result ?: "",
-            confirmText = "知道了",
+            confirmText = "确定",
             dismissText = null,
             onConfirm = { result = null },
             onDismiss = { result = null },
@@ -359,9 +359,9 @@ fun EvaluationScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             when {
-                loading -> PrismLoadingBlock(label = "正在加载评教信息")
+                loading -> PrismLoadingBlock(label = "评教加载中")
                 error != null -> Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                pending.isEmpty() -> NullStatus(Icons.Rounded.Star, "当前没有进行中的评教", "评教开放时会显示在这里")
+                pending.isEmpty() -> NullStatus(Icons.Rounded.Star, "暂无进行中的评教", "评教开放后显示")
                 else -> {
                     Text("待评 ${pending.size} 门 · 截止以教务为准", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (pending.size > 1) {

@@ -119,14 +119,14 @@ fun DeviceDetailScreen(
         launchUi {
             runCatching { shower.cancelReserve(r.deviceUuid) }
             reservation = runCatching { shower.refreshReservation() }.getOrNull()
-            messenger.warning("预约已超时，已尝试取消，请刷新确认设备状态")
+            messenger.warning("预约已超时，已尝试取消，请刷新确认")
         }
     }
 
     if (startConfirm) {
         PrismAlertDialog(
             title = "启动设备",
-            body = "设备 ${device.name} · $areaName\n预约已生效，确认启动设备并开始计费？",
+            body = "设备 ${device.name} · $areaName\n确认启动并开始计费？",
             confirmText = "启动设备",
             onConfirm = {
                 startConfirm = false
@@ -151,7 +151,7 @@ fun DeviceDetailScreen(
     if (reserveConfirm) {
         PrismAlertDialog(
             title = "预约洗浴位置",
-            body = "预约 ${device.name}？预约成功后进入等待倒计时，请在倒计时内启动设备；超时会自动取消。",
+            body = "确认预约 ${device.name}？请在预约倒计时内启动，超时自动取消。",
             confirmText = "预约",
             onConfirm = {
                 reserveConfirm = false
@@ -164,7 +164,7 @@ fun DeviceDetailScreen(
                             haptics.success()
                             messenger.success("预约成功，请在倒计时内启动设备")
                         } else {
-                            messenger.info("预约已提交，请刷新确认预约状态与等待时间")
+                            messenger.info("预约已提交，请刷新确认状态与等待时间")
                         }
                     } catch (e: AppError) { result = e.userMessage }
                     catch (e: Exception) { result = "预约失败：${e.message}" }
@@ -174,7 +174,7 @@ fun DeviceDetailScreen(
         )
     }
     if (result != null) {
-        PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "知道了", dismissText = null,
+        PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "确定", dismissText = null,
             onConfirm = { result = null }, onDismiss = { result = null })
     }
 
@@ -218,8 +218,8 @@ fun DeviceDetailScreen(
             }
             if (activeSession != null) {
                 PrismNoticeBanner(
-                    title = "已有正在进行的洗浴",
-                    message = "请先在洗浴页结束当前洗浴再预约。",
+                    title = "洗浴进行中",
+                    message = "请先在洗浴页结束当前洗浴。",
                     tone = PrismNoticeTone.Warning,
                     icon = Icons.Rounded.WaterDrop,
                 )
@@ -228,7 +228,7 @@ fun DeviceDetailScreen(
             if (!reservedHere && otherReservation != null) {
                 PrismNoticeBanner(
                     title = "已在 ${otherReservation.deviceName} 预约",
-                    message = "请先启动或取消该预约，再预约当前设备。",
+                    message = "请先启动或取消该预约。",
                     tone = PrismNoticeTone.Info,
                     icon = Icons.Rounded.Schedule,
                 )
@@ -252,7 +252,7 @@ fun DeviceDetailScreen(
                     else -> "故障"
                 }, leading = { IconBadge(Icons.Rounded.WaterDrop) })
                 PrismRow(title = "最近使用", subtitle = device.remainingText.ifBlank { "—" }, leading = { IconBadge(Icons.Rounded.History) })
-                PrismRow(title = "故障信息", subtitle = if (device.state !in 0..2) "设备返回异常状态，请更换设备或联系管理人员" else "接口未提供故障码", leading = { IconBadge(Icons.Rounded.Info) })
+                PrismRow(title = "故障信息", subtitle = if (device.state !in 0..2) "设备异常，请更换设备或联系管理人员" else "暂无故障码", leading = { IconBadge(Icons.Rounded.Info) })
             }
             when {
                 reservedHere -> PrismButton(
@@ -291,7 +291,7 @@ fun DeviceDetailScreen(
             }
             if (!reservedHere && device.state == 0) {
                 Text(
-                    "预约后不会自动开启设备，请在倒计时内回到此页启动。",
+                    "请在预约倒计时内返回本页手动启动设备。",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

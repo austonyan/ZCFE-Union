@@ -117,7 +117,7 @@ fun SettingsScreen(
             PrismSection("外观") {
                 PrismCard {
                     Text(
-                        "让校园日常，更像你",
+                        "个性化外观",
                         style = MaterialTheme.typography.titleLarge,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
@@ -141,13 +141,13 @@ fun SettingsScreen(
                     Spacer(Modifier.height(14.dp))
                     if (dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                         Text(
-                            "已开启莫奈取色，颜色跟随系统壁纸；关闭后可选择预设主题色。",
+                            "已跟随壁纸取色；关闭后可选预设主题色。",
                             style = footnoteStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     } else {
                         Text(
-                            if (dynamicColor) "当前系统不支持动态取色，使用预设主题色" else "预设主题色",
+                            if (dynamicColor) "系统不支持动态取色，已使用预设主题色" else "预设主题色",
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -161,7 +161,7 @@ fun SettingsScreen(
                 PrismGroupedList {
                     PrismToggleRow(
                         title = "动态取色（莫奈）",
-                        subtitle = "Android 12 及以上跟随壁纸；其他版本使用所选预设",
+                        subtitle = "Android 12 及以上跟随壁纸，其他版本使用预设主题色",
                         leading = { IconBadge(Icons.Outlined.Palette) },
                         checked = dynamicColor,
                         onCheckedChange = { on -> launchUi { settings.setDynamicColor(on) } },
@@ -199,7 +199,7 @@ fun SettingsScreen(
                     CardHeader("郑财校园", icon = Icons.Outlined.Info)
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        "教务、洗浴与电费合并入口；登录状态仅保存在本机，只使用本人账号。",
+                        "整合教务、洗浴与电费；登录状态仅存本机，仅支持本人账号。",
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -213,7 +213,7 @@ fun SettingsScreen(
             }
 
             Text(
-                "设置项会立即生效，重启应用后保留。",
+                "设置立即生效，重启后保留。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -290,7 +290,7 @@ private fun ThemeColorPicker(
         }
         Spacer(Modifier.height(4.dp))
         Text(
-            "当前：$selectedLabel · 预览随浅色 / 深色模式变化",
+            "当前：$selectedLabel · 预览随浅深色模式切换",
             style = footnoteStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

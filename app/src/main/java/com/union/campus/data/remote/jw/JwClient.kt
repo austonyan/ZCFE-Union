@@ -67,7 +67,7 @@ class JwClient(
                 // 已登录（带着有效会话访问）时登录页可能被跳转，视为成功
                 val hint = Regex("<title>([^<]{0,60})</title>").find(body)?.groupValues?.get(1)
                     ?: body.replace(Regex("\\s+"), " ").take(80)
-                throw AppError.Upstream("未能在登录页中找到加密参数：$hint")
+                throw AppError.Upstream("登录页缺少加密参数：$hint")
             }
             salt to execution
         }
@@ -145,7 +145,7 @@ class JwClient(
 
         val captchaNeeded = captcha.isBlank() && needCaptcha(username, salt)
         if (captchaNeeded) {
-            throw AppError.Validation("需要图形验证码，请输入验证码后重试")
+            throw AppError.Validation("请输入图形验证码后重试")
         }
 
         val form = FormBody.Builder()
@@ -183,11 +183,11 @@ class JwClient(
             }
             // CAS 盐过期会返回新的登录页且无错误文案
             if (body.contains("pwdEncryptSalt") && errMsg == null) {
-                throw AppError.AuthExpired(AppError.Module.JW, "CAS execution 过期，请重试")
+                throw AppError.AuthExpired(AppError.Module.JW, "登录参数已过期，请重试")
             }
         }
         if (!verifySession()) {
-            throw AppError.BadCredentials(AppError.Module.JW, "登录未能建立教务会话")
+            throw AppError.BadCredentials(AppError.Module.JW, "教务会话建立失败")
         }
     }
 
@@ -264,11 +264,11 @@ class JwClient(
             return json.parseToJsonElement(normalized)
         } catch (_: Exception) {
             val hint = if (text.startsWith("<")) {
-                "教务返回了网页而不是数据"
+                "教务返回网页，未返回数据"
             } else {
                 text.replace(Regex("\\s+"), " ").take(80)
             }
-            throw AppError.Upstream("$action: 无法解析教务响应（$hint）")
+            throw AppError.Upstream("$action: 教务响应解析失败（$hint）")
         }
     }
 

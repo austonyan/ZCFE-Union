@@ -134,7 +134,7 @@ fun <T> StateContent(
                 ) {
                     com.union.campus.ui.prism.PrismErrorState(
                         message = current.message,
-                        hint = if (current.isAuth) "可到「我的 → 凭证中心」重新登录" else null,
+                        hint = if (current.isAuth) "请在「我的 → 凭证中心」重新登录" else null,
                         onRetry = onRetry,
                     )
                 }

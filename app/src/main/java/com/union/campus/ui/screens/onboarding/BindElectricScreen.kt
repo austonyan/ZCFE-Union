@@ -181,7 +181,7 @@ fun BindElectricScreen(
             bound.fullName.contains(r.name) || (r.id.isNotBlank() && bound.roomVerify.contains(r.id))
         }
         if (duplicate) {
-            error = "该房间已经绑定，直接点上方「使用」即可"
+            error = "房间已绑定，请选择「使用」"
             return
         }
         loading = true
@@ -212,8 +212,8 @@ fun BindElectricScreen(
     if (helpVisible) {
         PrismAlertDialog(
             title = "提示",
-            body = "电费只查本人房间：绑定会把目标房间挂到你的账号下。",
-            confirmText = "知道了",
+            body = "仅支持本人宿舍，将绑定至当前账号。",
+            confirmText = "确定",
             dismissText = null,
             onConfirm = { helpVisible = false },
             onDismiss = { helpVisible = false },
@@ -223,7 +223,7 @@ fun BindElectricScreen(
     if (confirmBind) {
         PrismAlertDialog(
             title = "绑定本人房间？",
-            body = "将 ${zone?.name.orEmpty()} / ${build?.name.orEmpty()} / ${floor?.name.orEmpty()} / ${room?.name.orEmpty()} 绑定至当前完美校园账号。请确认这是你本人的宿舍。",
+            body = "确认将 ${zone?.name.orEmpty()} / ${build?.name.orEmpty()} / ${floor?.name.orEmpty()} / ${room?.name.orEmpty()} 绑定至当前完美校园账号？仅限本人宿舍。",
             confirmText = "确认绑定",
             onConfirm = { confirmBind = false; doBind() },
             onDismiss = { confirmBind = false },
@@ -258,8 +258,8 @@ fun BindElectricScreen(
                 )
             }
             OnboardingIntro(
-                title = "宿舍用电，心中有数",
-                description = "先确认账号，再选择本人宿舍。已有房间可直接使用，无需重复绑定。",
+                title = "宿舍用电",
+                description = "确认账号后选择本人宿舍；已绑定房间无需重复绑定。",
                 icon = Icons.Rounded.MeetingRoom,
             )
             Text("完美校园账号", style = MaterialTheme.typography.titleMedium)
@@ -269,12 +269,12 @@ fun BindElectricScreen(
                 onValueChange = { account = it },
                 label = "学号",
                 leadingIcon = Icons.Rounded.Person,
-                supportingText = if (jw.isBound()) "已从教务带入 ${jw.maskedStudentNo()}" else "未登录教务时需手动输入",
+                supportingText = if (jw.isBound()) "已从教务导入 ${jw.maskedStudentNo()}" else "未登录教务时请手动输入",
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
             )
             if (boundLoading) {
                 Text(
-                    "正在查询已绑定房间…",
+                    "已绑定房间查询中…",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -315,7 +315,7 @@ fun BindElectricScreen(
                         }
                     }
                     Text(
-                        "点「使用」切换到该房间；需要新增房间时在下方选择并绑定",
+                        "选择「使用」切换房间；新增房间请在下方绑定",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                     )
@@ -379,8 +379,8 @@ fun BindElectricScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("电费只查本人房间", style = headlineStyle())
-                Text("使用绑定功能会将目标房间绑定至您的完美校园账户", style = subheadlineStyle())
+                Text("仅查询本人宿舍", style = headlineStyle())
+                Text("将房间绑定至当前完美校园账号", style = subheadlineStyle())
             }
             Text("登录状态仅保存在本机", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))

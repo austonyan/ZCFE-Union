@@ -97,7 +97,7 @@ fun RemindersCenterScreen(
             PrismGroupedList {
                 PrismToggleRow(
                     title = "总开关",
-                    subtitle = if (remindEnabled) "提醒正常发送" else "已暂停全部提醒",
+                    subtitle = if (remindEnabled) "提醒已开启" else "已暂停全部提醒",
                     leading = { IconBadge(Icons.Outlined.Notifications) },
                     checked = remindEnabled,
                     onCheckedChange = { on ->
@@ -115,7 +115,7 @@ fun RemindersCenterScreen(
                 )
                 PrismToggleRow(
                     title = "考试提醒",
-                    subtitle = if (remindEnabled && remindExam) "即将到来的考试进入待办" else "已关闭",
+                    subtitle = if (remindEnabled && remindExam) "近期考试加入待办" else "已关闭",
                     leading = { IconBadge(Icons.Outlined.Grade) },
                     checked = remindExam,
                     enabled = remindEnabled,
@@ -131,7 +131,7 @@ fun RemindersCenterScreen(
                 )
                 PrismToggleRow(
                     title = "评教截止",
-                    subtitle = if (remindEnabled && remindEvaluation) "待评课程进入待办" else "已关闭",
+                    subtitle = if (remindEnabled && remindEvaluation) "待评课程加入待办" else "已关闭",
                     leading = { IconBadge(Icons.Outlined.RateReview) },
                     checked = remindEvaluation,
                     enabled = remindEnabled,
@@ -139,7 +139,7 @@ fun RemindersCenterScreen(
                 )
                 PrismToggleRow(
                     title = "洗浴排队",
-                    subtitle = if (remindEnabled && remindShowerQueue) "洗浴页打开时叫号提醒" else "已关闭",
+                    subtitle = if (remindEnabled && remindShowerQueue) "仅在洗浴页打开时到号提醒" else "已关闭",
                     leading = { IconBadge(Icons.Outlined.Shower) },
                     checked = remindShowerQueue,
                     enabled = remindEnabled,
@@ -147,7 +147,7 @@ fun RemindersCenterScreen(
                 )
                 PrismToggleRow(
                     title = "成绩更新",
-                    subtitle = "尚未接入系统通知",
+                    subtitle = "暂不支持系统通知",
                     leading = { IconBadge(Icons.Outlined.Grade) },
                     checked = false,
                     enabled = false,
@@ -160,9 +160,9 @@ fun RemindersCenterScreen(
                     .fillMaxWidth()
                     .alpha(if (remindEnabled) 1f else 0.5f),
             ) {
-                CardHeader("提醒细节")
+                CardHeader("提醒设置")
                 Spacer(Modifier.height(10.dp))
-                Text("上课提前量", style = subheadlineStyle())
+                Text("课前提醒时间", style = subheadlineStyle())
                 Spacer(Modifier.height(6.dp))
                 PrismSegmented(
                     options = leadOptions.map { "课前 $it 分钟" },
@@ -233,12 +233,12 @@ fun RemindersCenterScreen(
             }
 
             Text(
-                "上课为应用内横幅提醒；考试、评教与低电费会进入待办，低电费另发系统通知；洗浴排队在洗浴页打开时叫号提醒。",
+                "上课提醒为应用内横幅；考试、评教及低电费加入待办，低电费另发系统通知；洗浴仅在页面打开时到号提醒。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                "后台提醒受系统限制，不保证准时；关键提醒以打开 App 查看为准。",
+                "后台提醒受系统限制，可能延迟；重要事项请打开应用确认。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -285,7 +285,7 @@ private fun QuietHoursSheet(
         ) {
             Text("免打扰时段", style = pageTitleStyle())
             Text(
-                "时段内不发送系统通知；应用内待办仍会显示。支持跨零点，例如 23:00–07:00。",
+                "时段内停发系统通知，待办仍显示。支持跨日，如 23:00–07:00。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -316,7 +316,7 @@ private fun QuietHoursSheet(
                 }
             }
             Text(
-                if (start == end) "开始和结束不能相同" else "当前：${formatHour(start)}–${formatHour(end)}",
+                if (start == end) "起止时间不能相同" else "当前：${formatHour(start)}–${formatHour(end)}",
                 style = subheadlineStyle(),
                 color = if (start == end) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.primary,

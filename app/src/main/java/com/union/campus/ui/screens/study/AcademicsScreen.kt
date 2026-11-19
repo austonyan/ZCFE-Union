@@ -153,7 +153,7 @@ fun AcademicsScreen(
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                     modifier = Modifier.weight(1f),
                 )
-                Text("看课表", style = footnoteStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
+                Text("查看课表", style = footnoteStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.width(4.dp))
                 Icon(
                     Icons.AutoMirrored.Rounded.ArrowForward,

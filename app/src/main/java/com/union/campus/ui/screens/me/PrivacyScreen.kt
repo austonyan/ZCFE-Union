@@ -68,7 +68,7 @@ fun PrivacyScreen(
     if (confirmWipe) {
         PrismAlertDialog(
             title = "清除全部数据",
-            body = "将删除全部凭证、缓存与设置（含登录状态），二次确认后执行。此操作不可撤销。",
+            body = "将删除全部凭证、缓存、设置及登录状态，二次确认后执行，不可撤销。",
             confirmText = "清除全部", destructive = true,
             onConfirm = {
                 confirmWipe = false
@@ -187,7 +187,7 @@ fun PrivacyScreen(
                     onClick = {
                         launchUi {
                             entities.removeAll()
-                            messenger.success("已清除全部模块缓存")
+                            messenger.success("已清除全部缓存")
                         }
                     },
                 )
@@ -198,7 +198,7 @@ fun PrivacyScreen(
                 )
             }
 
-            Text("只使用本人账号，不提供查他人入口", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("仅支持本人账号查询", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -206,7 +206,7 @@ fun PrivacyScreen(
     PrismOptionSheet(
         visible = autoLockSheet,
         title = "自动锁定延迟",
-        subtitle = "离开应用超过该时长后，下次进入需要重新验证生物识别。",
+        subtitle = "离开应用超过设定时长，再次进入需生物识别验证。",
         options = listOf(1, 5, 15, 30).map {
             PrismOption(key = it.toString(), label = "离开 $it 分钟")
         },

@@ -357,7 +357,7 @@ fun PrismOptionSheet(
                 }
             }
             Text(
-                "选择后立即保存",
+                "选择即保存",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(start = 4.dp),

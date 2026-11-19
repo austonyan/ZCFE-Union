@@ -268,14 +268,14 @@ fun TodayScreen(
             classReminder?.let { (cell, minutes) ->
                 item {
                     PrismNoticeBanner(
-                        title = if (minutes <= 0) "马上上课" else "还有 $minutes 分钟上课",
+                        title = if (minutes <= 0) "即将上课" else "距上课 $minutes 分钟",
                         message = listOfNotNull(
                             cell.name,
                             cell.location.takeIf { it.isNotBlank() },
                         ).joinToString(" · "),
                         tone = PrismNoticeTone.Info,
                         icon = Icons.Rounded.Notifications,
-                        actionLabel = "看课表",
+                        actionLabel = "查看课表",
                         onAction = onOpenTimetable,
                         onClick = onOpenTimetable,
                     )
@@ -296,7 +296,7 @@ fun TodayScreen(
                     title = "今日课程",
                     action = {
                         Text(
-                            if (todayCells.isEmpty()) "没有课" else "${todayCells.size} 节课",
+                            if (todayCells.isEmpty()) "无课" else "${todayCells.size} 节课",
                             style = footnoteStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -311,8 +311,8 @@ fun TodayScreen(
                                 IconBadge(Icons.Rounded.MenuBook)
                                 Spacer(Modifier.width(12.dp))
                                 Column(Modifier.weight(1f)) {
-                                    Text("今天没有课", style = bodyStyle())
-                                    Text("可以去自习，或看看生活速览", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text("今日无课", style = bodyStyle())
+                                    Text("可自习或查看生活服务", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                                 }
                             }
                         }
@@ -333,7 +333,7 @@ fun TodayScreen(
                     title = "生活",
                     action = {
                         Text(
-                            "点卡片查看详情",
+                            "选择卡片查看详情",
                             style = footnoteStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -411,15 +411,15 @@ fun TodayScreen(
                     contentPadding = PaddingValues(16.dp),
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text("全部生活入口", style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
-                        Text("去生活", style = footnoteStyle(), color = MaterialTheme.colorScheme.primary)
+                        Text("全部生活服务", style = bodyStyle(), color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                        Text("生活服务", style = footnoteStyle(), color = MaterialTheme.colorScheme.primary)
                     }
                 }
             }
 
             item {
                 Text(
-                    "数据来自教务、完美校园与大白U帮，以官方为准",
+                    "数据来自教务、完美校园及大白U帮，以来源系统为准",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -445,7 +445,7 @@ private fun NextClassHero(
         current != null -> "正在上课"
         next != null -> "下一节 · 未开始"
         hasClassesToday -> "今日课程已结束"
-        else -> "今天没有课"
+        else -> "今日无课"
     }
 
     PrismCard(
@@ -457,7 +457,7 @@ private fun NextClassHero(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.Top) {
             Text(
-                text = cell?.name ?: if (hasClassesToday) "今天的课，上完了" else "留一点时间给自己",
+                text = cell?.name ?: if (hasClassesToday) "今日课程已结束" else "自由安排",
                 style = if (cell == null) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
                 fontWeight = FontWeight.Bold,
                 color = onContainer,
@@ -535,7 +535,7 @@ private fun NextClassHero(
         } else {
             Spacer(Modifier.height(12.dp))
             Text(
-                if (hasClassesToday) "歇一会儿，明天再战" else "今天暂时没有课程，可以去自习或看看生活速览",
+                if (hasClassesToday) "适当休息" else "今日暂无课程，可自习或查看生活服务",
                 style = subheadlineStyle(),
                 color = prismTextMuted(onContainer),
             )
@@ -695,7 +695,7 @@ private fun countdownText(
     return when {
         hours > 0 -> "%d 小时 %02d 分".format(hours, minutes)
         minutes > 0 -> "%d 分钟".format(minutes)
-        else -> "不到 1 分钟"
+        else -> "不足 1 分钟"
     }
 }
 
@@ -708,7 +708,7 @@ private fun currentRemainingText(
     val endMs = SemesterCalc.timeToMillisToday(end, now) ?: return null
     val totalSec = ((endMs - now) / 1000).coerceAtLeast(0)
     val minutes = totalSec / 60
-    return if (minutes > 0) "距下课 %d 分钟".format(minutes) else "距下课不到 1 分钟"
+    return if (minutes > 0) "距下课 %d 分钟".format(minutes) else "距下课不足 1 分钟"
 }
 
 private fun classProgress(

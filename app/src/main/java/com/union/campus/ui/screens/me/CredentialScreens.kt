@@ -85,9 +85,9 @@ fun CredentialsCenterScreen(
 
     if (checkResult != null) {
         PrismAlertDialog(
-            title = "体检结果",
+            title = "检查结果",
             body = checkResult ?: "",
-            confirmText = "知道了",
+            confirmText = "确定",
             dismissText = null,
             onConfirm = { checkResult = null },
             onDismiss = { checkResult = null },
@@ -96,7 +96,7 @@ fun CredentialsCenterScreen(
     if (confirmLogout) {
         PrismAlertDialog(
             title = "全部退出",
-            body = "将清除三套账号凭证与本地缓存数据，此操作不可撤销。确认退出？",
+            body = "确认退出全部账号？将清除三套凭证与本地缓存，不可撤销。",
             confirmText = "全部退出",
             destructive = true,
             onConfirm = {
@@ -115,7 +115,7 @@ fun CredentialsCenterScreen(
     logoutTarget?.let { target ->
         PrismAlertDialog(
             title = "退出${target.label}登录？",
-            body = "只会退出当前${target.label}账号，其他账号和本地数据不受影响。下次使用时再登录即可。",
+            body = "仅退出${target.label}账号，不影响其他账号及本地数据。",
             confirmText = "退出登录",
             destructive = true,
             onConfirm = {
@@ -146,7 +146,7 @@ fun CredentialsCenterScreen(
         actions = {
             PrismIconButton(
                 icon = Icons.Outlined.Sync,
-                contentDescription = "体检",
+                contentDescription = "检查",
                 onClick = { healthCheck() },
             )
         },
@@ -160,7 +160,7 @@ fun CredentialsCenterScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                "三个平台，独立管理。已保存的凭证是否有效，可通过体检向服务器验证。",
+                "三平台账号独立管理，可检查已保存凭证是否有效。",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -171,7 +171,7 @@ fun CredentialsCenterScreen(
                 subtitle = if (jwBound) {
                     "学号 ${cred.jwStudentNo.take(4)}****"
                 } else {
-                    "尚未保存教务账号"
+                    "未保存教务账号"
                 },
                 detail = if (jwBound) {
                     "用于课表、成绩、考试与评教"
@@ -181,7 +181,7 @@ fun CredentialsCenterScreen(
                 bound = jwBound,
                 container = MaterialTheme.colorScheme.primaryContainer,
                 onContainer = MaterialTheme.colorScheme.onPrimaryContainer,
-                actionLabel = if (jwBound) "重新登录" else "去登录",
+                actionLabel = if (jwBound) "重新登录" else "登录",
                 onAction = onLoginAcademic,
                 onLogout = { logoutTarget = AccountTarget.Jw },
             )
@@ -192,17 +192,17 @@ fun CredentialsCenterScreen(
                 subtitle = if (showerBound) {
                     "手机 ${ServiceLocator.showerRepository.maskedMobile()}"
                 } else {
-                    "尚未保存大白U帮账号"
+                    "未保存大白U帮账号"
                 },
                 detail = if (showerBound) {
-                    "登录凭证保存在本机加密存储"
+                    "凭证仅在本机加密保存"
                 } else {
                     "使用大白U帮手机号与密码登录"
                 },
                 bound = showerBound,
                 container = MaterialTheme.colorScheme.tertiaryContainer,
                 onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
-                actionLabel = if (showerBound) "重新登录" else "去登录",
+                actionLabel = if (showerBound) "重新登录" else "登录",
                 onAction = onLoginShower,
                 onLogout = { logoutTarget = AccountTarget.Shower },
             )
@@ -213,17 +213,17 @@ fun CredentialsCenterScreen(
                 subtitle = if (electricBound) {
                     "学号 ${cred.electricAccount.take(4)}**** · 学校编码 ${cred.electricCustomerCode}"
                 } else {
-                    "尚未绑定完美校园账号"
+                    "未绑定完美校园账号"
                 },
                 detail = if (electricBound) {
-                    "只查询本人房间的余额与用量"
+                    "仅查询本人宿舍余额与用量"
                 } else {
                     "绑定完美校园账号后查看余额与用量"
                 },
                 bound = electricBound,
                 container = MaterialTheme.colorScheme.secondaryContainer,
                 onContainer = MaterialTheme.colorScheme.onSecondaryContainer,
-                actionLabel = if (electricBound) "重新登录" else "去登录",
+                actionLabel = if (electricBound) "重新登录" else "登录",
                 onAction = onLoginElectric,
                 onLogout = { logoutTarget = AccountTarget.Electric },
             )
@@ -236,10 +236,10 @@ fun CredentialsCenterScreen(
             ) {
                 Icon(Icons.Outlined.Sync, null)
                 Spacer(Modifier.width(8.dp))
-                Text("一键体检")
+                Text("检查全部账号")
             }
             Text(
-                "「重新登录」只刷新当前账号，不会清除其他账号；「全部退出」才会清除三套凭证与本地缓存。",
+                "重新登录仅刷新当前账号；全部退出将清除三套凭证与本地缓存。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

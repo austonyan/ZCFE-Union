@@ -158,10 +158,10 @@ fun LifeScreen(
                         if (b.price.isNotBlank()) append(" · 单价 ${b.price} 元/度")
                     }
                 } else {
-                    "进入电费查看绑定状态；已有房间可下拉刷新重试"
+                    "请在电费页检查绑定状态；已绑定可下拉刷新"
                 },
                 icon = Icons.Rounded.Bolt,
-                status = if (low) "余额偏低 · 建议及时充值" else null,
+                status = if (low) "余额偏低 · 请及时充值" else null,
                 statusIcon = Icons.Rounded.WarningAmber,
                 onClick = onOpenElectric,
                 container = electricContainer,
@@ -177,10 +177,10 @@ fun LifeScreen(
                 detail = if (a != null) {
                     "共 ${a.totalNum} 个位置 · 排队 ${a.queueNum} 人"
                 } else {
-                    "进入洗浴确认账号与区域；已登录可下拉刷新重试"
+                    "请在洗浴页检查账号与区域；已登录可下拉刷新"
                 },
                 icon = Icons.Rounded.WaterDrop,
-                status = if (queueing) "当前有人排队 · 进入查看实时状态" else null,
+                status = if (queueing) "有人排队 · 查看实时状态" else null,
                 statusIcon = Icons.Rounded.Schedule,
                 onClick = onOpenShower,
                 container = if (queueing) MaterialTheme.colorScheme.tertiaryContainer else surfaceColorOf(SurfaceLevel.Card),
@@ -190,7 +190,7 @@ fun LifeScreen(
 
             PrismEntryCard(
                 title = "空闲教室",
-                subtitle = "按日期、节次和教学楼查找空闲位置",
+                subtitle = "按日期、节次和教学楼查询空闲教室",
                 icon = Icons.Rounded.MeetingRoom,
                 onClick = onOpenFreeClassrooms,
                 modifier = Modifier.fillMaxWidth(),

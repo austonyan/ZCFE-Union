@@ -111,7 +111,7 @@ fun LoginShowerScreen(
         PrismAlertDialog(
             title = "提示",
             body = info ?: "",
-            confirmText = "知道了",
+            confirmText = "确定",
             dismissText = null,
             onConfirm = { info = null },
             onDismiss = { info = null },
@@ -125,7 +125,7 @@ fun LoginShowerScreen(
             PrismIconButton(
                 icon = Icons.AutoMirrored.Outlined.HelpOutline,
                 contentDescription = "帮助",
-                onClick = { info = "洗浴账号是大白U帮 App 的手机号与密码；仅用于本人查询与开关设备。" },
+                onClick = { info = "使用大白U帮手机号与密码，仅用于本人查询及设备启停。" },
             )
         },
     ) { padding ->
@@ -146,8 +146,8 @@ fun LoginShowerScreen(
                 )
             }
             OnboardingIntro(
-                title = "洗浴，轻松安排",
-                description = "连接大白U帮账号，查看空闲、排队与账单。",
+                title = "洗浴服务",
+                description = "登录大白U帮，查看空闲设备、排队及账单。",
                 icon = Icons.Rounded.Phone,
             )
             Text(if (useSms) "短信验证" else "账号密码", style = MaterialTheme.typography.titleMedium)
@@ -212,13 +212,13 @@ fun LoginShowerScreen(
             ) {
                 Icon(Icons.Rounded.Login, null)
                 Spacer(Modifier.width(8.dp))
-                Text("登录洗浴", maxLines = 1)
+                Text("登录大白U帮", maxLines = 1)
             }
 
             PrismTextButton(
                 onClick = {
                     if (!useSms) {
-                        if (mobile.isBlank()) { error = "请先输入手机号"; mobileFocus.requestFocus(); return@PrismTextButton }
+                        if (mobile.isBlank()) { error = "请输入手机号"; mobileFocus.requestFocus(); return@PrismTextButton }
                         launchUi {
                             try {
                                 shower.clientSendSms(mobile.trim())
@@ -237,7 +237,7 @@ fun LoginShowerScreen(
             ) {
                 Icon(Icons.Rounded.Sms, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (useSms) "改用密码登录" else "发送验证码并切换登录", maxLines = 1)
+                Text(if (useSms) "密码登录" else "发送验证码并切换短信登录", maxLines = 1)
             }
 
             PrismTextButton(
@@ -253,8 +253,8 @@ fun LoginShowerScreen(
                 modifier = Modifier.fillMaxWidth(),
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
-                Text("为什么需要洗浴账号", style = headlineStyle())
-                Text("查看澡堂空闲、排队、开关设备与账单。", style = subheadlineStyle())
+                Text("洗浴账号用途", style = headlineStyle())
+                Text("查询空闲设备、排队及账单，控制设备启停。", style = subheadlineStyle())
             }
 
             Text(

@@ -15,15 +15,15 @@ class ShowerErrorTest {
     @Test
     fun recognizesServiceClosedMessages() {
         assertEquals(
-            "当前不在洗浴服务时间，请按浴室开放时间使用",
+            "非洗浴服务时间，请按开放时间使用",
             showerServiceClosedMessage("当前非服务时间"),
         )
         assertEquals(
-            "当前不在洗浴服务时间，请按浴室开放时间使用",
+            "非洗浴服务时间，请按开放时间使用",
             showerServiceClosedMessage("浴室未开放，请稍后再试"),
         )
         assertEquals(
-            "当前不在洗浴服务时间，请按浴室开放时间使用",
+            "非洗浴服务时间，请按开放时间使用",
             showerServiceClosedMessage("不在开放时间"),
         )
     }

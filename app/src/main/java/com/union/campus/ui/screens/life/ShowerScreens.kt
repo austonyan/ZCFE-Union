@@ -129,7 +129,7 @@ fun ShowerScreen(
                         orgId = savedOrg
                         error = null
                     } else {
-                        error = "未找到洗浴学校，请到「我的 → 凭证中心」重新登录大白U帮"
+                        error = "未找到所属学校，请在「我的 → 凭证中心」重新登录大白U帮"
                         loading = false
                     }
                     return@launchUi
@@ -153,12 +153,12 @@ fun ShowerScreen(
                         orgId = savedOrg
                         error = null
                     } else {
-                        error = "洗浴信息获取失败：${e.debugDetail ?: e.userMessage}"
+                        error = "洗浴加载失败：${e.debugDetail ?: e.userMessage}"
                         loading = false
                     }
                 }
             } catch (e: Exception) {
-                error = "洗浴信息获取失败：${e.message}"
+                error = "洗浴加载失败：${e.message}"
                 loading = false
             }
         }
@@ -324,7 +324,7 @@ fun ShowerScreen(
                 if (ex is kotlinx.coroutines.CancellationException) throw ex
                 if (ex is AppError.AuthExpired || ex is AppError.Network) throw ex
                 // 设备接口异常（常见 code=139）不要让整页变成“数据源异常”
-                deviceError = "该区域设备暂时无法加载，可切换其他区域或稍后重试"
+                deviceError = "设备加载失败，请切换区域或稍后重试"
                 emptyList()
             }
             queueInfo = runCatching { shower.myQueue() }.getOrNull()
@@ -392,7 +392,7 @@ fun ShowerScreen(
             if (queueNotifiedFor != key) {
                 queueNotifiedFor = key
                 haptics.success()
-                messenger.success("轮到你了，请在洗浴页预约空闲设备")
+                messenger.success("已到号，请在洗浴页预约空闲设备")
             }
         }
     }
@@ -466,11 +466,11 @@ fun ShowerScreen(
 
     fun joinQueue() {
         if (hasActiveSession) {
-            result = "当前正在洗浴，请先结束当前洗浴"
+            result = "请先结束当前洗浴"
             return
         }
         if (queueInfo != null) {
-            result = "已在排队中，请勿重复加入"
+            result = "已在排队，请勿重复加入"
             return
         }
         if (queueBusy || areaId.isBlank()) return
@@ -480,7 +480,7 @@ fun ShowerScreen(
                 shower.queueUp(areaId)
                 queueInfo = runCatching { shower.myQueue() }.getOrNull()
                 queueCounts = runCatching { shower.queueCounts(orgAreaId) }.getOrDefault(queueCounts)
-                messenger.success("已加入排队，轮到后可在本页预约空闲设备")
+                messenger.success("已加入排队，到号后可在本页预约设备")
                 haptics.success()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -518,15 +518,15 @@ fun ShowerScreen(
     /** 预约当前区域的一个空闲设备；成功后进入等待倒计时，不再直接启动。 */
     fun reserve(device: ShowerDevice) {
         if (hasActiveSession) {
-            result = "当前正在洗浴，请先结束当前洗浴"
+            result = "请先结束当前洗浴"
             return
         }
         if (myQueueAtArea != null && !queueTurn) {
-            result = "还在排队中，轮到后请在本页预约空闲设备"
+            result = "排队中，到号后可在本页预约设备"
             return
         }
         if (queueElsewhere) {
-            result = "请先取消其他区域的排队，再预约当前区域"
+            result = "请先取消其他区域排队"
             return
         }
         if (reserveBusy || reservation != null) return
@@ -543,7 +543,7 @@ fun ShowerScreen(
                     haptics.success()
                     messenger.success("预约成功，请在倒计时内启动设备")
                 } else {
-                    messenger.info("预约已提交，请稍候刷新确认预约状态")
+                    messenger.info("预约已提交，请稍后刷新确认")
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -566,7 +566,7 @@ fun ShowerScreen(
                 val latest = shower.refreshReservation()
                 if (latest == null) {
                     reservation = null
-                    result = "预约已超时或已取消，请重新预约"
+                    result = "预约已超时或取消，请重新预约"
                     return@launchUi
                 }
                 reservation = latest
@@ -577,7 +577,7 @@ fun ShowerScreen(
                 if (device != null) {
                     startConfirm = device
                 } else {
-                    result = "预约在 ${latest.areaName.ifBlank { "其他区域" }}，请先切换到该区域再启动"
+                    result = "已预约 ${latest.areaName.ifBlank { "其他区域" }}，请切换至该区域启动"
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
@@ -625,7 +625,7 @@ fun ShowerScreen(
             reservation = runCatching { shower.refreshReservation() }.getOrNull()
             devices = runCatching { shower.devices(areaId, forceRefresh = true) }
                 .getOrDefault(devices)
-            messenger.warning("预约已超时，已尝试取消，请刷新确认设备状态")
+            messenger.warning("预约已超时，已尝试取消，请刷新确认")
         }
     }
 
@@ -635,7 +635,7 @@ fun ShowerScreen(
         val buildingText = selectedBuilding?.let { buildingLabel(it.name) } ?: "当前楼栋"
         PrismAlertDialog(
             title = "预约洗浴位置",
-            body = "预约设备 ${device.name} · $buildingText $areaText\n预约成功后进入等待倒计时，请在倒计时内启动设备；超时会自动取消。",
+            body = "设备 ${device.name} · $buildingText $areaText\n确认预约？请在预约倒计时内启动，超时自动取消。",
             confirmText = "预约",
             onConfirm = {
                 reserveTarget = null
@@ -650,7 +650,7 @@ fun ShowerScreen(
         val buildingText = selectedBuilding?.let { buildingLabel(it.name) } ?: "当前楼栋"
         PrismAlertDialog(
             title = "启动设备",
-            body = "设备 ${device.name} · $buildingText $areaText\n预约已生效，确认启动设备并开始计费？",
+            body = "设备 ${device.name} · $buildingText $areaText\n确认启动并开始计费？",
             confirmText = "启动设备",
             onConfirm = {
                 startConfirm = null
@@ -682,7 +682,7 @@ fun ShowerScreen(
     if (queueConfirm) {
         PrismAlertDialog(
             title = "加入排队",
-            body = "当前区域暂无空闲设备。加入排队后请保持洗浴页打开，轮到后可在本页预约空闲设备并在倒计时内启动。确认加入？",
+            body = "当前无空闲设备，确认排队？请保持本页打开，到号后在本页预约，并在倒计时内启动。",
             confirmText = "加入排队",
             onConfirm = { queueConfirm = false; joinQueue() },
             onDismiss = { queueConfirm = false },
@@ -691,7 +691,7 @@ fun ShowerScreen(
     if (cancelQueueConfirm) {
         PrismAlertDialog(
             title = "取消排队",
-            body = "确认取消当前排队？取消后需要重新排队。",
+            body = "确认取消排队？再次加入需重新排队。",
             confirmText = "取消排队",
             destructive = true,
             onConfirm = { cancelQueueConfirm = false; cancelQueue() },
@@ -699,7 +699,7 @@ fun ShowerScreen(
         )
     }
     if (result != null) {
-        PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "知道了", dismissText = null,
+        PrismAlertDialog(title = "提示", body = result ?: "", confirmText = "确定", dismissText = null,
             onConfirm = { result = null }, onDismiss = { result = null })
     }
 
@@ -733,7 +733,7 @@ fun ShowerScreen(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Rounded.Shower, null, tint = MaterialTheme.colorScheme.onTertiaryContainer)
                         Spacer(Modifier.width(8.dp))
-                        Text("洗浴进行中 · 点此回到计时页", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
+                        Text("洗浴进行中 · 返回计时页", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onTertiaryContainer)
                     }
                 }
             }
@@ -768,7 +768,7 @@ fun ShowerScreen(
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    if (selectedArea != null) "空闲 ${selectedArea.idleNum}/${selectedArea.totalNum} · 点此更换" else "点此选择位置",
+                    if (selectedArea != null) "空闲 ${selectedArea.idleNum}/${selectedArea.totalNum} · 更换位置" else "选择位置",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -776,7 +776,7 @@ fun ShowerScreen(
 
             if (buildings.isEmpty() && areas.isNotEmpty()) {
                 Text(
-                    "楼栋列表暂不可用，已显示该校区的全部洗浴区域",
+                    "楼栋列表不可用，已显示本校区全部洗浴区域",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -810,7 +810,7 @@ fun ShowerScreen(
                     if (myQueueAtArea != null) {
                         val pos = myQueueAtArea.position
                         Text(
-                            if (queueTurn) "轮到你了" else if (pos > 0) "排队中 · 第 $pos 位" else "排队中",
+                            if (queueTurn) "已到号" else if (pos > 0) "排队中 · 第 $pos 位" else "排队中",
                             style = MaterialTheme.typography.headlineMedium,
                             color = queueOnContainer,
                         )
@@ -818,9 +818,9 @@ fun ShowerScreen(
                             ?: 0
                         Text(
                             when {
-                                queueTurn -> "区域已有空闲设备，预约后进入等待，请在倒计时内启动设备"
-                                wait > 0 -> "预计等待约 $wait 分钟，轮到时会通知"
-                                else -> "轮到时会通知"
+                                queueTurn -> "已有空闲设备，请预约并在倒计时内启动"
+                                wait > 0 -> "预计等待 $wait 分钟，到号后通知"
+                                else -> "到号后通知"
                             },
                             style = subheadlineStyle(),
                             color = queueOnContainer,
@@ -833,7 +833,7 @@ fun ShowerScreen(
                                     if (device != null) {
                                         reserveTarget = device
                                     } else {
-                                        result = "空闲设备还在加载，请稍后重试"
+                                        result = "空闲设备加载中，请稍后重试"
                                     }
                                 },
                                 enabled = queueTurnDevice != null && !queueBusy && !reserveBusy && !hasActiveSession,
@@ -841,7 +841,7 @@ fun ShowerScreen(
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(
-                                    if (queueTurnDevice != null) "预约空闲设备" else "正在加载空闲设备",
+                                    if (queueTurnDevice != null) "预约空闲设备" else "空闲设备加载中",
                                     maxLines = 1,
                                     overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                                 )
@@ -851,10 +851,10 @@ fun ShowerScreen(
                             Text("取消排队")
                         }
                     } else {
-                        Text("当前区域没有空闲设备", style = headlineStyle(), color = queueOnContainer)
+                        Text("当前区域无空闲设备", style = headlineStyle(), color = queueOnContainer)
                         Text(
-                            if (queueNumAtArea > 0) "前方排队 $queueNumAtArea 人，等待时间以实际设备释放为准"
-                            else "当前无人排队，加入后轮到你会通知",
+                            if (queueNumAtArea > 0) "前方 $queueNumAtArea 人，等待时间以设备释放为准"
+                            else "当前无人排队，加入后到号通知",
                             style = subheadlineStyle(),
                             color = queueOnContainer,
                         )
@@ -891,17 +891,17 @@ fun ShowerScreen(
                     onRetry = { reload() },
                 )
                 !shower.isBound() -> Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    NullStatus(Icons.Rounded.Shower, "洗浴未绑定", "登录大白U帮后查看设备空闲与排队")
+                    NullStatus(Icons.Rounded.Shower, "洗浴未绑定", "登录大白U帮后查看空闲设备与排队状态")
                     PrismButton(onClick = onOpenBind, modifier = Modifier.fillMaxWidth()) {
                         Icon(Icons.Rounded.Shower, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("去登录洗浴")
+                        Text("登录大白U帮")
                     }
                 }
                 devices.isEmpty() -> NullStatus(
                     Icons.Rounded.Shower,
-                    if (deviceError != null) "设备暂时无法加载" else "暂无设备数据",
-                    deviceError ?: "该区域未返回设备信息；如无空位可在上方加入排队",
+                    if (deviceError != null) "设备加载失败" else "暂无设备数据",
+                    deviceError ?: "暂无设备信息；无空位时可在上方排队",
                 )
                 else -> {
                     val using = devices.count { it.state == 1 }
@@ -916,7 +916,7 @@ fun ShowerScreen(
                     }
                     SectionHeader("设备")
                     Text(
-                        "点击空闲设备先预约，预约成功后在倒计时内启动；超时会自动取消。",
+                        "选择空闲设备预约，并在倒计时内启动；超时自动取消。",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -928,7 +928,7 @@ fun ShowerScreen(
                                 if (firstIdle != null) {
                                     reserveTarget = firstIdle
                                 } else {
-                                    result = "空闲设备还在加载，请稍后重试"
+                                    result = "空闲设备加载中，请稍后重试"
                                 }
                             },
                             enabled = firstIdle != null && !reserveBusy && canReserveNow,
@@ -938,7 +938,7 @@ fun ShowerScreen(
                             Icon(Icons.Rounded.Schedule, null)
                             Spacer(Modifier.width(8.dp))
                             Text(
-                                if (firstIdle != null) "预约空闲位置" else "正在加载空闲设备",
+                                if (firstIdle != null) "预约空闲位置" else "空闲设备加载中",
                                 maxLines = 1,
                                 overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                             )
@@ -961,9 +961,9 @@ fun ShowerScreen(
                                                 d.state == 0 -> if (canReserveNow) {
                                                     reserveTarget = d
                                                 } else if (queueElsewhere) {
-                                                    result = "请先取消其他区域的排队"
+                                                    result = "请先取消其他区域排队"
                                                 } else if (myQueueAtArea != null && !queueTurn) {
-                                                    result = "还在排队中，轮到后再预约设备"
+                                                    result = "排队中，请到号后预约"
                                                 } else {
                                                     result = "请先完成当前预约或洗浴"
                                                 }

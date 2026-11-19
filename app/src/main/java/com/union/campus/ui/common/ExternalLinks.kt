@@ -11,7 +11,7 @@ object ExternalLinks {
     const val RetrievePassword = "https://authserver.zzife.edu.cn/retrieve-password/retrievePassword/index.html"
 
     /** 洗浴与电费充值共用的提示文案。 */
-    const val TopUpTip = "充值将跳转至支付宝官方充值页面完成，本应用不托管支付密码。"
+    const val TopUpTip = "充值将跳转至支付宝官方小程序充值页面完成"
 }
 
 /** 用系统浏览器打开外部链接；没有可用应用时静默失败。 */

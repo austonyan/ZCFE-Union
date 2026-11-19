@@ -119,9 +119,9 @@ fun ProfileScreen(
             }
             checking = false
             if (results.all { it.second }) {
-                messenger.success("三套凭证均正常")
+                messenger.success("全部凭证正常")
             } else {
-                messenger.warning("有账号异常或未绑定，可到凭证中心重新登录")
+                messenger.warning("账号异常或未绑定，请在凭证中心登录")
             }
         }
     }
@@ -159,7 +159,7 @@ fun ProfileScreen(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (cred.jwStudentNo.isNotBlank()) "你好，同学" else "欢迎，同学", style = MaterialTheme.typography.headlineSmall)
+                    Text(if (cred.jwStudentNo.isNotBlank()) "欢迎" else "欢迎", style = MaterialTheme.typography.headlineSmall)
                     Text(
                         listOfNotNull(
                             "郑州财经学院".takeIf { true },
@@ -172,7 +172,7 @@ fun ProfileScreen(
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                "${listOf(cred.jwStudentNo.isNotBlank(), cred.showerToken.isNotBlank(), cred.electricAccount.isNotBlank()).count { it }} / 3 个账号已保存 · 各平台独立管理",
+                "已保存 ${listOf(cred.jwStudentNo.isNotBlank(), cred.showerToken.isNotBlank(), cred.electricAccount.isNotBlank()).count { it }} / 3 个账号 · 独立管理",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -207,9 +207,9 @@ fun ProfileScreen(
         PrismCard(modifier = Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("账号体检", style = headlineStyle())
+                    Text("账号检查", style = headlineStyle())
                     Text(
-                        if (checking) "正在向三个平台验证，请稍候" else "已保存不代表有效，以服务器检查结果为准",
+                        if (checking) "正在验证三个平台账号" else "凭证有效性以服务器检查结果为准",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

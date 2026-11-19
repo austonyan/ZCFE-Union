@@ -293,7 +293,7 @@ fun TimetableScreen(
                 NullStatus(
                     icon = Icons.Rounded.MenuBook,
                     title = "登录后查看课表",
-                    subtitle = "教务账号未绑定：到「我的 → 凭证中心」登录后即可同步",
+                    subtitle = "请在「我的 → 凭证中心」登录教务以同步课表",
                 )
             } else {
                 AnimatedContent(
@@ -340,7 +340,7 @@ internal fun WeekSwitcher(
 ) {
     val density = LocalDensity.current
     val pill = remember(density.density) { PrismShape(64f * density.density) }
-    val labelWidth = rememberTextMeasurer().measure("回到本周", style = buttonLabelStyle(), maxLines = 1, softWrap = false).size.width
+    val labelWidth = rememberTextMeasurer().measure("返回本周", style = buttonLabelStyle(), maxLines = 1, softWrap = false).size.width
     val returnWidth = maxOf(88.dp, with(density) { labelWidth.toDp() } + 26.dp)
     Row(
         Modifier.fillMaxWidth(),
@@ -397,7 +397,7 @@ internal fun WeekSwitcher(
                 )
             } else {
                 PrismTextButton(onClick = onThisWeek) {
-                    Text("回到本周", maxLines = 1, softWrap = false)
+                    Text("返回本周", maxLines = 1, softWrap = false)
                 }
             }
         }

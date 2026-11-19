@@ -255,7 +255,7 @@ fun GradesScreen(
 
                 is UiState.Failed -> PrismErrorState(
                     message = current.message,
-                    hint = if (current.isAuth) "可到「我的 → 凭证中心」重新登录" else null,
+                    hint = if (current.isAuth) "请在「我的 → 凭证中心」重新登录" else null,
                     onRetry = { load() },
                 )
 
@@ -269,8 +269,8 @@ fun GradesScreen(
                 is UiState.Ready -> if (current.data.grades.isEmpty()) {
                     NullStatus(
                         icon = Icons.Rounded.Grade,
-                        title = "本学期还没有成绩",
-                        subtitle = "成绩一般在考后两周内发布",
+                        title = "本学期暂无成绩",
+                        subtitle = "成绩通常在考后两周内发布",
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 } else {
@@ -424,7 +424,7 @@ private fun GradesContent(
     GradeDistribution(data.grades)
     Text(
         text = buildString {
-            append("成绩为客户端估算展示，最终以教务系统为准")
+            append("成绩为客户端估算，以教务系统为准")
             if (summary.excludedCount > 0) {
                 append("\n${summary.excludedCount} 门未计入绩点")
             }
@@ -680,7 +680,7 @@ private fun formatCredits(value: Double): String =
 private suspend fun shareGrades(summary: GpaSummary?, data: GradesData?) {
     if (data == null) return
     val text = buildString {
-        appendLine("我的学期成绩（学号已隐藏）")
+        appendLine("学期成绩（学号已隐藏）")
         appendLine("GPA ${summary?.gpa ?: "—"} · 加权平均 ${summary?.weightedAverage ?: "—"}")
         data.grades.forEach { appendLine("${it.courseName}: ${it.score} 分 / ${it.credits} 学分") }
         appendLine("— 来自 郑财校园")

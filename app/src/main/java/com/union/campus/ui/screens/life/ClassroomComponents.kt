@@ -416,7 +416,7 @@ private fun FailureRow(count: Int, onRetry: () -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            "$count 栋未查询成功",
+            "$count 栋查询失败",
             style = caption2Style(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.weight(1f),
@@ -433,8 +433,8 @@ internal fun FilteredEmptyState(onClear: () -> Unit) {
     ) {
         NullStatus(
             icon = Icons.Rounded.MeetingRoom,
-            title = "没有符合条件的教室",
-            subtitle = "试试第 5–6 节或换栋楼",
+            title = "暂无符合条件的教室",
+            subtitle = "请选择第 5–6 节或更换教学楼",
         )
         PrismButton(filled = false, onClick = onClear) { Text("清空筛选") }
     }
@@ -452,8 +452,8 @@ internal fun NoClassroomsState(
     ) {
         NullStatus(
             icon = Icons.Rounded.CalendarMonth,
-            title = if (allBuildings) "今天这些楼没有排教室" else "今天这栋楼没有排教室",
-            subtitle = "换一天或换栋楼看看",
+            title = if (allBuildings) "今日所选教学楼暂无教室安排" else "今日该教学楼暂无教室安排",
+            subtitle = "请更换日期或教学楼",
         )
         if (failureCount > 0) FailureRow(count = failureCount, onRetry = onRetry)
     }
@@ -474,7 +474,7 @@ internal fun AllFreeCard(
         CardHeader("全天空闲")
         Spacer(Modifier.height(6.dp))
         Text(
-            "${if (allBuildings) "已查询的" else "本楼"} $roomCount 间教室今天全天空闲",
+            "${if (allBuildings) "已查询" else "本楼"} $roomCount 间教室今日全天空闲",
             style = subheadlineStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

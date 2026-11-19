@@ -166,7 +166,7 @@ fun CourseDetailScreen(
                     )
                 }
                 Text(
-                    "来自教务课程表，与课表中的课程颜色对应",
+                    "来自教务课表，课程颜色与课表一致",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -278,8 +278,8 @@ fun GradeDetailScreen(
 
             if (grade.score.toDoubleOrNull()?.let { it < 60 } == true) {
                 PrismNoticeBanner(
-                    title = "该课程低于 60 分",
-                    message = "如需补考/重修，请到教务事务中查看申请入口",
+                    title = "课程成绩低于 60 分",
+                    message = "补考或重修申请请查看教务事务",
                     tone = PrismNoticeTone.Error,
                     icon = Icons.Rounded.Info,
                 )
@@ -327,15 +327,15 @@ fun ExamsScreen(
             }
 
             when {
-                loading -> PrismLoadingBlock(label = "正在加载考试安排")
+                loading -> PrismLoadingBlock(label = "考试安排加载中")
                 error != null -> PrismErrorState(
                     message = error,
-                    hint = if (isAuth) "可到「我的 → 凭证中心」重新登录" else null,
+                    hint = if (isAuth) "请在「我的 → 凭证中心」重新登录" else null,
                     onRetry = onRetry,
                 )
                 exams.isEmpty() -> com.union.campus.ui.prism.NullStatus(
                     icon = Icons.Rounded.Event,
-                    title = "暂未发布考试安排",
+                    title = "考试安排未发布",
                     subtitle = "考试安排通常在考前 2–4 周发布",
                 )
                 else -> {
@@ -431,7 +431,7 @@ fun ExamDetailScreen(
             PrismCard {
                 CardHeader("考试提醒")
                 Spacer(Modifier.height(6.dp))
-                Text("已设置 7 天 / 1 天 / 2 小时提醒（可在提醒中心关闭）", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text("已设考前 7 天、1 天、2 小时提醒，可在提醒中心关闭", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             PrismButton(
                 onClick = { addToCalendar(exam.courseName, "${exam.time} ${exam.location} ${exam.seatNo}") },

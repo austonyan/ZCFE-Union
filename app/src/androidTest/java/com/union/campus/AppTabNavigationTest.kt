@@ -26,11 +26,11 @@ class AppTabNavigationTest {
     fun fiveTabs_remainReachable_andSettingsReturnsToProfile() {
         val tabRole = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
         composeRule.waitUntil(15_000) {
-            composeRule.onAllNodes(hasText("先逛逛")).fetchSemanticsNodes().isNotEmpty() ||
+            composeRule.onAllNodes(hasText("暂不绑定")).fetchSemanticsNodes().isNotEmpty() ||
                 composeRule.onAllNodes(tabRole).fetchSemanticsNodes().isNotEmpty()
         }
-        if (composeRule.onAllNodes(hasText("先逛逛")).fetchSemanticsNodes().isNotEmpty()) {
-            composeRule.onNodeWithText("先逛逛").performScrollTo().performClick()
+        if (composeRule.onAllNodes(hasText("暂不绑定")).fetchSemanticsNodes().isNotEmpty()) {
+            composeRule.onNodeWithText("暂不绑定").performScrollTo().performClick()
         }
         composeRule.waitUntil(15_000) {
             composeRule.onAllNodes(tabRole).fetchSemanticsNodes().size == 5

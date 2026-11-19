@@ -91,7 +91,7 @@ fun ShowerSessionScreen(
     if (endConfirm) {
         PrismAlertDialog(
             title = "结束洗浴",
-            body = "确认关闭设备并结束本次洗浴？离开前请确认已关闭设备。",
+            body = "确认关闭设备并结束洗浴？离开前请确认设备已关闭。",
             confirmText = "结束洗浴",
             destructive = true,
             onConfirm = {
@@ -108,10 +108,10 @@ fun ShowerSessionScreen(
                         throw e
                     } catch (e: AppError) {
                         ending = false
-                        result = "结束请求失败：${e.userMessage}。可能已结束，请刷新订单确认；请勿重复点击。"
+                        result = "结束失败：${e.userMessage}。洗浴可能已结束，请刷新订单确认，勿重复操作。"
                     } catch (e: Exception) {
                         ending = false
-                        result = "结束请求失败：${e.message}。可能已结束，请到账单页确认；请勿重复点击。"
+                        result = "结束失败：${e.message}。洗浴可能已结束，请查看账单确认，勿重复操作。"
                     }
                 }
             },
@@ -119,7 +119,7 @@ fun ShowerSessionScreen(
         )
     }
     if (result != null) {
-        PrismAlertDialog(title = "结束结果", body = result ?: "", confirmText = "知道了", dismissText = null,
+        PrismAlertDialog(title = "结束结果", body = result ?: "", confirmText = "确定", dismissText = null,
             onConfirm = { result = null }, onDismiss = { result = null })
     }
 
@@ -140,7 +140,7 @@ fun ShowerSessionScreen(
                 title = session.deviceName,
                 location = "${session.buildingName} ${session.areaName}",
                 value = "使用中",
-                detail = "离开前请结束洗浴，并确认设备已关闭。",
+                detail = "离开前请结束洗浴并确认设备已关闭。",
                 icon = Icons.Rounded.Schedule,
                 container = MaterialTheme.colorScheme.tertiaryContainer,
                 onContainer = MaterialTheme.colorScheme.onTertiaryContainer,
@@ -165,7 +165,7 @@ fun ShowerSessionScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        "按实际使用时长计费，以结束后的账单为准。",
+                        "按实际时长计费，以最终账单为准。",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -186,7 +186,7 @@ fun ShowerSessionScreen(
                     )
                 }
             }
-            Text("预计费用以结束后的账单为准（按实际使用时长计费）", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("按实际时长计费，预计费用以最终账单为准", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
 
             SectionHeader("计费提示")
             PrismGroupedList {

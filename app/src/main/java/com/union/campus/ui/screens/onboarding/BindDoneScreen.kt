@@ -117,7 +117,7 @@ fun BindDoneScreen(
             }
             Text("设置完成", style = pageTitleStyle())
             Text(
-                if (boundCount == 3) "三个账号已保存，开始你的校园日常。" else "已保存 $boundCount 个账号，其余可稍后在凭证中心添加。",
+                if (boundCount == 3) "已保存三个账号。" else "已保存 $boundCount 个账号，其余可在凭证中心添加。",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -126,7 +126,7 @@ fun BindDoneScreen(
                 PrismGroupedList {
                     StatusRow(
                         title = "教务系统",
-                        subtitle = if (jwBound) "凭证已保存 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可稍后在凭证中心添加",
+                        subtitle = if (jwBound) "凭证已保存 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可在凭证中心添加",
                         ok = jwBound, icon = Icons.Rounded.School,
                     )
                     StatusRow(
@@ -172,7 +172,7 @@ fun BindDoneScreen(
                 Icon(Icons.Rounded.ArrowForward, null)
             }
 
-            Text("稍后可在设置中调整", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("可在设置中调整", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
         }
     }

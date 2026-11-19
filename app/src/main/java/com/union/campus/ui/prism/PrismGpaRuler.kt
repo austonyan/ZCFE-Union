@@ -89,9 +89,9 @@ fun PrismGpaRuler(
     val pointer = if (animations) animated else targetFraction
 
     val description = if (gpa == null) {
-        "绩点暂无数据"
+        "暂无绩点数据"
     } else {
-        "绩点 ${formatGpa(gpa)}，满分 4.0，属于${GpaRulerBands.labelOf(gpa)}"
+        "绩点 ${formatGpa(gpa)} / 4.0，等级：${GpaRulerBands.labelOf(gpa)}"
     }
 
     PrismCard(

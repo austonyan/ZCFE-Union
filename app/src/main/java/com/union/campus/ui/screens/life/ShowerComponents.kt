@@ -123,7 +123,7 @@ internal fun ShowerLocationSheet(
             item {
                 Text("洗浴位置", style = pageTitleStyle())
                 Text(
-                    "选择学校与校区后，再选楼栋和区域",
+                    "依次选择学校、校区、楼栋和区域",
                     style = footnoteStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -379,16 +379,16 @@ internal fun ReservationCard(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     if (remaining > 0) {
-                        "请在倒计时结束前启动设备，超时自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
+                        "请在倒计时内启动设备，超时自动取消 · ${reservation.areaName.ifBlank { "当前区域" }}"
                     } else {
-                        "预约已过期，正在自动取消，请重新预约"
+                        "预约已过期，正在取消，请重新预约"
                     },
                     style = footnoteStyle(),
                     color = prismTextMuted(onContainer),
                 )
                 Spacer(Modifier.height(2.dp))
                 Text(
-                    "预约不会自动开启设备，需在倒计时内手动启动。",
+                    "请在倒计时内手动启动设备。",
                     style = footnoteStyle(),
                     color = prismTextMuted(onContainer),
                 )

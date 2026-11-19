@@ -82,7 +82,7 @@ fun AboutScreen(
                 }
                 Spacer(Modifier.height(10.dp))
                 Text(
-                    "把教务、洗浴、电费、课表与校园生活信息放进一个应用。",
+                    "整合教务、洗浴、电费、课表与校园生活信息。",
                     style = subheadlineStyle(),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -112,14 +112,14 @@ fun AboutScreen(
                 CardHeader("数据来源")
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "课表、成绩、考试与通知来自教务系统；洗浴来自大白U帮；电费来自完美校园。所有账号凭证仅保存在本机加密存储中。",
+                    "课表、成绩、考试及通知来自教务系统；洗浴来自大白U帮；电费来自完美校园。凭证仅在本机加密保存。",
                     style = subheadlineStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             Text(
-                "本应用为个人开发的校园辅助工具，与郑州财经学院官方无关。功能与数据以各上游系统为准。",
+                "个人开发的校园辅助工具，非学校官方应用。功能与数据以来源系统为准。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

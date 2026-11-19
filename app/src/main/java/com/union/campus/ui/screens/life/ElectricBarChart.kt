@@ -61,7 +61,7 @@ fun ElectricBarChart(
 ) {
     if (bars.isEmpty()) {
         Text(
-            "暂无可绘制的用量数据",
+            "暂无用量数据",
             style = footnoteStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = modifier,

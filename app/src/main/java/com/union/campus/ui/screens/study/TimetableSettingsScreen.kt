@@ -101,7 +101,7 @@ fun TimetableSettingsScreen(
         ) {
             SectionHeader("学期")
             Text(
-                "只切换课程表显示的学期，不影响成绩、考试等其他页面。",
+                "仅切换课表学期，不影响成绩及考试等页面。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -111,7 +111,7 @@ fun TimetableSettingsScreen(
                     contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
                 ) {
                     Text(
-                        "登录教务后可选择学期。当前：$activeSemesterLabel",
+                        "登录教务后选择学期。当前：$activeSemesterLabel",
                         style = subheadlineStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -153,7 +153,7 @@ fun TimetableSettingsScreen(
 
             SectionHeader("教学楼作息")
             Text(
-                "学校同时运行两套作息：S1–S6、J7 一套，J1–J6 一套。两套都按正常课表运行，只有第 3、4 节时间不同。",
+                "两套作息：S1–S6、J7 与 J1–J6，仅第 3、4 节时间不同。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -179,10 +179,10 @@ fun TimetableSettingsScreen(
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("其余节次（两套相同）", style = headlineStyle())
+                Text("其余节次（作息相同）", style = headlineStyle())
             }
             Text(
-                "两套作息同时运行；第 3、4 节按课程地点里的楼号自动匹配。",
+                "第 3、4 节按课程楼号自动匹配作息。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -230,7 +230,7 @@ fun TimetableSettingsScreen(
             }
 
             Text(
-                "课表最多展示到第 10 节；第 9、10 节无课时会自动隐藏，避免留白。",
+                "课表最多显示 10 节，第 9、10 节无课时自动隐藏。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

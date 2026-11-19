@@ -42,7 +42,7 @@ fun ExamsRoute(
         launchUi {
             try {
                 if (!jw.isBound()) {
-                    error = "登录教务后可查看考试安排"
+                    error = "登录教务后查看考试安排"
                 } else {
                     val sem = jw.currentSemesterDm()
                     exams = jw.exams(sem, force).exams
@@ -54,7 +54,7 @@ fun ExamsRoute(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "考试信息获取失败：${e.message}"
+                error = "考试信息加载失败：${e.message}"
             }
             loading = false
         }

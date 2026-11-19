@@ -105,7 +105,7 @@ class ShowerClient {
         if (auth == "00001" || code == 90) throw AppError.AuthExpired(AppError.Module.SHOWER, msg)
         if (code == 102) throw AppError.BadCredentials(AppError.Module.SHOWER, msg)
         if (code == 139) throw AppError.Validation("设备区域不存在，请刷新后重试")
-        if (code == 298) throw AppError.Validation("校区不存在，请重新选择校区")
+        if (code == 298) throw AppError.Validation("校区不存在，请重新选择")
 
         // 非服务时间等业务限制：直接把可读文案返回给用户，不要落入“数据源返回异常”
         showerServiceClosedMessage(msg)?.let { throw AppError.Validation(it) }
@@ -128,12 +128,12 @@ class ShowerClient {
             put("mobile", mobile)
             put("pwd", pwd)
         },
-    ) as? JsonObject ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "登录无返回")
+    ) as? JsonObject ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "登录未返回数据")
 
     suspend fun fastLogin(mobile: String, verifyCode: String): JsonObject = call(
         "UserApi/fastLogin",
         data = buildJsonObjectCompat { put("mobile", mobile); put("verifyCode", verifyCode) },
-    ) as? JsonObject ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "验证码登录无返回")
+    ) as? JsonObject ?: throw AppError.BadCredentials(AppError.Module.SHOWER, "验证码登录未返回数据")
 
     suspend fun sendSmsCode(mobile: String, codeType: String = "login") = call(
         "UserApi/sendSMSCode",
@@ -275,7 +275,7 @@ internal fun showerServiceClosedMessage(msg: String): String? {
         "暂停服务", "停止服务", "浴室未开放", "暂未开放", "未开放",
     )
     return if (keywords.any { msg.contains(it) }) {
-        "当前不在洗浴服务时间，请按浴室开放时间使用"
+        "非洗浴服务时间，请按开放时间使用"
     } else {
         null
     }

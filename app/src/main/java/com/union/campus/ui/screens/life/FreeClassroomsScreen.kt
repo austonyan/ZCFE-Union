@@ -116,14 +116,14 @@ fun FreeClassroomsScreen(
                 buildingsError = e.userMessage
                 emptyList()
             } catch (e: Exception) {
-                buildingsError = "教学楼列表获取失败：${e.message}"
+                buildingsError = "教学楼加载失败：${e.message}"
                 emptyList()
             }
         } else {
             emptyList()
         }
         if (jw.isBound() && buildings.isEmpty() && buildingsError == null) {
-            buildingsError = "未获取到教学楼列表，请稍后重试"
+            buildingsError = "暂无教学楼列表，请稍后重试"
         }
         buildingsLoading = false
     }
@@ -379,7 +379,7 @@ fun FreeClassroomsScreen(
 
                         shownRooms.isEmpty() && shownFailures.isNotEmpty() -> PrismErrorState(
                             message = shownFailures.values.first(),
-                            hint = "部分楼栋暂时不可达，可稍后重试",
+                            hint = "部分楼栋查询失败，请稍后重试",
                             onRetry = retryFailed,
                         )
 

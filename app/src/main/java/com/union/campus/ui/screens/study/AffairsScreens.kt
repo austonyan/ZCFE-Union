@@ -83,7 +83,7 @@ fun TextbooksScreen(
     fun load() {
         state = UiState.Loading
         launchUi {
-            state = if (!jw.isBound()) UiState.Empty("登录教务后可查看教材信息")
+            state = if (!jw.isBound()) UiState.Empty("登录教务后查看教材")
             else runListUi { jw.textbooks() }
         }
     }
@@ -92,8 +92,8 @@ fun TextbooksScreen(
     if (confirmTarget != null || confirmAll) {
         PrismAlertDialog(
             title = "确认领取",
-            body = if (confirmAll) "确认领取本学期全部待确认教材？提交后以教务结果为准。"
-            else "确认领取《${confirmTarget?.bookName}》？提交后以教务结果为准。",
+            body = if (confirmAll) "确认领取本学期全部待确认教材？结果以教务为准。"
+            else "确认领取《${confirmTarget?.bookName}》？结果以教务为准。",
             confirmText = "确认",
             onConfirm = {
                 val target = confirmTarget
@@ -115,7 +115,7 @@ fun TextbooksScreen(
     }
     if (result != null) {
         PrismAlertDialog(
-            title = "结果", body = result ?: "", confirmText = "知道了", dismissText = null,
+            title = "结果", body = result ?: "", confirmText = "确定", dismissText = null,
             onConfirm = { result = null }, onDismiss = { result = null },
         )
     }
@@ -200,10 +200,10 @@ fun AcademicAffairsScreen(
         val entries = listOf(
             "学籍档案" to ("姓名、院系、专业与学籍状态" to Icons.Rounded.Badge),
             "学籍异动" to ("申请、取消与进度（以教务为准）" to Icons.Rounded.SwapHoriz),
-            "免修申请" to ("工作流列表与材料" to Icons.Rounded.Assignment),
+            "免修申请" to ("流程与材料" to Icons.Rounded.Assignment),
             "选课" to ("选课轮次、可选课程与提交" to Icons.Rounded.Event),
             "教材确认" to ("待确认教材与教材对账" to Icons.Rounded.MenuBook),
-            "教室预约" to ("查询可预约教室与我的预约" to Icons.Rounded.MeetingRoom),
+            "教室预约" to ("可预约教室与我的预约" to Icons.Rounded.MeetingRoom),
             "问卷与评价" to ("待填问卷、班主任评价" to Icons.Rounded.RateReview),
             "教务通知" to ("新闻、公告、调课/停课" to Icons.Rounded.Campaign),
         )
@@ -216,7 +216,7 @@ fun AcademicAffairsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("井井有条的管理教务入口", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("教务事务入口", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             PrismGroupedList {
                 entries.forEachIndexed { i, (title, pair) ->
                     val (subtitle, icon) = pair
@@ -227,7 +227,7 @@ fun AcademicAffairsScreen(
                     )
                 }
             }
-            Text("更多功能按学校开放情况显示", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text("功能以学校开放情况为准", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -248,13 +248,13 @@ fun StudentRecordScreen(
     fun load() {
         state = UiState.Loading
         launchUi {
-            state = if (!jw.isBound()) UiState.Empty("登录教务后可查看学籍档案")
+            state = if (!jw.isBound()) UiState.Empty("登录教务后查看学籍档案")
             else try {
                 UiState.Ready(jw.studentRecord())
             } catch (e: AppError) {
                 UiState.Failed(e.userMessage)
             } catch (e: Exception) {
-                UiState.Failed("学籍信息获取失败：${e.message}")
+                UiState.Failed("学籍信息加载失败：${e.message}")
             }
         }
     }
@@ -264,7 +264,7 @@ fun StudentRecordScreen(
         PrismAlertDialog(
             title = "家庭信息",
             body = familyInfo ?: "",
-            confirmText = "知道了", dismissText = null,
+            confirmText = "确定", dismissText = null,
             onConfirm = { familyInfo = null }, onDismiss = { familyInfo = null },
         )
     }
@@ -296,7 +296,7 @@ fun StudentRecordScreen(
                     }
                     PrismButton(
                         filled = false,
-                        onClick = { launchUi { familyInfo = "家庭信息来自教务系统 getZgjbxx；当前未开放编辑，仅查看。" } },
+                        onClick = { launchUi { familyInfo = "家庭信息来自教务系统，仅供查看。" } },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Rounded.FamilyRestroom, null)
@@ -326,7 +326,7 @@ fun NoticesScreen(
     fun load() {
         state = UiState.Loading
         launchUi {
-            state = if (!jw.isBound()) UiState.Empty("登录教务后可查看通知")
+            state = if (!jw.isBound()) UiState.Empty("登录教务后查看通知")
             else runListUi { jw.notices() }
         }
     }
@@ -395,7 +395,7 @@ fun NoticeDetailScreen(
             Text("${notice.date} · ${notice.source}", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text(
-                notice.body.ifBlank { "正文请以教务系统发布为准。本页展示通知标题与来源，完整正文可在教务网页查看。" },
+                notice.body.ifBlank { "本页仅显示标题与来源，完整正文请查看教务网页。" },
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -403,7 +403,7 @@ fun NoticeDetailScreen(
                 PrismCard {
                     CardHeader("相关考试")
                     Spacer(Modifier.height(6.dp))
-                    Text("期末考试安排已发布，点击查看考试安排与倒计时", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("期末考试安排已发布，可查看安排与倒计时", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 PrismButton(onClick = onOpenExams, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Rounded.Event, null)
