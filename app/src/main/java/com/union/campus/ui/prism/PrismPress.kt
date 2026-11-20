@@ -21,6 +21,7 @@ import androidx.compose.ui.node.DelegatingNode
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.CompositionLocalConsumerModifierNode
 import androidx.compose.ui.node.currentValueOf
+import androidx.compose.ui.platform.LocalContext
 import kotlinx.coroutines.launch
 
 /**
@@ -58,33 +59,41 @@ private class PressNode(private val interactionSource: InteractionSource) :
     private val hover = Animatable(0f)
     private val focus = Animatable(0f)
 
+    private suspend fun updateState(state: Animatable<Float, *>, target: Float, duration: Int) {
+        if (PrismMotion.animationsEnabled(currentValueOf(LocalContext))) {
+            state.animateTo(target, PrismMotion.tween(duration))
+        } else {
+            state.snapTo(target)
+        }
+    }
+
     override fun onAttach() {
         coroutineScope.launch {
             interactionSource.interactions.collect { interaction ->
                 when (interaction) {
                     is PressInteraction.Press -> {
                         animatable.stop()
-                        launch { animatable.animateTo(1f, PrismMotion.tween(PrismMotion.Fast)) }
+                        launch { updateState(animatable, 1f, PrismMotion.Fast) }
                     }
                     is PressInteraction.Release, is PressInteraction.Cancel -> {
                         animatable.stop()
-                        launch { animatable.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
+                        launch { updateState(animatable, 0f, PrismMotion.Standard) }
                     }
                     is HoverInteraction.Enter -> {
                         hover.stop()
-                        launch { hover.animateTo(1f, PrismMotion.tween(PrismMotion.Fast)) }
+                        launch { updateState(hover, 1f, PrismMotion.Fast) }
                     }
                     is HoverInteraction.Exit -> {
                         hover.stop()
-                        launch { hover.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
+                        launch { updateState(hover, 0f, PrismMotion.Standard) }
                     }
                     is FocusInteraction.Focus -> {
                         focus.stop()
-                        launch { focus.animateTo(1f, PrismMotion.tween(PrismMotion.Fast)) }
+                        launch { updateState(focus, 1f, PrismMotion.Fast) }
                     }
                     is FocusInteraction.Unfocus -> {
                         focus.stop()
-                        launch { focus.animateTo(0f, PrismMotion.tween(PrismMotion.Standard)) }
+                        launch { updateState(focus, 0f, PrismMotion.Standard) }
                     }
                 }
             }
@@ -147,11 +156,12 @@ fun Modifier.prismPressScale(
     target: Float = 0.985f,
     enabled: Boolean = true,
 ): Modifier {
-    if (!enabled) return this
+    val motion = rememberPrismMotion()
+    if (!enabled || !motion.enabled) return this
     val pressed by interactionSource.collectIsPressedAsState()
     val scale by animateFloatAsState(
         targetValue = if (pressed) target else 1f,
-        animationSpec = if (pressed) PrismSpec.pressDown else PrismSpec.pressUp,
+        animationSpec = motion.spec(if (pressed) PrismSpec.pressDown else PrismSpec.pressUp),
         label = "prism-press-scale",
     )
     return graphicsLayer {

@@ -25,6 +25,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -41,6 +42,8 @@ import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.footnoteStyle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 // ---------------- 隐私与安全 ----------------
 
@@ -55,6 +58,7 @@ fun PrivacyScreen(
     val settings = ServiceLocator.settings
     val entities = ServiceLocator.entities
     val messenger = LocalPrismMessenger.current
+    val scope = rememberCoroutineScope()
 
     val biometric by settings.biometricUnlock.collectAsState(initial = false)
     val autoLock by settings.autoLock.collectAsState(initial = true)
@@ -102,26 +106,27 @@ fun PrivacyScreen(
             PrismGroupedList {
                 PrismToggleRow(
                     title = "生物识别解锁",
-                    subtitle = if (biometric) "Face ID / 指纹已开启" else "Face ID / 指纹",
+                    subtitle = "指纹或面容验证",
                     leading = { IconBadge(Icons.Outlined.Fingerprint) },
                     checked = biometric,
                     enabled = !biometricBusy,
                     onCheckedChange = { on ->
-                        if (!on) {
-                            launchUi { settings.setBiometricUnlock(false) }
-                            messenger.info("已关闭生物识别解锁")
-                            return@PrismToggleRow
-                        }
+                        if (biometricBusy) return@PrismToggleRow
                         biometricBusy = true
-                        launchUi {
-                            val ok = requestBiometric()
-                            if (ok) {
-                                settings.setBiometricUnlock(true)
-                                messenger.success("已开启生物识别解锁")
-                            } else {
-                                messenger.warning("验证未通过，未开启解锁")
+                        scope.launch {
+                            try {
+                                if (!on || requestBiometric()) {
+                                    settings.setBiometricUnlock(on)
+                                } else {
+                                    messenger.warning("验证未通过，未开启解锁")
+                                }
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                messenger.error("解锁设置未保存，请重试")
+                            } finally {
+                                biometricBusy = false
                             }
-                            biometricBusy = false
                         }
                     },
                 )
@@ -137,13 +142,11 @@ fun PrivacyScreen(
                     enabled = biometric,
                     onCheckedChange = { on ->
                         launchUi { settings.setAutoLock(on) }
-                        if (on) messenger.success("自动锁定已开启") else messenger.info("自动锁定已关闭")
                     },
                 )
                 if (showLockDelay) {
                     PrismRow(
                         title = "锁定延迟",
-                        subtitle = autoLockMinutes.let { "当前 $it 分钟 · 修改后立即生效" },
                         leading = { IconBadge(Icons.Outlined.LockClock) },
                         trailing = {
                             Text(
@@ -162,7 +165,6 @@ fun PrivacyScreen(
                     checked = screenshotBlock,
                     onCheckedChange = { on ->
                         launchUi { settings.setScreenshotBlock(on) }
-                        if (on) messenger.success("已开启防截屏") else messenger.info("已关闭防截屏")
                     },
                 )
                 PrismRow(
@@ -214,7 +216,6 @@ fun PrivacyScreen(
         onSelect = { key ->
             val minutes = key.toIntOrNull() ?: return@PrismOptionSheet
             launchUi { settings.setAutoLockMinutes(minutes) }
-            messenger.success("自动锁定延迟已设为 $minutes 分钟")
         },
         onDismiss = { autoLockSheet = false },
     )

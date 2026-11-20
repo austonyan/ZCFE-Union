@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.rounded.AccountBalance
 import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.Badge
@@ -58,7 +57,6 @@ import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
-import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.CardHeader
@@ -77,7 +75,7 @@ fun TextbooksScreen(
     val jw = ServiceLocator.jwRepository
     var state by remember { mutableStateOf<UiState<List<TextbookItem>>>(UiState.Loading) }
     var confirmTarget by remember { mutableStateOf<TextbookItem?>(null) }
-    var confirmAll by remember { mutableStateOf(false) }
+    var submitting by remember { mutableStateOf(false) }
     var result by remember { mutableStateOf<String?>(null) }
 
     fun load() {
@@ -89,28 +87,31 @@ fun TextbooksScreen(
     }
     LaunchedEffect(Unit) { load() }
 
-    if (confirmTarget != null || confirmAll) {
+    val target = confirmTarget
+    if (target != null) {
         PrismAlertDialog(
             title = "确认领取",
-            body = if (confirmAll) "确认领取本学期全部待确认教材？结果以教务为准。"
-            else "确认领取《${confirmTarget?.bookName}》？结果以教务为准。",
+            body = "确认领取《${target.bookName}》？结果以教务为准。",
             confirmText = "确认",
             onConfirm = {
-                val target = confirmTarget
+                if (submitting) return@PrismAlertDialog
+                submitting = true
+                confirmTarget = null
                 launchUi {
                     try {
-                        if (target != null) {
-                            jw.confirmTextbook("", target.id)
-                        }
-                        result = "已提交，结果以教务为准"
+                        jw.confirmTextbook("", target.id)
+                        result = "确认请求已发送，请核对教务记录"
                         load()
                     } catch (e: AppError) {
                         result = e.userMessage
+                    } catch (e: Exception) {
+                        result = "确认失败，请重试"
+                    } finally {
+                        submitting = false
                     }
-                    confirmTarget = null; confirmAll = false
                 }
             },
-            onDismiss = { confirmTarget = null; confirmAll = false },
+            onDismiss = { confirmTarget = null },
         )
     }
     if (result != null) {
@@ -143,7 +144,7 @@ fun TextbooksScreen(
                                     if (t.confirmed) Icons.Rounded.CheckCircle else Icons.Rounded.MenuBook,
                                 )
                             },
-                            onClick = { if (!t.confirmed) confirmTarget = t },
+                            onClick = if (t.confirmed || submitting) null else ({ confirmTarget = t }),
                         )
                     }
                 }
@@ -156,21 +157,10 @@ fun TextbooksScreen(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                val pendingCount = items.count { !it.confirmed }
-                if (pendingCount > 0) {
-                    PrismButton(
-                        onClick = { confirmAll = true },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Icon(Icons.Rounded.Check, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("确认领取（$pendingCount 门待确认）", maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    }
-                }
+                if (submitting) PrismLoadingBlock(label = "正在确认教材")
             } else {
                 StateBlock(state, Icons.Rounded.MenuBook) { load() }
             }
-            Text("金额为空时显示待结算", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -188,20 +178,13 @@ fun AcademicAffairsScreen(
     UnionScreenScaffold(
         title = "教务事务",
         onBack = onBack,
-        actions = {
-            PrismIconButton(
-                icon = Icons.Outlined.Search,
-                contentDescription = "搜索",
-                onClick = { },
-            )
-        },
         modifier = modifier,
     ) { padding ->
         val entries = listOf(
             "学籍档案" to ("姓名、院系、专业与学籍状态" to Icons.Rounded.Badge),
             "学籍异动" to ("申请、取消与进度（以教务为准）" to Icons.Rounded.SwapHoriz),
             "免修申请" to ("流程与材料" to Icons.Rounded.Assignment),
-            "选课" to ("选课轮次、可选课程与提交" to Icons.Rounded.Event),
+            "选课" to ("可选课程预览" to Icons.Rounded.Event),
             "教材确认" to ("待确认教材与教材对账" to Icons.Rounded.MenuBook),
             "教室预约" to ("可预约教室与我的预约" to Icons.Rounded.MeetingRoom),
             "问卷与评价" to ("待填问卷、班主任评价" to Icons.Rounded.RateReview),
@@ -216,7 +199,6 @@ fun AcademicAffairsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("教务事务入口", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             PrismGroupedList {
                 entries.forEachIndexed { i, (title, pair) ->
                     val (subtitle, icon) = pair
@@ -400,11 +382,6 @@ fun NoticeDetailScreen(
                 color = MaterialTheme.colorScheme.onSurface,
             )
             if (notice.title.contains("考试")) {
-                PrismCard {
-                    CardHeader("相关考试")
-                    Spacer(Modifier.height(6.dp))
-                    Text("期末考试安排已发布，可查看安排与倒计时", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
                 PrismButton(onClick = onOpenExams, modifier = Modifier.fillMaxWidth()) {
                     Icon(Icons.Rounded.Event, null)
                     Spacer(Modifier.width(8.dp))

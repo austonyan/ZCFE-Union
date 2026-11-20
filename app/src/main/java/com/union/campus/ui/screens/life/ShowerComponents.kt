@@ -114,7 +114,7 @@ internal fun ShowerLocationSheet(
     onSelectArea: (String) -> Unit,
 ) {
     val haptics = rememberPrismHaptics()
-    PrismSnapSheet(visible = visible, onDismiss = onDismiss) {
+    PrismSnapSheet(visible = visible, onDismiss = onDismiss, paneTitle = "洗浴位置") {
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 6.dp, bottom = 24.dp),

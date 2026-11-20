@@ -187,7 +187,7 @@ fun AcademicsScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     AcademicAction(
                         title = "选课",
-                        subtitle = "轮次与提交",
+                        subtitle = "可选课程预览",
                         icon = Icons.Rounded.Assignment,
                         shape = academicActionShape(bottomStart = PrismCorner.Xl),
                         modifier = Modifier.weight(1f),

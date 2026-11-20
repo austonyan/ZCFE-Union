@@ -27,12 +27,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
@@ -40,7 +44,6 @@ import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BindWizardNode
 import com.union.campus.domain.ElectricRoom
 import com.union.campus.ui.common.UnionScreenScaffold
-import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
@@ -52,6 +55,8 @@ import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 import com.union.campus.ui.prism.footnoteStyle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 /** 绑定电费：学号带入 → 园区 → 楼栋 → 楼层 → 房间（写操作，上游不校验身份，只查本人房间）。 */
 @Composable
@@ -64,12 +69,14 @@ fun BindElectricScreen(
 ) {
     val electric = ServiceLocator.electricRepository
     val jw = ServiceLocator.jwRepository
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
 
     var account by rememberSaveable { mutableStateOf("") }
-    var loading by rememberSaveable { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var helpVisible by rememberSaveable { mutableStateOf(false) }
-    var confirmBind by rememberSaveable { mutableStateOf(false) }
+    var confirmBind by remember { mutableStateOf(false) }
 
     var zones by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
     var builds by remember { mutableStateOf<List<BindWizardNode>>(emptyList()) }
@@ -83,6 +90,9 @@ fun BindElectricScreen(
     var build by remember { mutableStateOf<BindWizardNode?>(null) }
     var floor by remember { mutableStateOf<BindWizardNode?>(null) }
     var room by remember { mutableStateOf<BindWizardNode?>(null) }
+    var zoneRequest by remember { mutableIntStateOf(0) }
+    var buildRequest by remember { mutableIntStateOf(0) }
+    var floorRequest by remember { mutableIntStateOf(0) }
 
     LaunchedEffect(Unit) {
         if (account.isBlank()) {
@@ -94,9 +104,9 @@ fun BindElectricScreen(
     // 学号有效后：先查该账号已绑定房间，再加载园区列表（打字过程中 LaunchedEffect 会被取消，天然防抖）
     LaunchedEffect(account) {
         val a = account.trim()
+        boundRooms = emptyList()
+        boundLoading = a.length >= 6
         if (a.length < 6) {
-            boundRooms = emptyList()
-            boundLoading = false
             return@LaunchedEffect
         }
         // 打字防抖：每次输入都会取消上一个协程，避免逐位请求网关
@@ -131,46 +141,60 @@ fun BindElectricScreen(
         }
     }
 
-    LaunchedEffect(zone) {
+    LaunchedEffect(zone, zoneRequest) {
         val z = zone ?: return@LaunchedEffect
-        runCatching {
+        try {
             builds = electric.builds(z.id)
-            floor = null; room = null; floors = emptyList(); rooms = emptyList()
-        }.onFailure { error = "楼栋加载失败，请重试" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = "楼栋加载失败，请重新选择园区"
+        }
     }
-    LaunchedEffect(build) {
+    LaunchedEffect(build, buildRequest) {
         val b = build ?: return@LaunchedEffect
-        runCatching {
+        try {
             floors = electric.floors(b.id)
-            floor = null; room = null; rooms = emptyList()
-        }.onFailure { error = "楼层加载失败，请重试" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = "楼层加载失败，请重新选择楼栋"
+        }
     }
-    LaunchedEffect(floor) {
+    LaunchedEffect(floor, floorRequest) {
         val f = floor ?: return@LaunchedEffect
-        runCatching {
+        try {
             rooms = electric.roomNums(f.id)
-            room = null
-        }.onFailure { error = "房间加载失败，请重试" }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            error = "房间加载失败，请重新选择楼层"
+        }
     }
 
     fun chooseBoundRoom(room: ElectricRoom) {
+        if (loading || boundLoading) return
         if (account.isBlank()) { error = "请输入学号"; return }
         loading = true
         error = null
-        launchUi {
+        focusManager.clearFocus()
+        scope.launch {
             try {
                 electric.bindAccount(account.trim())
                 ServiceLocator.settings.setLastElectricRoom(room.roomVerify)
-                loading = false
                 onNext()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                loading = false
                 error = "选择房间失败：${e.message}"
+            } finally {
+                loading = false
             }
         }
     }
 
     fun doBind() {
+        if (loading || boundLoading) return
         val z = zone ?: run { error = "请选择园区"; return }
         val b = build ?: run { error = "请选择楼栋"; return }
         val f = floor ?: run { error = "请选择楼层"; return }
@@ -186,7 +210,8 @@ fun BindElectricScreen(
         }
         loading = true
         error = null
-        launchUi {
+        focusManager.clearFocus()
+        scope.launch {
             try {
                 electric.bindAccount(account.trim())
                 val bound = electric.bindRoom(z.id, b.id, f.id, r.id)
@@ -197,14 +222,15 @@ fun BindElectricScreen(
                         .orEmpty()
                 }
                 ServiceLocator.settings.setLastElectricRoom(verify)
-                loading = false
                 onNext()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: AppError) {
-                loading = false
                 error = e.userMessage
             } catch (e: Exception) {
-                loading = false
                 error = "绑定失败：${e.message}"
+            } finally {
+                loading = false
             }
         }
     }
@@ -266,11 +292,17 @@ fun BindElectricScreen(
 
             PrismTextField(
                 value = account,
-                onValueChange = { account = it },
+                onValueChange = {
+                    account = it
+                    boundRooms = emptyList()
+                    boundLoading = it.trim().length >= 6
+                    error = null
+                },
                 label = "学号",
+                enabled = !loading,
                 leadingIcon = Icons.Rounded.Person,
-                supportingText = if (jw.isBound()) "已从教务导入 ${jw.maskedStudentNo()}" else "未登录教务时请手动输入",
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                supportingText = if (jw.isBound() && account.trim() == jw.studentNo()) "已从教务导入 ${jw.maskedStudentNo()}" else null,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
             )
             if (boundLoading) {
                 Text(
@@ -314,40 +346,53 @@ fun BindElectricScreen(
                             }
                         }
                     }
-                    Text(
-                        "选择「使用」切换房间；新增房间请在下方绑定",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSecondaryContainer,
-                    )
                 }
             }
             Text("选择本人房间", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(top = 8.dp))
             DropdownField(
                 label = "园区", icon = Icons.Rounded.LocationOn,
                 options = zones.map { it.name }, selected = zone?.name,
-                enabled = zones.isNotEmpty(),
-                onSelected = { idx -> zone = zones[idx] },
+                enabled = !loading && zones.isNotEmpty(),
+                onSelected = { idx ->
+                    zone = zones[idx]
+                    zoneRequest++
+                    build = null; floor = null; room = null
+                    builds = emptyList(); floors = emptyList(); rooms = emptyList()
+                    error = null
+                    focusManager.clearFocus()
+                },
                 loadHint = if (zones.isEmpty()) "输入学号后自动加载" else null,
                 modifier = Modifier.fillMaxWidth(),
             )
             DropdownField(
                 label = "楼栋", icon = Icons.Rounded.Apartment,
                 options = builds.map { it.name }, selected = build?.name,
-                enabled = builds.isNotEmpty(),
-                onSelected = { idx -> build = builds[idx] },
+                enabled = !loading && builds.isNotEmpty(),
+                onSelected = { idx ->
+                    build = builds[idx]
+                    buildRequest++
+                    floor = null; room = null
+                    floors = emptyList(); rooms = emptyList()
+                    error = null
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             DropdownField(
                 label = "楼层", icon = Icons.Rounded.Apartment,
                 options = floors.map { it.name }, selected = floor?.name,
-                enabled = floors.isNotEmpty(),
-                onSelected = { idx -> floor = floors[idx] },
+                enabled = !loading && floors.isNotEmpty(),
+                onSelected = { idx ->
+                    floor = floors[idx]
+                    floorRequest++
+                    room = null; rooms = emptyList()
+                    error = null
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             DropdownField(
                 label = "房间", icon = Icons.Rounded.MeetingRoom,
                 options = rooms.map { it.name }, selected = room?.name,
-                enabled = rooms.isNotEmpty(),
+                enabled = !loading && rooms.isNotEmpty(),
                 onSelected = { idx -> room = rooms[idx] },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -363,13 +408,14 @@ fun BindElectricScreen(
                     }
                 },
                 loading = loading,
+                enabled = !boundLoading,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Link, null)
                 Spacer(Modifier.width(8.dp))
                 Text("绑定房间", maxLines = 1)
             }
-            PrismTextButton(onClick = onNext, modifier = Modifier.fillMaxWidth()) {
+            PrismTextButton(onClick = onNext, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Rounded.Schedule, null)
                 Spacer(Modifier.width(8.dp))
                 Text(skipLabel, maxLines = 1)
@@ -379,8 +425,8 @@ fun BindElectricScreen(
                 containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("仅查询本人宿舍", style = headlineStyle())
-                Text("将房间绑定至当前完美校园账号", style = subheadlineStyle())
+                Text("仅绑定本人宿舍", style = headlineStyle())
+                Text("绑定会写入完美校园账号，上游不校验身份，请核对学号与房间。", style = subheadlineStyle())
             }
             Text("登录状态仅保存在本机", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))

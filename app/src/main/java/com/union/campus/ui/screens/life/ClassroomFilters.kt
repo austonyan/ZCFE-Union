@@ -239,7 +239,7 @@ internal fun SectionFilterSheet(
     onApply: (List<Int>) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    PrismSnapSheet(visible = visible, onDismiss = onDismiss) {
+    PrismSnapSheet(visible = visible, onDismiss = onDismiss, paneTitle = "选择节次") {
         var draft by remember { mutableStateOf(selected.toSet()) }
         Column(
             Modifier
@@ -312,7 +312,7 @@ internal fun BuildingFilterSheet(
     onSelect: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    PrismSnapSheet(visible = visible, onDismiss = onDismiss) {
+    PrismSnapSheet(visible = visible, onDismiss = onDismiss, paneTitle = "选择教学楼") {
         val current = buildings.firstOrNull { it.dm == selectedId }
         val rest = buildings.filter { it.dm != selectedId }
         Column(

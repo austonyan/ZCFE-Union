@@ -29,6 +29,7 @@ fun PrismTextField(
     maxLines: Int = if (singleLine) 1 else 6,
     visualTransformation: VisualTransformation = VisualTransformation.None,
     enabled: Boolean = true,
+    readOnly: Boolean = false,
 ) {
     val shape = prismShape(PrismShapeRole.Field)
     val container = surfaceColorOf(SurfaceLevel.Card)
@@ -58,6 +59,7 @@ fun PrismTextField(
         maxLines = maxLines,
         visualTransformation = visualTransformation,
         enabled = enabled,
+        readOnly = readOnly,
         shape = shape,
         colors = OutlinedTextFieldDefaults.colors(
             focusedBorderColor = MaterialTheme.colorScheme.primary,

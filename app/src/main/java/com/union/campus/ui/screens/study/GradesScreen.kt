@@ -21,6 +21,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Grade
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -41,6 +42,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -65,12 +68,12 @@ import com.union.campus.ui.prism.PrismGpaRuler
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismShape
 import com.union.campus.ui.prism.PrismSkeleton
 import com.union.campus.ui.prism.PrismSkeletonList
 import com.union.campus.ui.prism.PrismSnapSheet
 import com.union.campus.ui.prism.PrismSpace
-import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.SectionHeader
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.caption2Style
@@ -225,6 +228,7 @@ fun GradesScreen(
             PrismIconButton(
                 icon = Icons.Outlined.Share,
                 contentDescription = "分享",
+                enabled = !data?.grades.isNullOrEmpty(),
                 onClick = { /* 分享：生成脱敏成绩卡片文本 */ launchUi { shareGrades(summary, data) } },
             )
         },
@@ -270,7 +274,6 @@ fun GradesScreen(
                     NullStatus(
                         icon = Icons.Rounded.Grade,
                         title = "本学期暂无成绩",
-                        subtitle = "成绩通常在考后两周内发布",
                         modifier = Modifier.padding(horizontal = 16.dp),
                     )
                 } else {
@@ -285,7 +288,7 @@ fun GradesScreen(
         }
     }
 
-    PrismSnapSheet(visible = sheetOpen, onDismiss = { sheetOpen = false }) {
+    PrismSnapSheet(visible = sheetOpen, onDismiss = { sheetOpen = false }, paneTitle = "选择学期") {
         Column(
             Modifier
                 .fillMaxSize()
@@ -298,6 +301,8 @@ fun GradesScreen(
                 semesters.forEach { sem ->
                     PrismRow(
                         title = sem.name,
+                        modifier = Modifier.semantics { selected = sem.dm == semesterDm },
+                        subtitle = "当前学期".takeIf { sem.isCurrent },
                         onClick = {
                             sheetOpen = false
                             if (sem.dm != semesterDm) {
@@ -306,16 +311,14 @@ fun GradesScreen(
                                 load()
                             }
                         },
-                        trailing = if (sem.isCurrent) {
-                            {
-                                Text(
-                                    "现在",
-                                    style = caption2Style(),
-                                    color = MaterialTheme.colorScheme.primary,
+                        trailing = {
+                            if (sem.dm == semesterDm) {
+                                Icon(
+                                    Icons.Rounded.Check,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
                                 )
                             }
-                        } else {
-                            null
                         },
                     )
                 }
@@ -324,7 +327,7 @@ fun GradesScreen(
     }
 }
 
-/** 学期行：左侧选学期，右侧切换有效/原始成绩。 */
+/** 学期选择与成绩口径分开，始终展示两个互斥选项。 */
 @Composable
 private fun SemesterRow(
     semesterName: String,
@@ -332,22 +335,22 @@ private fun SemesterRow(
     onPickSemester: () -> Unit,
     onToggleMode: () -> Unit,
 ) {
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp)
-            .defaultMinSize(minHeight = 48.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .padding(horizontal = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Row(
             Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .clip(prismShape(PrismCorner.Sm))
                 .clickable(
                     role = Role.Button,
                     onClickLabel = "选择学期",
                     onClick = onPickSemester,
                 )
+                .defaultMinSize(minHeight = 48.dp)
                 .padding(vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -366,9 +369,11 @@ private fun SemesterRow(
                 modifier = Modifier.size(20.dp),
             )
         }
-        PrismTextButton(onClick = onToggleMode) {
-            Text(if (effective) "有效成绩" else "原始成绩")
-        }
+        PrismSegmented(
+            options = listOf("有效成绩", "原始成绩"),
+            selectedIndex = if (effective) 0 else 1,
+            onSelect = { index -> if ((index == 0) != effective) onToggleMode() },
+        )
     }
 }
 

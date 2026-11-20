@@ -1,5 +1,6 @@
 package com.union.campus.ui.screens.onboarding
 
+import android.os.SystemClock
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -25,14 +26,19 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -41,18 +47,17 @@ import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
-import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
-import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
-import com.union.campus.ui.prism.subheadlineStyle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 /** 登录洗浴：大白U帮手机号 + 密码，支持验证码登录。 */
 @Composable
@@ -65,19 +70,69 @@ fun LoginShowerScreen(
 ) {
     val shower = ServiceLocator.showerRepository
     val haptics = rememberPrismHaptics()
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
     val mobileFocus = remember { FocusRequester() }
     val secretFocus = remember { FocusRequester() }
     var mobile by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var smsCode by rememberSaveable { mutableStateOf("") }
     var useSms by rememberSaveable { mutableStateOf(false) }
-    var loading by rememberSaveable { mutableStateOf(false) }
-    var smsSent by rememberSaveable { mutableStateOf(false) }
+    var loading by remember { mutableStateOf(false) }
+    var sendingSms by remember { mutableStateOf(false) }
+    var smsSentMobile by rememberSaveable { mutableStateOf("") }
+    var smsSentAt by rememberSaveable { mutableLongStateOf(0L) }
+    var resendSeconds by remember { mutableIntStateOf(0) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
     var info by rememberSaveable { mutableStateOf<String?>(null) }
-    var passwordVisible by rememberSaveable { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+    val busy = loading || sendingSms
+    val smsSentToCurrent = smsSentMobile.isNotBlank() && smsSentMobile == mobile.trim()
+
+    LaunchedEffect(smsSentAt) {
+        while (smsSentAt > 0L) {
+            val elapsed = SystemClock.elapsedRealtime() - smsSentAt
+            resendSeconds = if (elapsed in 0L until 60_000L) {
+                ((60_000L - elapsed + 999L) / 1_000L).toInt()
+            } else 0
+            if (resendSeconds == 0) break
+            delay(1_000L)
+        }
+    }
+
+    fun sendSms() {
+        if (loading || sendingSms) return
+        val phone = mobile.trim()
+        if (phone.isBlank()) { error = "请输入手机号"; mobileFocus.requestFocus(); return }
+        if (phone == smsSentMobile && SystemClock.elapsedRealtime() - smsSentAt in 0L until 60_000L) {
+            useSms = true
+            error = null
+            return
+        }
+        sendingSms = true
+        error = null
+        focusManager.clearFocus()
+        scope.launch {
+            try {
+                shower.clientSendSms(phone)
+                smsSentMobile = phone
+                smsSentAt = SystemClock.elapsedRealtime()
+                smsCode = ""
+                useSms = true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: AppError) {
+                error = e.userMessage
+            } catch (e: Exception) {
+                error = "验证码发送失败：${e.message ?: "请稍后重试"}"
+            } finally {
+                sendingSms = false
+            }
+        }
+    }
 
     fun doLogin() {
+        if (loading || sendingSms) return
         when {
             mobile.isBlank() -> { error = "请输入手机号"; mobileFocus.requestFocus(); return }
             !useSms && password.isBlank() -> { error = "请输入密码"; secretFocus.requestFocus(); return }
@@ -85,24 +140,26 @@ fun LoginShowerScreen(
         }
         loading = true
         error = null
-        launchUi {
+        focusManager.clearFocus()
+        scope.launch {
             try {
                 if (useSms) {
                     shower.clientFastLogin(mobile.trim(), smsCode.trim())
                 } else {
                     shower.login(mobile.trim(), password)
                 }
-                loading = false
                 haptics.success()
                 onNext()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: AppError) {
-                loading = false
                 haptics.error()
                 error = e.userMessage
             } catch (e: Exception) {
-                loading = false
                 haptics.error()
                 error = "登录失败：${e.message}"
+            } finally {
+                loading = false
             }
         }
     }
@@ -153,9 +210,10 @@ fun LoginShowerScreen(
             Text(if (useSms) "短信验证" else "账号密码", style = MaterialTheme.typography.titleMedium)
             PrismTextField(
                 value = mobile,
-                onValueChange = { mobile = it },
+                onValueChange = { mobile = it; smsCode = ""; error = null },
                 label = "手机号",
                 modifier = Modifier.focusRequester(mobileFocus),
+                enabled = !busy,
                 isError = error != null && mobile.isBlank(),
                 leadingIcon = Icons.Rounded.Phone,
                 keyboardOptions = KeyboardOptions(
@@ -169,6 +227,7 @@ fun LoginShowerScreen(
                     onValueChange = { password = it },
                     label = "密码",
                     modifier = Modifier.focusRequester(secretFocus),
+                    enabled = !busy,
                     isError = error != null && password.isBlank(),
                     leadingIcon = Icons.Rounded.Lock,
                     visualTransformation = if (passwordVisible) {
@@ -194,13 +253,14 @@ fun LoginShowerScreen(
                     onValueChange = { smsCode = it },
                     label = "短信验证码",
                     modifier = Modifier.focusRequester(secretFocus),
+                    enabled = !busy,
                     isError = error != null && smsCode.isBlank(),
                     leadingIcon = Icons.Rounded.Sms,
                     keyboardOptions = KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                         imeAction = ImeAction.Done,
                     ),
-                    supportingText = if (smsSent) "验证码已发送" else null,
+                    supportingText = if (smsSentToCurrent) "验证码已发送" else "请先获取当前手机号的验证码",
                 )
             }
             error?.let { OnboardingError(it) }
@@ -208,6 +268,7 @@ fun LoginShowerScreen(
             PrismButton(
                 onClick = { doLogin() },
                 loading = loading,
+                enabled = !sendingSms,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Login, null)
@@ -218,30 +279,35 @@ fun LoginShowerScreen(
             PrismTextButton(
                 onClick = {
                     if (!useSms) {
-                        if (mobile.isBlank()) { error = "请输入手机号"; mobileFocus.requestFocus(); return@PrismTextButton }
-                        launchUi {
-                            try {
-                                shower.clientSendSms(mobile.trim())
-                                smsSent = true
-                                useSms = true
-                                error = null
-                            } catch (e: AppError) {
-                                error = e.userMessage
-                            }
-                        }
+                        sendSms()
                     } else {
+                        focusManager.clearFocus()
                         useSms = false
+                        error = null
                     }
                 },
+                enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Sms, null)
                 Spacer(Modifier.width(8.dp))
-                Text(if (useSms) "密码登录" else "发送验证码并切换短信登录", maxLines = 1)
+                Text(if (sendingSms) "正在发送验证码…" else if (useSms) "密码登录" else "短信登录（发送验证码）")
+            }
+
+            if (useSms) {
+                val coolingDown = smsSentToCurrent && resendSeconds > 0
+                PrismTextButton(
+                    onClick = { sendSms() },
+                    enabled = !busy && !coolingDown,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(if (coolingDown) "${resendSeconds} 秒后重新发送" else "发送验证码")
+                }
             }
 
             PrismTextButton(
                 onClick = onNext,
+                enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Icon(Icons.Rounded.Schedule, null)
@@ -249,16 +315,8 @@ fun LoginShowerScreen(
                 Text(skipLabel, maxLines = 1)
             }
 
-            PrismCard(
-                modifier = Modifier.fillMaxWidth(),
-                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
-            ) {
-                Text("洗浴账号用途", style = headlineStyle())
-                Text("查询空闲设备、排队及账单，控制设备启停。", style = subheadlineStyle())
-            }
-
             Text(
-                "登录状态仅保存在本机",
+                "登录状态仅存本机；仅限本人账号查询及设备启停。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

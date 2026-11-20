@@ -141,7 +141,7 @@ fun SettingsScreen(
                     Spacer(Modifier.height(14.dp))
                     if (dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
                         Text(
-                            "已跟随壁纸取色；关闭后可选预设主题色。",
+                            "跟随壁纸取色",
                             style = footnoteStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -161,7 +161,7 @@ fun SettingsScreen(
                 PrismGroupedList {
                     PrismToggleRow(
                         title = "动态取色（莫奈）",
-                        subtitle = "Android 12 及以上跟随壁纸，其他版本使用预设主题色",
+                        subtitle = "Android 12 及以上可用",
                         leading = { IconBadge(Icons.Outlined.Palette) },
                         checked = dynamicColor,
                         onCheckedChange = { on -> launchUi { settings.setDynamicColor(on) } },
@@ -197,12 +197,6 @@ fun SettingsScreen(
                     onClick = onOpenAbout,
                 ) {
                     CardHeader("郑财校园", icon = Icons.Outlined.Info)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "整合教务、洗浴与电费；登录状态仅存本机，仅支持本人账号。",
-                        style = subheadlineStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "查看版本、作者与版权",
@@ -212,11 +206,6 @@ fun SettingsScreen(
                 }
             }
 
-            Text(
-                "设置立即生效，重启后保留。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -242,7 +231,6 @@ private fun ThemeColorPicker(
     selectedId: String,
     onSelect: (String) -> Unit,
 ) {
-    val selectedLabel = themePresetOptions.firstOrNull { it.id == selectedId }?.label ?: "品牌青"
     val dark = LocalPrismDark.current
     Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         themePresetOptions.chunked(3).forEach { options ->
@@ -288,11 +276,5 @@ private fun ThemeColorPicker(
                 }
             }
         }
-        Spacer(Modifier.height(4.dp))
-        Text(
-            "当前：$selectedLabel · 预览随浅深色模式切换",
-            style = footnoteStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

@@ -32,11 +32,16 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -59,7 +64,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.disabled
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
@@ -650,7 +654,7 @@ fun PrismToggleRow(
     }
 }
 
-/** 工具栏图标按钮：44 视觉 / 48 触控，contentDescription 必填。 */
+/** 工具栏原生图标按钮：48dp 触控，contentDescription 必填。 */
 @Composable
 fun PrismIconButton(
     icon: ImageVector,
@@ -661,16 +665,13 @@ fun PrismIconButton(
     enabled: Boolean = true,
 ) {
     val haptics = rememberPrismHaptics()
-    Box(
-        modifier = modifier
-            .size(48.dp)
-            .clip(androidx.compose.foundation.shape.CircleShape)
-            .semantics { if (!enabled) disabled() }
-            .clickable(enabled = enabled, role = Role.Button) {
-                haptics.tap()
-                onClick()
-            },
-        contentAlignment = Alignment.Center,
+    IconButton(
+        onClick = {
+            haptics.tap()
+            onClick()
+        },
+        modifier = modifier.size(48.dp),
+        enabled = enabled,
     ) {
         androidx.compose.material3.Icon(
             icon,
@@ -780,10 +781,10 @@ fun MetaChip(text: String, modifier: Modifier = Modifier, color: Color = Color.U
     }
 }
 
-// ---------------- 按钮（胶囊 + tint 按压，FlClash common_button） ----------------
+// ---------------- 原生 M3 按钮 + Prism 连续圆角与按压 ----------------
 
 /**
- * Prism 按钮：胶囊形、minSize 64×40、tint 按压。
+ * 原生 M3 按钮：保留 Prism 胶囊形变、至少 48dp 触控尺寸和加载宽度。
  * @param filled true = FilledButton（primary 底）；false = OutlinedButton
  */
 @Composable
@@ -814,63 +815,76 @@ fun PrismButton(
         Pair(Color.Transparent, MaterialTheme.colorScheme.primary)
     }
     val colors = (containerColor ?: base.first) to (contentColor ?: base.second)
-    val resolvedContainer = when {
-        !enabled && filled -> MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track)
-        !filled -> Color.Transparent
-        else -> colors.first
+    val resolvedContent = colors.second.takeIf { enabled }
+        ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)
+    val buttonColors = ButtonDefaults.buttonColors(
+        containerColor = if (filled) colors.first else Color.Transparent,
+        contentColor = colors.second,
+        // Loading blocks repeat submissions, but keeps the action's active tonal pairing.
+        disabledContainerColor = if (!filled) Color.Transparent else if (enabled) colors.first else {
+            MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track)
+        },
+        disabledContentColor = resolvedContent,
+    )
+    val buttonModifier = modifier
+        .prismPressScale(interaction, target = 0.96f, enabled = enabled && !loading)
+        .defaultMinSize(minWidth = 64.dp, minHeight = 48.dp)
+        .minimumInteractiveComponentSize()
+        .semantics {
+            if (loading) progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
+        }
+    val action = {
+        haptics.tap()
+        onClick()
+    }
+    val buttonContent: @Composable RowScope.() -> Unit = {
+        // Keep the label measured and announced while loading; hide only its pixels.
+        Box {
+            Row(
+                Modifier.padding(contentPadding).graphicsLayer { alpha = if (loading) 0f else 1f },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                CompositionLocalProvider(LocalTextStyle provides buttonLabelStyle()) { content() }
+            }
+            if (loading) {
+                PrismLoadingIndicator(
+                    modifier = Modifier.align(Alignment.Center).clearAndSetSemantics {},
+                    size = 18.dp,
+                    color = resolvedContent,
+                )
+            }
+        }
     }
     WithPressLook(PressLook.Tint) {
-        Surface(
-            modifier = modifier
-                .prismPressScale(interaction, target = 0.96f, enabled = enabled && !loading)
-                .clip(pill)
-                .defaultMinSize(minWidth = 64.dp, minHeight = 40.dp)
-                .minimumInteractiveComponentSize()
-                .semantics {
-                    if (loading) progressBarRangeInfo = ProgressBarRangeInfo.Indeterminate
-                }
-                .clickable(
-                    interactionSource = interaction,
-                    indication = LocalIndication.current,
-                    enabled = enabled && !loading,
-                    role = Role.Button,
-                ) {
-                    haptics.tap()
-                    onClick()
-                },
-            shape = pill,
-            color = resolvedContainer,
-            border = if (!filled) androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outline.takeIf { enabled }
-                    ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
-            ) else null,
-        ) {
-            // 加载时保留文字宽度（只把 alpha 压到 0），按钮不会因为换成转圈而抽缩。
-            Box {
-                Row(
-                    Modifier
-                        .padding(contentPadding)
-                        .graphicsLayer { alpha = if (loading) 0f else 1f },
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    ProvideContentColor(colors.second.takeIf { enabled }
-                        ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)) {
-                        CompositionLocalProvider(LocalTextStyle provides buttonLabelStyle()) {
-                            content()
-                        }
-                    }
-                }
-                if (loading) {
-                    PrismLoadingIndicator(
-                        modifier = Modifier.align(Alignment.Center).clearAndSetSemantics {},
-                        size = 18.dp,
-                        strokeWidth = 2.dp,
-                        color = colors.second,
-                    )
-                }
-            }
+        if (filled) {
+            Button(
+                onClick = action,
+                modifier = buttonModifier,
+                enabled = enabled && !loading,
+                shape = pill,
+                colors = buttonColors,
+                elevation = null,
+                contentPadding = PaddingValues(0.dp),
+                interactionSource = interaction,
+                content = buttonContent,
+            )
+        } else {
+            OutlinedButton(
+                onClick = action,
+                modifier = buttonModifier,
+                enabled = enabled && !loading,
+                shape = pill,
+                colors = buttonColors,
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    MaterialTheme.colorScheme.outline.takeIf { enabled }
+                        ?: MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
+                ),
+                contentPadding = PaddingValues(0.dp),
+                interactionSource = interaction,
+                content = buttonContent,
+            )
         }
     }
 }
@@ -893,17 +907,17 @@ fun PrismTextButton(
 ) {
     val haptics = rememberPrismHaptics()
     WithPressLook(PressLook.Tint) {
-        Surface(
+        TextButton(
             onClick = {
                 haptics.tap()
                 onClick()
             },
             enabled = enabled,
-            modifier = modifier.defaultMinSize(minHeight = 40.dp).minimumInteractiveComponentSize(),
-            color = Color.Transparent,
+            modifier = modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp),
+            shape = prismShape(Float.MAX_VALUE),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Row(
-                Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
@@ -988,7 +1002,8 @@ fun PrismAlertDialog(
                         dismissText = dismissText,
                         destructive = destructive,
                         onDismiss = { close(onDismiss) },
-                        onConfirm = { close { onDismiss(); onConfirm() } },
+                        // Capture/submit the selected value before dismissal clears caller state.
+                        onConfirm = { close { onConfirm(); onDismiss() } },
                     )
                 }
             }

@@ -61,6 +61,13 @@ class PrismExpressiveComponentsTest {
             val background = scheme.secondaryContainer.luminance()
             val contrast = (maxOf(foreground, background) + 0.05f) / (minOf(foreground, background) + 0.05f)
             org.junit.Assert.assertTrue("$name tonal text contrast: $contrast", contrast >= 4.5f)
+            listOf(scheme.surfaceContainer, scheme.secondaryContainer).forEach { surface ->
+                val focus = scheme.primary.luminance()
+                val backgroundTone = surface.luminance()
+                val focusContrast = (maxOf(focus, backgroundTone) + 0.05f) /
+                    (minOf(focus, backgroundTone) + 0.05f)
+                org.junit.Assert.assertTrue("$name navigation focus contrast: $focusContrast", focusContrast >= 3f)
+            }
         }
     }
 

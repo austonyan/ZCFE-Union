@@ -17,7 +17,8 @@ import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Shower
 import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
@@ -26,8 +27,13 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
@@ -36,9 +42,9 @@ import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismProgressRail
+import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 
 /** 欢迎页：说明 Union 把教务、洗浴、电费合成一个入口。 */
@@ -52,6 +58,7 @@ fun WelcomeScreen(
     val jLate by settings.timetableJLate.collectAsState(initial = true)
     val fallbackGroupValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
     val fallbackGroup = if (fallbackGroupValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6
+    var scheduleExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(
         modifier = modifier
@@ -77,14 +84,14 @@ fun WelcomeScreen(
 
         OnboardingIntro(
             title = "校园服务统一入口",
-            description = "依次绑定教务、洗浴与电费账号，可跳过并稍后补充。",
+            description = "绑定本人账号，或先逛逛。",
             icon = Icons.Rounded.School,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(Icons.Rounded.School to "教务", Icons.Rounded.Shower to "洗浴", Icons.Rounded.Bolt to "电费").forEach { (icon, label) ->
                 Surface(
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = MaterialTheme.shapes.large,
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
                 ) {
@@ -99,29 +106,6 @@ fun WelcomeScreen(
                 }
             }
         }
-
-        Text(
-            text = "选择教学楼作息",
-            style = headlineStyle(),
-            modifier = Modifier.padding(top = 4.dp),
-        )
-        Text(
-            text = "两套作息：S1–S6、J7 与 J1–J6。请按主要上课楼号选择，可在「课表设置」修改。",
-            style = footnoteStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        TimetableSchedulePicker(
-            jLate = jLate,
-            onJLateChange = { late -> launchUi { settings.setTimetableJLate(late) } },
-            fallbackGroup = fallbackGroup,
-            onFallbackGroupChange = { group ->
-                launchUi {
-                    settings.setTimetableFallbackGroup(
-                        if (group == BuildingGroup.J1ToJ6) 1 else 2,
-                    )
-                }
-            },
-        )
 
         PrismButton(
             onClick = onStartBinding,
@@ -143,17 +127,31 @@ fun WelcomeScreen(
             Text("暂不绑定")
         }
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = "登录状态仅保存在本机",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Spacer(Modifier.weight(1f))
-            Text(
-                text = "第 1 步 / 共 4 步",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+        Text(
+            text = "登录状态仅保存在本机",
+            style = footnoteStyle(),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        PrismRow(
+            title = "作息设置",
+            modifier = Modifier.semantics {
+                stateDescription = if (scheduleExpanded) "已展开" else "已收起"
+            },
+            onClick = { scheduleExpanded = !scheduleExpanded },
+            trailing = {
+                Icon(if (scheduleExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
+            },
+        )
+        if (scheduleExpanded) {
+            TimetableSchedulePicker(
+                jLate = jLate,
+                onJLateChange = { late -> launchUi { settings.setTimetableJLate(late) } },
+                fallbackGroup = fallbackGroup,
+                onFallbackGroupChange = { group ->
+                    launchUi {
+                        settings.setTimetableFallbackGroup(if (group == BuildingGroup.J1ToJ6) 1 else 2)
+                    }
+                },
             )
         }
     }

@@ -9,7 +9,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -22,15 +21,21 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -52,6 +57,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -175,7 +183,8 @@ fun PrismSlider(
     )
 }
 
-/** 轻量加载指示：所有页面用同一线宽与主色，替代零散的 M3 进度圈。 */
+/** 原生 Expressive 加载指示；减少动效时保留静态环，strokeWidth 控制静态环线宽。 */
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
 fun PrismLoadingIndicator(
     modifier: Modifier = Modifier,
@@ -196,10 +205,9 @@ fun PrismLoadingIndicator(
         )
         return
     }
-    CircularProgressIndicator(
+    LoadingIndicator(
         modifier = modifier.size(size),
         color = color,
-        strokeWidth = strokeWidth,
     )
 }
 
@@ -302,7 +310,7 @@ fun PrismReveal(
     }
 }
 
-/** 带选中勾的顶部下滑选择面板，用于锁定延迟、免打扰等单值设置。 */
+/** 单值选项，用于锁定延迟、免打扰等设置。 */
 data class PrismOption(
     val key: String,
     val label: String,
@@ -320,7 +328,7 @@ fun PrismOptionSheet(
     subtitle: String? = null,
 ) {
     val haptics = rememberPrismHaptics()
-    PrismSnapSheet(visible = visible, onDismiss = onDismiss) {
+    PrismSnapSheet(visible = visible, onDismiss = onDismiss, paneTitle = title) {
         Column(
             Modifier
                 .fillMaxSize()
@@ -328,7 +336,7 @@ fun PrismOptionSheet(
                 .padding(horizontal = 16.dp, vertical = 6.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text(title, style = pageTitleStyle())
+            Text(title, style = pageTitleStyle(), modifier = Modifier.semantics { heading() })
             if (!subtitle.isNullOrBlank()) {
                 Text(
                     subtitle,
@@ -336,19 +344,24 @@ fun PrismOptionSheet(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            PrismGroupedList {
+            PrismGroupedList(modifier = Modifier.selectableGroup()) {
                 options.forEach { option ->
+                    val selected = option.key == selectedKey
                     PrismRow(
                         title = option.label,
                         subtitle = option.subtitle,
-                        onClick = {
-                            haptics.select()
-                            onSelect(option.key)
-                            onDismiss()
-                        },
-                        trailing = if (option.key == selectedKey) {
+                        modifier = Modifier.selectable(
+                            selected = selected,
+                            role = Role.RadioButton,
+                            onClick = {
+                                haptics.select()
+                                onSelect(option.key)
+                                onDismiss()
+                            },
+                        ),
+                        trailing = if (selected) {
                             {
-                                PrismCheckMark(checked = true)
+                                PrismCheckMark(checked = true, modifier = Modifier.clearAndSetSemantics {})
                             }
                         } else {
                             null
@@ -356,17 +369,12 @@ fun PrismOptionSheet(
                     )
                 }
             }
-            Text(
-                "选择即保存",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(start = 4.dp),
-            )
         }
     }
 }
 
 /** Prism 下拉字段：外观与 PrismTextField 一致，点整块打开选项。 */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PrismDropdownField(
     label: String,
@@ -379,34 +387,36 @@ fun PrismDropdownField(
     supportingText: String? = null,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    Box(modifier) {
+    val canExpand = enabled && options.isNotEmpty()
+    ExposedDropdownMenuBox(
+        expanded = expanded && canExpand,
+        onExpandedChange = { expanded = it && canExpand },
+        modifier = modifier,
+    ) {
         PrismTextField(
             value = selected.orEmpty(),
             onValueChange = {},
             label = label,
+            modifier = Modifier.menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable, enabled = canExpand),
             leadingIcon = leadingIcon,
             supportingText = supportingText,
-            enabled = enabled,
+            enabled = canExpand,
+            readOnly = true,
             trailingIcon = {
-                Icon(Icons.Rounded.ArrowDropDown, contentDescription = null)
+                ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded && canExpand)
             },
         )
-        Box(
-            Modifier
-                .matchParentSize()
-                .clickable(
-                    enabled = enabled && options.isNotEmpty(),
-                    role = Role.DropdownList,
-                    onClickLabel = "选择$label",
-                ) { expanded = true },
-        )
-        DropdownMenu(
-            expanded = expanded && options.isNotEmpty() && enabled,
+        ExposedDropdownMenu(
+            expanded = expanded && canExpand,
             onDismissRequest = { expanded = false },
         ) {
             options.forEachIndexed { index, option ->
                 DropdownMenuItem(
                     text = { Text(option) },
+                    modifier = Modifier.semantics { this.selected = option == selected },
+                    trailingIcon = if (option == selected) {
+                        { Icon(Icons.Rounded.Check, contentDescription = null) }
+                    } else null,
                     onClick = {
                         expanded = false
                         onSelected(index)

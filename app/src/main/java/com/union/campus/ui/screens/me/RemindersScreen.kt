@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bolt
@@ -26,6 +27,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -75,7 +77,7 @@ fun RemindersCenterScreen(
     val classLead by settings.remindClassLead.collectAsState(initial = 10)
     val lowThreshold by settings.lowElectricThreshold.collectAsState(initial = ElectricLowState.DefaultThreshold)
 
-    var quietSheet by remember { mutableStateOf(false) }
+    var quietSheet by rememberSaveable { mutableStateOf(false) }
     fun set(block: suspend () -> Unit) = launchUi { block() }
 
     val leadOptions = remember(classLead) { (listOf(5, 10, 15) + classLead).distinct().sorted() }
@@ -166,7 +168,7 @@ fun RemindersCenterScreen(
                 Spacer(Modifier.height(6.dp))
                 PrismSegmented(
                     options = leadOptions.map { "课前 $it 分钟" },
-                    selectedIndex = leadOptions.indexOf(classLead).coerceAtLeast(1),
+                    selectedIndex = leadOptions.indexOf(classLead).coerceAtLeast(0),
                     enabled = remindEnabled && remindClass,
                     onSelect = { index ->
                         set { settings.setRemindClassLead(leadOptions[index]) }
@@ -177,7 +179,7 @@ fun RemindersCenterScreen(
                 Spacer(Modifier.height(6.dp))
                 PrismSegmented(
                     options = thresholdOptions.map { "$it 度" },
-                    selectedIndex = thresholdOptions.indexOf(lowThreshold).coerceAtLeast(1),
+                    selectedIndex = thresholdOptions.indexOf(lowThreshold).coerceAtLeast(0),
                     enabled = remindEnabled && remindLowElectric,
                     onSelect = { index ->
                         set { settings.setLowElectricThreshold(thresholdOptions[index]) }
@@ -270,12 +272,12 @@ private fun QuietHoursSheet(
     onDismiss: () -> Unit,
     onSave: (Int, Int) -> Unit,
 ) {
-    var start by remember(visible, startHour) { mutableIntStateOf(startHour) }
-    var end by remember(visible, endHour) { mutableIntStateOf(endHour) }
+    var start by rememberSaveable(visible) { mutableIntStateOf(startHour) }
+    var end by rememberSaveable(visible) { mutableIntStateOf(endHour) }
     val startOptions = remember(startHour) { (listOf(21, 22, 23, 0, 1, 2) + startHour).distinct() }
     val endOptions = remember(endHour) { (listOf(5, 6, 7, 8, 9, 10) + endHour).distinct() }
 
-    PrismSnapSheet(visible = visible, onDismiss = onDismiss, startAt = SnapSheetDefaults.Half) {
+    PrismSnapSheet(visible = visible, onDismiss = onDismiss, startAt = SnapSheetDefaults.Half, paneTitle = "免打扰时段") {
         Column(
             Modifier
                 .fillMaxSize()
@@ -291,7 +293,7 @@ private fun QuietHoursSheet(
             )
             Text("开始", style = headlineStyle())
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 startOptions.forEach { hour ->
@@ -304,7 +306,7 @@ private fun QuietHoursSheet(
             }
             Text("结束", style = headlineStyle())
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 endOptions.forEach { hour ->

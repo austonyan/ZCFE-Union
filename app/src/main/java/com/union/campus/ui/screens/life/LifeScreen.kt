@@ -10,18 +10,15 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -58,7 +55,6 @@ fun LifeScreen(
     onOpenElectric: () -> Unit,
     onOpenShower: () -> Unit,
     onOpenFreeClassrooms: () -> Unit,
-    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val electric = ServiceLocator.electricRepository
@@ -70,12 +66,11 @@ fun LifeScreen(
     var balance by remember { mutableStateOf<ElectricBalance?>(null) }
     var area by remember { mutableStateOf<ShowerArea?>(null) }
     var lowElectricOn by remember { mutableStateOf(true) }
-    var menuOpen by remember { mutableStateOf(false) }
     var refreshing by remember { mutableStateOf(false) }
 
     suspend fun load(force: Boolean) {
         lowElectricOn = settings.remindLowElectric.first()
-        runCatching {
+        if (electric.isBound()) runCatching {
             electric.rooms(force).firstOrNull()?.let {
                 balance = electric.balance(it.roomVerify, force)
             }
@@ -120,17 +115,13 @@ fun LifeScreen(
         ) {
             PrismPageHeader(
                 title = "生活",
-                subtitle = "电费、洗浴与空闲教室",
                 actions = {
                     PrismIconButton(
-                        icon = Icons.Outlined.MoreVert,
-                        contentDescription = "更多",
-                        onClick = { menuOpen = true },
+                        icon = Icons.Rounded.Refresh,
+                        contentDescription = if (refreshing) "正在刷新" else "刷新",
+                        enabled = !refreshing,
+                        onClick = { refresh() },
                     )
-                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                        DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; refresh() })
-                        DropdownMenuItem(text = { Text("设置") }, onClick = { menuOpen = false; onOpenSettings() })
-                    }
                 },
             )
 
@@ -158,7 +149,7 @@ fun LifeScreen(
                         if (b.price.isNotBlank()) append(" · 单价 ${b.price} 元/度")
                     }
                 } else {
-                    "请在电费页检查绑定状态；已绑定可下拉刷新"
+                    "查看绑定状态"
                 },
                 icon = Icons.Rounded.Bolt,
                 status = if (low) "余额偏低 · 请及时充值" else null,
@@ -177,7 +168,7 @@ fun LifeScreen(
                 detail = if (a != null) {
                     "共 ${a.totalNum} 个位置 · 排队 ${a.queueNum} 人"
                 } else {
-                    "请在洗浴页检查账号与区域；已登录可下拉刷新"
+                    "查看账号与区域"
                 },
                 icon = Icons.Rounded.WaterDrop,
                 status = if (queueing) "有人排队 · 查看实时状态" else null,
@@ -190,7 +181,7 @@ fun LifeScreen(
 
             PrismEntryCard(
                 title = "空闲教室",
-                subtitle = "按日期、节次和教学楼查询空闲教室",
+                subtitle = "查找可用教室",
                 icon = Icons.Rounded.MeetingRoom,
                 onClick = onOpenFreeClassrooms,
                 modifier = Modifier.fillMaxWidth(),
