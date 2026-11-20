@@ -11,8 +11,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.HowToVote
@@ -21,6 +24,7 @@ import androidx.compose.material.icons.rounded.SmartToy
 import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -31,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
@@ -51,8 +56,6 @@ import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSlider
 import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
-import com.union.campus.ui.prism.CardHeader
-import com.union.campus.ui.prism.PrismCheckMark
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
@@ -67,18 +70,23 @@ data class SelectableCourse(
     val time: String,
 )
 
-/** 选课：轮次、可选课程、已选统计与提交。 */
+/** 选课：单选课程后查看预览，再交由官方系统完成选课。 */
 @Composable
 fun CourseSelectScreen(
     onBack: () -> Unit,
     onConfirm: (SelectableCourse) -> Unit,
+    onOpenAcademicPortal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val jw = ServiceLocator.jwRepository
     var state by remember { mutableStateOf<UiState<List<SelectableCourse>>>(UiState.Loading) }
-    var selected by remember { mutableStateOf(setOf<SelectableCourse>()) }
+    var selectedCourseId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
+        if (!jw.isBound()) {
+            state = UiState.Empty("登录教务后查看可选课程")
+            return@LaunchedEffect
+        }
         state = try {
             // 可选课程：Zxkc_wsxk（未开放时为空 → 空态）
             val element = jw.rawCall(
@@ -95,7 +103,7 @@ fun CourseSelectScreen(
                     time = com.union.campus.data.repo.Parse.str(c, "sksj", "time"),
                 )
             }
-            if (list.isEmpty()) UiState.Empty("暂无可选课程或选课未开始") else UiState.Ready(list)
+            if (list.isEmpty()) UiState.Empty("当前未获取到可选课程") else UiState.Ready(list)
         } catch (e: AppError.AuthExpired) {
             UiState.Failed(e.userMessage, isAuth = true)
         } catch (e: AppError) {
@@ -104,8 +112,6 @@ fun CourseSelectScreen(
             UiState.Failed("选课加载失败：${e.message}")
         }
     }
-
-    val totalCredit = selected.sumOf { it.credit.toDoubleOrNull() ?: 0.0 }
 
     UnionScreenScaffold(
         title = "选课",
@@ -126,100 +132,68 @@ fun CourseSelectScreen(
                     message = s.message,
                     hint = "请在「我的 → 凭证中心」重新登录".takeIf { s.isAuth },
                 )
-                is UiState.Empty -> NullStatus(Icons.Rounded.HowToVote, "选课未开放", s.hint)
+                is UiState.Empty -> NullStatus(Icons.Rounded.HowToVote, s.hint)
                 is UiState.Ready -> {
-                    PrismSection(title = "可选课程") {
-                        PrismGroupedList {
+                    val selectedCourse = s.data.firstOrNull { it.id == selectedCourseId }
+                    PrismSection(title = "选择课程") {
+                        PrismGroupedList(modifier = Modifier.selectableGroup()) {
                             s.data.forEachIndexed { i, c ->
                                 PrismRow(
                                     title = c.name,
+                                    modifier = Modifier.selectable(
+                                        selected = c.id == selectedCourseId,
+                                        role = Role.RadioButton,
+                                        onClick = { selectedCourseId = c.id },
+                                    ),
                                     subtitle = "${c.credit} 学分 · ${c.teacher.ifBlank { "—" }} · ${c.time.ifBlank { "时间待定" }}",
                                     leading = { IconBadge(when (i % 3) { 0 -> Icons.Rounded.Storage; 1 -> Icons.Rounded.SmartToy; else -> Icons.Rounded.Movie }) },
                                     trailing = {
-                                        PrismCheckMark(checked = selected.contains(c))
-                                    },
-                                    onClick = {
-                                        selected = if (selected.contains(c)) selected - c else selected + c
+                                        RadioButton(
+                                            selected = c.id == selectedCourseId,
+                                            onClick = null,
+                                        )
                                     },
                                 )
                             }
                         }
                     }
-                    if (selected.isNotEmpty()) {
-                        PrismCard {
-                            CardHeader("已选课程")
-                            Spacer(Modifier.height(6.dp))
-                            Text(
-                                selected.joinToString("、") { it.name } + " · 共 ${"%.1f".format(totalCredit)} 学分",
-                                style = subheadlineStyle(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
                     PrismButton(
-                        onClick = { onConfirm(selected.firstOrNull() ?: return@PrismButton) },
+                        onClick = { onConfirm(selectedCourse ?: return@PrismButton) },
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = selectedCourse != null,
                     ) {
                         Icon(Icons.Rounded.Check, null)
                         Spacer(Modifier.width(8.dp))
-                        Text("提交选课")
+                        Text("查看课程")
                     }
-                    Text("选课开放状态以教务为准", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
+            }
+            PrismButton(
+                onClick = onOpenAcademicPortal,
+                filled = state !is UiState.Ready<*>,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.AutoMirrored.Rounded.OpenInNew, null)
+                Spacer(Modifier.width(8.dp))
+                Text("打开教务系统")
             }
             Spacer(Modifier.height(12.dp))
         }
     }
 }
 
-// ---------------- 选课确认 ----------------
+// ---------------- 课程预览与官方系统交接 ----------------
 
-/** 确认选课：提交前检查（冲突/学分/轮次）。 */
+/** 课程确认预览；写接口尚未建立课程标识映射，不发送无法对应所选课程的请求。 */
 @Composable
 fun ConfirmSelectionScreen(
     course: SelectableCourse,
     onBack: () -> Unit,
-    onSubmitted: () -> Unit,
+    onOpenAcademicPortal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val jw = ServiceLocator.jwRepository
-    var submitting by rememberSaveable { mutableStateOf(false) }
-    var result by rememberSaveable { mutableStateOf<String?>(null) }
-
-    fun submit() {
-        submitting = true
-        launchUi {
-            try {
-                // 写接口：Tjzxkc_wsxk（结果以教务为准，不自动重试）
-                jw.rawCall(
-                    "Tjzxkc_wsxk",
-                    mapOf("xktype" to "1", "njzy" to "", "sellx" to "", "xh" to ""),
-                )
-                submitting = false
-                result = "选课已提交，结果以教务系统为准，请在「已选结果」确认。"
-            } catch (e: AppError) {
-                submitting = false
-                result = "提交失败：${e.userMessage}"
-            } catch (e: Exception) {
-                submitting = false
-                result = "提交失败：${e.message}"
-            }
-        }
-    }
-
-    if (result != null) {
-        PrismAlertDialog(
-            title = "提交结果",
-            body = result ?: "",
-            confirmText = "返回选课",
-            dismissText = null,
-            onConfirm = { result = null; onSubmitted() },
-            onDismiss = { result = null },
-        )
-    }
-
     UnionScreenScaffold(
-        title = "确认选课",
+        title = "课程预览",
         onBack = onBack,
         modifier = modifier,
     ) { padding ->
@@ -238,27 +212,23 @@ fun ConfirmSelectionScreen(
             ) {
                 Text(course.name, style = com.union.campus.ui.prism.pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
                 Spacer(Modifier.height(4.dp))
-                Text("${course.credit} 学分 · ${course.teacher}\n${course.time.ifBlank { "时间待定" }}", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
-            }
-            PrismSection(title = "提交前检查") {
-                PrismGroupedList {
-                    PrismRow(title = "课程冲突", subtitle = "以教务校验结果为准", leading = { IconBadge(Icons.Rounded.Check) })
-                    PrismRow(title = "学分上限", subtitle = "本门 ${course.credit} 学分", leading = { IconBadge(Icons.Rounded.Storage) })
-                    PrismRow(title = "选课轮次", subtitle = "以当前教务轮次为准", leading = { IconBadge(Icons.Rounded.HowToVote) })
-                }
+                val details = listOfNotNull(
+                    course.credit.takeIf { it.isNotBlank() }?.let { "$it 学分" },
+                    course.teacher.takeIf { it.isNotBlank() },
+                ).joinToString(" · ")
+                Text(listOf(details, course.time.ifBlank { "时间待定" }).filter { it.isNotBlank() }.joinToString("\n"), style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
             PrismButton(
-                onClick = { submit() },
+                onClick = onOpenAcademicPortal,
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !submitting,
-                loading = submitting,
             ) {
-                Icon(Icons.Rounded.Check, null)
+                Icon(Icons.AutoMirrored.Rounded.OpenInNew, null)
                 Spacer(Modifier.width(8.dp))
-                Text("确认提交")
+                Text("打开教务系统")
             }
+            Text("请在教务系统核对并完成选课。", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             PrismTextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-                Text("返回修改")
+                Text("返回选课")
             }
             Spacer(Modifier.height(12.dp))
         }

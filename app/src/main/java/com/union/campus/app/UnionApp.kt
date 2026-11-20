@@ -1,28 +1,15 @@
 package com.union.campus.app
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.IntOffset
-import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -30,15 +17,14 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.union.campus.MainActivityHolder
+import com.union.campus.ui.common.ExternalLinks
+import com.union.campus.ui.common.openExternalLink
 import kotlinx.coroutines.flow.first
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
 import com.union.campus.navigation.Screen
-import com.union.campus.ui.prism.surfaceColorOf
-import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.LocalPrismMessenger
-import com.union.campus.ui.prism.PrismDock
-import com.union.campus.ui.prism.PrismMotion
+import com.union.campus.ui.prism.PrismNavigationScaffold
 import com.union.campus.ui.prism.PrismSnackbarHost
 import com.union.campus.ui.prism.PrismSpec
 import com.union.campus.ui.prism.rememberPrismMotion
@@ -83,20 +69,21 @@ import com.union.campus.ui.screens.today.TodayScreen
 
 /**
  * 页面转场：详情页走 24dp 短位移 push/pop（[PrismSpec]），
- * 五个 tab 走 fade-through 微缩放，底部 dock 仍用纵向滑动。
+ * 五个 tab 走 fade-through 微缩放；导航按窗口宽度切换 Dock / Rail。
  */
-private val PushOffsetSpec = PrismMotion.tween<IntOffset>(PrismMotion.Emphasized)
-private val TabFade = PrismMotion.tween<Float>(PrismMotion.Standard)
-
 @Composable
 fun UnionApp(modifier: Modifier = Modifier) {
     val navController = rememberNavController()
-    var credentialLoginTarget by remember { mutableStateOf<String?>(null) }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentScreen = Screen.fromRoute(backStackEntry?.destination?.route)
     val showerRepo = ServiceLocator.showerRepository
     val activeSession by showerRepo.activeSession.collectAsState(initial = null)
     val messenger = LocalPrismMessenger.current
+    fun openAcademicPortal() {
+        openExternalLink(ExternalLinks.AcademicPortal, onFailure = {
+            messenger.error("无法打开教务系统，请检查浏览器")
+        })
+    }
     val motion = rememberPrismMotion()
 
     // 已完成引导/绑定的用户冷启动直接进今天页
@@ -104,33 +91,17 @@ fun UnionApp(modifier: Modifier = Modifier) {
         value = if (ServiceLocator.settings.boundDone.first()) Screen.Today.route else Screen.Welcome.route
     })
 
-    Scaffold(
+    PrismNavigationScaffold(
         modifier = modifier,
-        containerColor = surfaceColorOf(SurfaceLevel.Page),
+        tabs = Screen.Tabs,
+        current = currentScreen,
+        onSelect = { tab -> navigateToTab(navController, tab) },
+        lifeActive = activeSession != null,
         snackbarHost = { PrismSnackbarHost(messenger) },
-        bottomBar = {
-            AnimatedVisibility(
-                visible = currentScreen in Screen.Tabs,
-                enter = if (motion.enabled) slideInVertically(PushOffsetSpec) { it } + fadeIn(TabFade)
-                    else EnterTransition.None,
-                exit = if (motion.enabled) slideOutVertically(PushOffsetSpec) { it } + fadeOut(TabFade)
-                    else ExitTransition.None,
-            ) {
-                PrismDock(
-                    tabs = Screen.Tabs,
-                    current = currentScreen,
-                    onSelect = { tab -> navigateToTab(navController, tab) },
-                    lifeActive = activeSession != null,
-                    modifier = Modifier
-                        .padding(horizontal = 21.dp, vertical = 8.dp)
-                        .navigationBarsPadding(),
-                )
-            }
-        },
     ) { padding ->
         if (startRoute.value.isEmpty()) {
             Box(Modifier.fillMaxSize()) // 启动判定帧
-            return@Scaffold
+            return@PrismNavigationScaffold
         }
         NavHost(
             navController = navController,
@@ -155,20 +126,13 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 )
             }
             composable(Screen.LoginAcademic.route) {
-                val credentialMode = credentialLoginTarget == "jw"
-                DisposableEffect(Unit) {
-                    onDispose {
-                        if (credentialLoginTarget == "jw") credentialLoginTarget = null
-                    }
-                }
+                val credentialMode = navController.previousBackStackEntry?.destination?.route == Screen.Credentials.route
                 LoginAcademicScreen(
                     onBack = {
-                        credentialLoginTarget = null
                         navController.popBackStack()
                     },
                     onNext = {
                         if (credentialMode) {
-                            credentialLoginTarget = null
                             navController.popBackStack()
                         } else {
                             navController.navigate(Screen.LoginShower.route)
@@ -179,20 +143,14 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 )
             }
             composable(Screen.LoginShower.route) {
-                val credentialMode = credentialLoginTarget == "shower"
-                DisposableEffect(Unit) {
-                    onDispose {
-                        if (credentialLoginTarget == "shower") credentialLoginTarget = null
-                    }
-                }
+                val credentialMode = navController.previousBackStackEntry?.destination?.route in
+                    setOf(Screen.Credentials.route, Screen.Shower.route)
                 LoginShowerScreen(
                     onBack = {
-                        credentialLoginTarget = null
                         navController.popBackStack()
                     },
                     onNext = {
                         if (credentialMode) {
-                            credentialLoginTarget = null
                             navController.popBackStack()
                         } else {
                             navController.navigate(Screen.BindElectric.route)
@@ -203,20 +161,13 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 )
             }
             composable(Screen.BindElectric.route) {
-                val credentialMode = credentialLoginTarget == "electric"
-                DisposableEffect(Unit) {
-                    onDispose {
-                        if (credentialLoginTarget == "electric") credentialLoginTarget = null
-                    }
-                }
+                val credentialMode = navController.previousBackStackEntry?.destination?.route == Screen.Credentials.route
                 BindElectricScreen(
                     onBack = {
-                        credentialLoginTarget = null
                         navController.popBackStack()
                     },
                     onNext = {
                         if (credentialMode) {
-                            credentialLoginTarget = null
                             navController.popBackStack()
                         } else {
                             navController.navigate(Screen.BindDone.route)
@@ -251,7 +202,10 @@ fun UnionApp(modifier: Modifier = Modifier) {
             tabRoute(Screen.Today.route, motion.enabled) {
                 TodayScreen(
                     onOpenTimetable = { navigateToTab(navController, Screen.Timetable) },
-                    onOpenCourse = { navigateToTab(navController, Screen.Timetable) },
+                    onOpenCourse = { cell ->
+                        AppState.selectedCourse = cell
+                        navController.navigate(Screen.CourseDetail.route)
+                    },
                     onOpenEvaluation = { navController.navigate(Screen.Evaluation.route) },
                     onOpenExams = { navController.navigate(Screen.Exams.route) },
                     onOpenElectric = { navController.navigate(Screen.Electric.route) },
@@ -302,7 +256,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenElectric = { navController.navigate(Screen.Electric.route) },
                     onOpenShower = { navController.navigate(Screen.Shower.route) },
                     onOpenFreeClassrooms = { navController.navigate(Screen.FreeClassrooms.route) },
-                    onOpenSettings = { navController.navigate(Screen.Settings.route) },
                 )
             }
 
@@ -366,6 +319,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
             composable(Screen.CourseSelect.route) {
                 CourseSelectScreen(
                     onBack = { navController.popBackStack() },
+                    onOpenAcademicPortal = ::openAcademicPortal,
                     onConfirm = { c ->
                         AppState.confirmCourse = c
                         navController.navigate(Screen.ConfirmSelection.route)
@@ -380,7 +334,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     ConfirmSelectionScreen(
                         course = c,
                         onBack = { navController.popBackStack() },
-                        onSubmitted = { navController.popBackStack() },
+                        onOpenAcademicPortal = ::openAcademicPortal,
                     )
                 }
             }
@@ -509,15 +463,12 @@ fun UnionApp(modifier: Modifier = Modifier) {
                         }
                     },
                     onLoginAcademic = {
-                        credentialLoginTarget = "jw"
                         navController.navigate(Screen.LoginAcademic.route)
                     },
                     onLoginShower = {
-                        credentialLoginTarget = "shower"
                         navController.navigate(Screen.LoginShower.route)
                     },
                     onLoginElectric = {
-                        credentialLoginTarget = "electric"
                         navController.navigate(Screen.BindElectric.route)
                     },
                 )

@@ -93,6 +93,7 @@ fun WalletScreen(
     modifier: Modifier = Modifier,
 ) {
     val shower = ServiceLocator.showerRepository
+    val messenger = LocalPrismMessenger.current
     var wallet by remember { mutableStateOf<ShowerWallet?>(null) }
     var orders by remember { mutableStateOf<List<ShowerOrder>>(emptyList()) }
     var loading by remember { mutableStateOf(true) }
@@ -119,7 +120,7 @@ fun WalletScreen(
             confirmText = "确定", dismissText = null,
             onConfirm = {
                 topUpVisible = false
-                openExternalLink(ExternalLinks.ShowerTopUp)
+                openExternalLink(ExternalLinks.ShowerTopUp, onFailure = { messenger.error("无法打开充值页面") })
             },
             onDismiss = { topUpVisible = false },
         )
@@ -369,7 +370,7 @@ fun ElectricScreen(
             confirmText = "确定", dismissText = null,
             onConfirm = {
                 topUpVisible = false
-                openExternalLink(ExternalLinks.ElectricTopUp)
+                openExternalLink(ExternalLinks.ElectricTopUp, onFailure = { messenger.error("无法打开充值页面") })
             },
             onDismiss = { topUpVisible = false },
         )

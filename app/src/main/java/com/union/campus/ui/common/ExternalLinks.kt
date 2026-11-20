@@ -1,11 +1,14 @@
 package com.union.campus.ui.common
 
 import android.content.Intent
+import android.content.Context
 import androidx.core.net.toUri
 import com.union.campus.UnionApplicationHolder
 
-/** 外部跳转地址：支付宝充值小程序与教务找回密码。 */
+/** 外部跳转地址：官方教务系统、充值小程序与教务找回密码。 */
 object ExternalLinks {
+    // Same official origin as JwClient.jwUrl; never append credentials or session parameters.
+    const val AcademicPortal = "https://jw.zzife.edu.cn"
     const val ShowerTopUp = "https://ur.alipay.com/_4nxyEZlWjjtkKJQIAIcpCk"
     const val ElectricTopUp = "https://ur.alipay.com/_7pzqnfDTdCJERAdDgLmAPP"
     const val RetrievePassword = "https://authserver.zzife.edu.cn/retrieve-password/retrievePassword/index.html"
@@ -14,11 +17,20 @@ object ExternalLinks {
     const val TopUpTip = "充值将跳转至支付宝官方小程序充值页面完成"
 }
 
-/** 用系统浏览器打开外部链接；没有可用应用时静默失败。 */
-fun openExternalLink(url: String) {
-    val context = UnionApplicationHolder.appContext ?: return
+/** Open a trusted link and return whether the system accepted the handoff. */
+fun openExternalLink(
+    url: String,
+    context: Context? = UnionApplicationHolder.appContext,
+    onFailure: () -> Unit = {},
+): Boolean {
+    if (context == null) {
+        onFailure()
+        return false
+    }
     val intent = Intent(Intent.ACTION_VIEW, url.toUri()).apply {
         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
     }
-    runCatching { context.startActivity(intent) }
+    val opened = runCatching { context.startActivity(intent); true }.getOrDefault(false)
+    if (!opened) onFailure()
+    return opened
 }

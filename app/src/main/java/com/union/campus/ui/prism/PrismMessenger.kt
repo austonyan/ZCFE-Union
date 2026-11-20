@@ -1,6 +1,8 @@
 package com.union.campus.ui.prism
 
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -35,6 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalAccessibilityManager
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 
@@ -90,6 +96,8 @@ fun PrismSnackbarHost(
 ) {
     val message = messenger.current
     val haptics = rememberPrismHaptics()
+    val motion = rememberPrismMotion()
+    val accessibility = LocalAccessibilityManager.current
     LaunchedEffect(message?.id) {
         val current = message ?: return@LaunchedEffect
         when (current.tone) {
@@ -98,7 +106,11 @@ fun PrismSnackbarHost(
             PrismMessageTone.Error -> haptics.error()
             PrismMessageTone.Info -> Unit
         }
-        delay(if (current.actionLabel != null) 5000L else 3200L)
+        val baseTimeout = if (current.actionLabel != null) 5000L else 3200L
+        val timeout = accessibility?.calculateRecommendedTimeoutMillis(
+            baseTimeout, containsIcons = true, containsText = true, containsControls = current.actionLabel != null,
+        ) ?: baseTimeout
+        delay(timeout)
         messenger.dismiss(current.id)
     }
 
@@ -112,8 +124,10 @@ fun PrismSnackbarHost(
         AnimatedContent(
             targetState = message,
             transitionSpec = {
-                (slideInVertically { it } + fadeIn(PrismMotion.tween(PrismMotion.Quick))) togetherWith
-                    (slideOutVertically { it } + fadeOut(PrismMotion.tween(PrismMotion.Fast)))
+                if (motion.enabled) {
+                    (slideInVertically { it } + fadeIn(motion.tween(PrismMotion.Quick))) togetherWith
+                        (slideOutVertically { it } + fadeOut(motion.tween(PrismMotion.Fast)))
+                } else (EnterTransition.None togetherWith ExitTransition.None).using(null)
             },
             label = "prism-snackbar",
         ) { current ->
@@ -135,7 +149,8 @@ fun PrismSnackbarHost(
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .widthIn(max = 560.dp),
+                        .widthIn(max = 560.dp)
+                        .semantics { liveRegion = LiveRegionMode.Polite },
                     shape = PrismShape(16f * density.density),
                     color = container,
                     contentColor = content,

@@ -47,7 +47,7 @@ enum class Screen(
     Exams("exams", "考试"),
     ExamDetail("exam-detail", "考试详情"),
     CourseSelect("course-select", "选课"),
-    ConfirmSelection("confirm-selection", "确认选课"),
+    ConfirmSelection("confirm-selection", "课程预览"),
     Evaluation("evaluation", "教学评价"),
     Textbooks("textbooks", "教材"),
     AcademicAffairs("academic-affairs", "教务事务"),
