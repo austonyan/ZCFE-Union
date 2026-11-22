@@ -1,6 +1,9 @@
 package com.union.campus.data.repo
 
+import com.union.campus.core.AccountCheck
+import com.union.campus.core.AccountCheckState
 import com.union.campus.core.AppError
+import com.union.campus.core.toAccountCheck
 import com.union.campus.data.remote.electric.ElectricClient
 import com.union.campus.data.store.CacheTtl
 import com.union.campus.data.store.CredentialStore
@@ -69,12 +72,22 @@ class ElectricRepository constructor(
         settings.setLastElectricRoom("")
     }
 
-    suspend fun probe(): Boolean = try {
-        rooms()
-        true
-    } catch (_: AppError) {
-        false
+    /** 电费体检：以已保存的学号为准，并区分未绑定、登录失效与网络/上游异常。 */
+    suspend fun checkAccount(): AccountCheck {
+        if (!isBound()) return AccountCheck(AccountCheckState.UNBOUND)
+        // 进程恢复竞态时客户端可能还没拿到学号，按凭证补齐后再探测
+        if (client.account.isBlank()) restore()
+        return try {
+            rooms()
+            AccountCheck(AccountCheckState.OK)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.toAccountCheck()
+        }
     }
+
+    suspend fun probe(): Boolean = checkAccount().isOk
 
     // ---------------- 房间 ----------------
 

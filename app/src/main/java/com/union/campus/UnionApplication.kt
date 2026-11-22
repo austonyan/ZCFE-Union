@@ -20,9 +20,10 @@ class UnionApplication : Application() {
         UnionApplicationHolder.init(this)
         createNotificationChannel()
         applicationScope.launch {
-            ServiceLocator.jwRepository.restoreSession()
-            ServiceLocator.showerRepository.restore()
-            ServiceLocator.electricRepository.restore()
+            // 三套凭证各自恢复：一个模块恢复失败不能连累其它模块
+            runCatching { ServiceLocator.jwRepository.restoreSession() }
+            runCatching { ServiceLocator.showerRepository.restore() }
+            runCatching { ServiceLocator.electricRepository.restore() }
             ReminderWorker.schedule(this@UnionApplication)
         }
     }

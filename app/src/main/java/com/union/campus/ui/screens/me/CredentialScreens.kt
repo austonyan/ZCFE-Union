@@ -42,8 +42,6 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.subheadlineStyle
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 
 // ---------------- 凭证中心 ----------------
 
@@ -69,16 +67,9 @@ fun CredentialsCenterScreen(
         if (checking) return
         checking = true
         launchUi {
-            val jw = ServiceLocator.jwRepository
-            val shower = ServiceLocator.showerRepository
-            val electric = ServiceLocator.electricRepository
-            val results = coroutineScope {
-                val jwOk = async { runCatching { jw.isBound() && jw.probe() }.getOrDefault(false) }
-                val showerOk = async { runCatching { shower.isBound() && shower.probe() }.getOrDefault(false) }
-                val electricOk = async { runCatching { electric.isBound() && electric.probe() }.getOrDefault(false) }
-                listOf("教务" to jwOk.await(), "洗浴" to showerOk.await(), "电费" to electricOk.await())
-            }
-            checkResult = results.joinToString("；") { (name, ok) -> "$name：${if (ok) "正常" else "异常/未绑定"}" }
+            // 结论区分未绑定、登录失效与网络不可用，不再统一显示为异常
+            val results = checkAllAccounts()
+            checkResult = results.joinToString("；") { (name, check) -> "$name：${check.displayText}" }
             checking = false
         }
     }

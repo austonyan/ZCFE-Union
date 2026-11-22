@@ -1,6 +1,10 @@
 package com.union.campus.data.repo
 
+import com.union.campus.core.AccountCheck
+import com.union.campus.core.AccountCheckState
 import com.union.campus.core.AppError
+import com.union.campus.core.combineAccountChecks
+import com.union.campus.core.toAccountCheck
 import com.union.campus.data.remote.shower.ShowerClient
 import com.union.campus.data.remote.shower.formatShowerCountdown
 import com.union.campus.data.remote.shower.showerAlreadyStoppedMessage
@@ -55,19 +59,32 @@ class ShowerRepository constructor(
     val sessionFileKey = "shower.activeSession"
 
     fun restore() {
-        val cred = credentials.load()
-        if (cred.showerToken.isNotBlank()) {
-            client.updateToken(cred.showerToken, cred.showerServiceHost.takeIf { it.isNotBlank() })
-            _sessionState.value = SessionState.VALID
-        } else {
-            _sessionState.value = SessionState.NOT_BOUND
-        }
+        if (!syncClientAuth()) _sessionState.value = SessionState.NOT_BOUND
         store.read(sessionFileKey, ShowerSessionState.serializer())?.let {
             _activeSession.value = it.data
         }
     }
 
-    fun isBound(): Boolean = _sessionState.value == SessionState.VALID
+    /**
+     * 是否已连接：以本地保存的洗浴凭证为准。
+     *
+     * 内存会话可能因进程恢复竞态、启动时 Keystore 瞬时失败或其它账号的恢复异常而
+     * 落后于已落盘的凭证；这里按凭证补正 token 与状态，避免“凭证已保存，账号检查
+     * 却显示未绑定”。正常情况下命中 [SessionState.VALID] 直接返回，不重复解密。
+     */
+    fun isBound(): Boolean =
+        _sessionState.value == SessionState.VALID || syncClientAuth()
+
+    /** 把本地凭证同步到内存客户端；有可用 token 时返回 true。 */
+    private fun syncClientAuth(cred: CredentialStore.Credentials = credentials.load()): Boolean {
+        val token = cred.showerToken
+        if (token.isBlank()) return false
+        if (client.token != token) {
+            client.updateToken(token, cred.showerServiceHost.takeIf { it.isNotBlank() })
+        }
+        _sessionState.value = SessionState.VALID
+        return true
+    }
 
     fun maskedMobile(): String {
         val m = credentials.load().showerMobile
@@ -141,12 +158,35 @@ class ShowerRepository constructor(
         store.remove(sessionFileKey)
     }
 
-    suspend fun probe(): Boolean = try {
-        orgs()
-        true
-    } catch (_: AppError) {
-        false
+    /**
+     * 洗浴账号体检。
+     *
+     * 先按本地凭证补全会话，再探测两个账号相关端点：
+     * `getOrgs` 是学校目录，可能因校区配置/业务限制失败；
+     * `getWalletInfo` 是本人钱包，能独立证明 token 有效。
+     * 任一端点成功即视为正常，避免单个接口失败把已连接账号报成异常。
+     */
+    suspend fun checkAccount(): AccountCheck {
+        if (!isBound()) return AccountCheck(AccountCheckState.UNBOUND)
+        return combineAccountChecks(
+            listOf(
+                probeOnce { orgs() },
+                probeOnce { wallet() },
+            ),
+        )
     }
+
+    private suspend fun probeOnce(block: suspend () -> Unit): AccountCheck = try {
+        block()
+        AccountCheck(AccountCheckState.OK)
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        e.toAccountCheck()
+    }
+
+    /** 兼容旧调用：只关心“是否正常”。 */
+    suspend fun probe(): Boolean = checkAccount().isOk
 
     suspend fun orgs(): List<ShowerOrg> {
         val data = client.getOrgs() ?: return emptyList()

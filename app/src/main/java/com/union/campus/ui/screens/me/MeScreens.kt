@@ -41,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.union.campus.core.AccountCheck
+import com.union.campus.core.AccountCheckState
 import com.union.campus.data.store.CredentialStore
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.launchUi
@@ -61,8 +63,6 @@ import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 
 // ---------------- 我的 ----------------
 
@@ -104,24 +104,15 @@ fun ProfileScreen(
         checking = true
         checkStates = listOf("教务", "洗浴", "电费").associateWith { CheckState.Checking }
         launchUi {
-            val jw = ServiceLocator.jwRepository
-            val shower = ServiceLocator.showerRepository
-            val electric = ServiceLocator.electricRepository
-            // 并行探测三套凭证
-            val results = coroutineScope {
-                val jwOk = async { runCatching { jw.isBound() && jw.probe() }.getOrDefault(false) }
-                val showerOk = async { runCatching { shower.isBound() && shower.probe() }.getOrDefault(false) }
-                val electricOk = async { runCatching { electric.isBound() && electric.probe() }.getOrDefault(false) }
-                listOf("教务" to jwOk.await(), "洗浴" to showerOk.await(), "电费" to electricOk.await())
-            }
-            checkStates = results.associate { (name, ok) ->
-                name to if (ok) CheckState.Ok else CheckState.Fail
-            }
+            // 并行探测三套凭证；结论区分未绑定、登录失效与网络不可用
+            val results = checkAllAccounts()
+            checkStates = results.associate { (name, check) -> name to check.toCheckState() }
             checking = false
-            if (results.all { it.second }) {
+            val failed = results.filterNot { it.second.isOk }
+            if (failed.isEmpty()) {
                 messenger.success("全部凭证正常")
             } else {
-                messenger.warning("账号异常或未绑定，请在凭证中心登录")
+                messenger.warning(failed.joinToString("；") { (name, check) -> "$name：${check.displayText}" })
             }
         }
     }
@@ -242,7 +233,14 @@ fun ProfileScreen(
     }
 }
 
-private enum class CheckState { Idle, Checking, Ok, Fail }
+private enum class CheckState { Idle, Checking, Ok, Unbound, Expired, Unavailable }
+
+private fun AccountCheck.toCheckState(): CheckState = when (state) {
+    AccountCheckState.OK -> CheckState.Ok
+    AccountCheckState.UNBOUND -> CheckState.Unbound
+    AccountCheckState.EXPIRED -> CheckState.Expired
+    AccountCheckState.UNAVAILABLE -> CheckState.Unavailable
+}
 
 @Composable
 private fun CheckStateRow(name: String, state: CheckState) {
@@ -268,7 +266,12 @@ private fun CheckStateRow(name: String, state: CheckState) {
                 Spacer(Modifier.width(6.dp))
                 Text("正常", style = footnoteStyle(), color = PrismStatus.success())
             }
-            CheckState.Fail -> {
+            CheckState.Unbound -> Text(
+                "未绑定",
+                style = footnoteStyle(),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            CheckState.Expired -> {
                 Icon(
                     Icons.Outlined.ErrorOutline,
                     contentDescription = null,
@@ -276,7 +279,17 @@ private fun CheckStateRow(name: String, state: CheckState) {
                     modifier = Modifier.size(18.dp),
                 )
                 Spacer(Modifier.width(6.dp))
-                Text("异常/未绑定", style = footnoteStyle(), color = MaterialTheme.colorScheme.error)
+                Text("登录失效", style = footnoteStyle(), color = MaterialTheme.colorScheme.error)
+            }
+            CheckState.Unavailable -> {
+                Icon(
+                    Icons.Outlined.ErrorOutline,
+                    contentDescription = null,
+                    tint = PrismStatus.warning(),
+                    modifier = Modifier.size(18.dp),
+                )
+                Spacer(Modifier.width(6.dp))
+                Text("服务暂不可用", style = footnoteStyle(), color = PrismStatus.warning())
             }
         }
     }

@@ -823,7 +823,7 @@ Union
 | 教务凭证 | 学号、会话状态、上次登录时间、重新登录 | P0 |
 | 洗浴凭证 | 手机号（脱敏）、token 状态、重新登录 | P0 |
 | 电费凭证 | 学校编码、学号、已绑定房间数、状态 | P0 |
-| 一键体检 | 并行探测：`getxnxq_xl` / `getOrgs` / `getbindroom` | P0 |
+| 一键体检 | 并行探测：`getxnxq_xl` / `getOrgs`+`getWalletInfo` / `getbindroom` | P0 |
 | 分模块解绑 | 清除单个模块凭证与缓存 | P1 |
 | 全部退出 | 清除所有凭证与本地数据，二次确认 | P0 |
 | 登录态说明 | 为什么需要三套账号、各自能做什么 | P0 |
@@ -838,7 +838,7 @@ Union
 ##### 数据来源
 
 - 教务：CAS 4 步 + `getxnxq_xl` 保活探测；
-- 洗浴：`loginWidthPwd` + `getOrgs` 探测；
+- 洗浴：`loginWidthPwd` + `getOrgs` / `getWalletInfo` 双端点探测，任一成功即视为凭证有效（单接口的业务限制不算登录失效）；
 - 电费：`getbindroom` 探测。
 
 ---

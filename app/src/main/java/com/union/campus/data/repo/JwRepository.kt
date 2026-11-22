@@ -1,6 +1,9 @@
 package com.union.campus.data.repo
 
+import com.union.campus.core.AccountCheck
+import com.union.campus.core.AccountCheckState
 import com.union.campus.core.AppError
+import com.union.campus.core.toAccountCheck
 import com.union.campus.data.remote.jw.JwClient
 import com.union.campus.data.store.CacheTtl
 import com.union.campus.data.store.CredentialStore
@@ -56,7 +59,16 @@ class JwRepository constructor(
 
     private var connected: Boolean = false
 
-    fun isBound(): Boolean = connected && credentials.load().jwStudentNo.isNotBlank()
+    /**
+     * 是否已连接：有学号即可用。启动时的会话恢复可能晚于页面或体检，
+     * 这里在内存未连接时按已保存的 Cookie 补一次，避免已登录却显示未绑定。
+     */
+    fun isBound(): Boolean {
+        val cred = credentials.load()
+        if (cred.jwStudentNo.isBlank()) return false
+        if (!connected) restoreSession()
+        return connected
+    }
 
     fun maskedStudentNo(): String {
         val no = credentials.load().jwStudentNo
@@ -120,13 +132,21 @@ class JwRepository constructor(
         _sessionState.value = SessionState.NOT_BOUND
     }
 
-    /** 会话保活/探测：getxnxq_xl。 */
-    suspend fun probe(): Boolean = try {
-        semesterList(forceRefresh = true)
-        true
-    } catch (_: AppError) {
-        false
+    /** 会话体检：区分未绑定、登录失效与网络/上游异常。 */
+    suspend fun checkAccount(): AccountCheck {
+        if (!isBound()) return AccountCheck(AccountCheckState.UNBOUND)
+        return try {
+            semesterList(forceRefresh = true)
+            AccountCheck(AccountCheckState.OK)
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.toAccountCheck()
+        }
     }
+
+    /** 会话保活/探测：getxnxq_xl。 */
+    suspend fun probe(): Boolean = checkAccount().isOk
 
     /** 原始 H5 调用（选课/评教等未封装接口使用）。 */
     suspend fun rawCall(action: String, params: Map<String, String> = emptyMap()): kotlinx.serialization.json.JsonElement =
