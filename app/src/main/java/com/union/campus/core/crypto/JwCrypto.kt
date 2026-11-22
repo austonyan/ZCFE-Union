@@ -13,7 +13,7 @@ import javax.crypto.spec.SecretKeySpec
  */
 object JwCrypto {
 
-    const val H5_ENCRYPT_KEY = "<token>"
+    const val H5_ENCRYPT_KEY = "***REMOVED***"
 
     private const val AES_CHARS = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
     private const val B36 = "0123456789abcdefghijklmnopqrstuvwxyz"
