@@ -85,21 +85,73 @@ data class ExamsData(val semesterDm: String, val exams: List<Exam>, val fetchedA
 
 @Serializable
 data class EvaluationItem(
-    val hideKey: String,
+    val xnxq: String,
+    val evaluationRoundCode: String,
+    val courseCode: String,
+    val teacherCode: String,
+    val evaluationTypeCode: String,
+    val evaluationStatusCode: String,
+    val courseStatusCode: String,
     val courseName: String,
     val teacher: String,
-    val round: String, // 评价轮次
-    val xnxq: String = "",
+    val credits: String,
+    val evaluationType: String,
+    val semesterName: String,
+    val roundName: String,
+    val startsAt: String,
+    val endsAt: String,
+    val roundIndex: Int = 0,
+    val courseIndex: Int = 0,
+    val maxCount: String = "",
+    val canEvaluate: String = "",
+    val completedCourseCount: String = "",
+    val rawCourseInfo: Map<String, String> = emptyMap(),
+    val rawRoundInfo: Map<String, String> = emptyMap(),
+) {
+    val roundKey: String
+        get() = listOf(xnxq, evaluationRoundCode, semesterName, roundName, startsAt, endsAt, roundIndex).joinToString("|")
+
+    val courseKey: String
+        get() = listOf(roundKey, courseCode, teacherCode, evaluationTypeCode, evaluationStatusCode, courseStatusCode, courseIndex).joinToString("|")
+
+    val isPending: Boolean
+        get() = courseStatusCode == "0"
+}
+
+@Serializable
+data class EvaluationForm(
+    val statusCode: String,
+    val formats: List<EvaluationFormat>,
 )
 
 @Serializable
-data class EvaluationDetail(
-    val hideKey: String,
+data class EvaluationFormat(
+    val code: String,
+    val title: String,
+    val categories: List<EvaluationCategory>,
+)
+
+@Serializable
+data class EvaluationCategory(
+    val code: String,
+    val title: String,
     val questions: List<EvaluationQuestion>,
 )
 
 @Serializable
-data class EvaluationQuestion(val id: String, val title: String, val maxScore: Int, val type: String)
+data class EvaluationQuestion(
+    val key: String,
+    val code: String,
+    val title: String,
+    val typeCode: String,
+    val options: List<EvaluationOption> = emptyList(),
+    val initialAnswers: List<String> = emptyList(),
+    val minimum: String = "",
+    val maximum: String = "",
+)
+
+@Serializable
+data class EvaluationOption(val code: String, val label: String)
 
 @Serializable
 data class TextbookItem(

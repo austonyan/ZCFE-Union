@@ -5,10 +5,8 @@ import android.content.Context
 import androidx.core.net.toUri
 import com.union.campus.UnionApplicationHolder
 
-/** 外部跳转地址：官方教务系统、充值小程序与教务找回密码。 */
+/** 外部跳转地址：充值小程序与教务找回密码。 */
 object ExternalLinks {
-    // Same official origin as JwClient.jwUrl; never append credentials or session parameters.
-    const val AcademicPortal = "https://jw.zzife.edu.cn"
     const val ShowerTopUp = "https://ur.alipay.com/_4nxyEZlWjjtkKJQIAIcpCk"
     const val ElectricTopUp = "https://ur.alipay.com/_7pzqnfDTdCJERAdDgLmAPP"
     const val RetrievePassword = "https://authserver.zzife.edu.cn/retrieve-password/retrievePassword/index.html"

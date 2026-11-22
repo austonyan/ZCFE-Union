@@ -14,24 +14,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Capture intents without launching a browser, logging in or performing any real transaction. */
+/** Captures intents without launching a browser, logging in or performing any transaction. */
 @RunWith(AndroidJUnit4::class)
 class ExternalLinkHandoffTest {
     @Test
-    fun portalIntent_usesOfficialOrigin_withoutCredentialsOrSessionParameters() {
+    fun passwordRecoveryIntent_staysOnTheOfficialAuthHost_withoutExtras() {
         var captured: Intent? = null
         var failures = 0
         val context = object : ContextWrapper(InstrumentationRegistry.getInstrumentation().targetContext) {
             override fun startActivity(intent: Intent) { captured = Intent(intent) }
         }
-        assertTrue(openExternalLink(ExternalLinks.AcademicPortal, context) { failures++ })
+        assertTrue(openExternalLink(ExternalLinks.RetrievePassword, context) { failures++ })
         val intent = requireNotNull(captured)
         assertEquals(Intent.ACTION_VIEW, intent.action)
-        assertEquals("https://jw.zzife.edu.cn", intent.dataString)
         assertEquals("https", intent.data?.scheme)
-        assertEquals("jw.zzife.edu.cn", intent.data?.host)
+        assertEquals("authserver.zzife.edu.cn", intent.data?.host)
         assertNull(intent.data?.userInfo)
-        assertNull(intent.data?.query)
         assertNull(intent.extras)
         assertTrue(intent.flags and Intent.FLAG_ACTIVITY_NEW_TASK != 0)
         assertEquals(0, failures)
@@ -43,9 +41,9 @@ class ExternalLinkHandoffTest {
         val context = object : ContextWrapper(InstrumentationRegistry.getInstrumentation().targetContext) {
             override fun startActivity(intent: Intent) { throw ActivityNotFoundException("fixture only") }
         }
-        assertFalse(openExternalLink(ExternalLinks.AcademicPortal, context) { failures++ })
+        assertFalse(openExternalLink(ExternalLinks.ShowerTopUp, context) { failures++ })
         assertEquals(1, failures)
-        assertFalse(openExternalLink(ExternalLinks.AcademicPortal, null) { failures++ })
+        assertFalse(openExternalLink(ExternalLinks.ElectricTopUp, null) { failures++ })
         assertEquals(2, failures)
     }
 }

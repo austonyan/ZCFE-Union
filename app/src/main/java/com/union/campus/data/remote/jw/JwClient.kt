@@ -209,7 +209,11 @@ class JwClient(
      * 统一 H5 调用：注入通用参数 → 拼接 qs → of_encrypt/getMd5_2 → POST /wap/{name}.action。
      * 已有键不覆盖；响应做会话失效检测。
      */
-    suspend fun h5Call(action: String, params: Map<String, String> = emptyMap()): JsonElement =
+    private val singleAttemptClient by lazy {
+        client.newBuilder().retryOnConnectionFailure(false).followRedirects(false).build()
+    }
+
+    suspend fun h5Call(action: String, params: Map<String, String> = emptyMap(), allowRetry: Boolean = true): JsonElement =
         withContext(Dispatchers.IO) {
             val biz = buildMap {
                 put("userid", studentNo)
@@ -234,7 +238,8 @@ class JwClient(
                 .post(form)
                 .build()
             val body = try {
-                client.newCall(req).execute().use { resp ->
+                (if (allowRetry) client else singleAttemptClient).newCall(req).execute().use { resp ->
+                    if (!allowRetry && !resp.isSuccessful) throw java.io.IOException("HTTP ${resp.code}")
                     resp.body?.string() ?: ""
                 }
             } catch (e: Exception) {

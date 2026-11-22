@@ -31,12 +31,13 @@ class TodoRepository constructor(
             } catch (_: AppError) {
                 emptyList()
             }
-            if (pending.isNotEmpty()) {
+            val pendingCount = pending.count { it.isPending }
+            if (pendingCount > 0) {
                 todos += TodoItem(
                     id = "evaluations",
                     source = "jw",
                     type = "evaluation",
-                    title = "待评 ${pending.size} 门",
+                    title = "待评 $pendingCount 门",
                     subtitle = "截止以教务为准 · 请逐门确认提交",
                     dueText = "",
                     deepLink = "evaluation",

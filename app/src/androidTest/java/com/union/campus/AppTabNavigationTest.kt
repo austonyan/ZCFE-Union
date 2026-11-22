@@ -4,7 +4,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -71,7 +70,7 @@ class AppTabNavigationTest {
     }
 
     @Test
-    fun courseSelection_officialHandoff_isReachableWithoutLocalCredentials() {
+    fun courseSelection_hasNoMisleadingExternalHandoff() {
         val tabRole = SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Tab)
         composeRule.waitUntil(15_000) {
             composeRule.onAllNodes(hasText("暂不绑定")).fetchSemanticsNodes().isNotEmpty() ||
@@ -82,8 +81,7 @@ class AppTabNavigationTest {
         }
         composeRule.onNode(tabRole and hasText("教务")).performClick()
         composeRule.onNodeWithText("选课").performScrollTo().performClick()
-        composeRule.onNodeWithText("打开教务系统").performScrollTo().assertIsDisplayed().assertIsEnabled()
-        // The real outbound action is intentionally not clicked; its intent is intercepted in the contract test.
+        composeRule.onNodeWithText("打开教务系统").assertDoesNotExist()
         composeRule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         composeRule.onNode(tabRole and hasText("教务")).assertIsSelected()
     }

@@ -251,7 +251,7 @@ def get_md5_2(data: str) -> str:
 | h5jsyy | jsyy_jxl | `GetJxlbyXQ` | 教室预约 | —（通用参数） | 查询 | ✅ |
 | h5jxpj | getJxpjJg | `getJxpjJg` | 教学评价（评教） | xnxq、pjlcdm | 查询 | ✅ |
 | h5jxpj | getJxpjJg_ejzb | `getJxpjJg_ejzb` | 教学评价（评教） | xnxq、kcdm、pjlcdm、pjztdm、yjzbdm | 查询 | ✅ |
-| h5jxpj | getJxpj_wjs | `getJxpj_wjs` | 教学评价（评教） | —（通用参数） | 查询 | ✅ |
+| h5jxpj | getJxpj_wjs | `getJxpj_wjs` | 教学评价（评教） | 无业务参数 | 查询 | ✅ |
 | h5jxpj | getJxpj_yjs | `getJxpj_yjs` | 教学评价（评教） | xnxq | 查询 | ✅ |
 | h5jxpj | getJxpjlcByXnxq | `getJxpjlcByXnxq` | 教学评价（评教） | xnxq | 查询 | ✅ |
 | h5jxpj | getJxpjnr | `getJxpjnr` | 教学评价（评教） | xnxq、kcdm、jsdm、pjlcdm、pjlxdm、pjztdm | 查询 | ✅ |

@@ -6,7 +6,6 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasText
@@ -83,12 +82,6 @@ class AppVisualAuditTest {
                         composeRule.onNodeWithContentDescription("设置").performScrollTo()
                     }
                     capture("$theme-tab-$index")
-                    if (label == "教务") {
-                        composeRule.onNodeWithText("选课").performScrollTo().performClick()
-                        composeRule.onNodeWithText("打开教务系统").performScrollTo().assertIsEnabled()
-                        capture("$theme-course-entry")
-                        composeRule.activityRule.scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
-                    }
                 }
                 composeRule.onNodeWithContentDescription("设置").performClick()
                 composeRule.onNodeWithText("设置").assertIsDisplayed()

@@ -1,6 +1,5 @@
 package com.union.campus.ui.screens.study
 
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,9 +14,7 @@ import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.Check
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.HowToVote
 import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.SmartToy
@@ -29,7 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -44,20 +40,15 @@ import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.NullStatus
-import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
-import com.union.campus.ui.prism.PrismSlider
-import com.union.campus.ui.prism.PrismTextField
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 
 // ---------------- 选课 ----------------
@@ -75,7 +66,6 @@ data class SelectableCourse(
 fun CourseSelectScreen(
     onBack: () -> Unit,
     onConfirm: (SelectableCourse) -> Unit,
-    onOpenAcademicPortal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val jw = ServiceLocator.jwRepository
@@ -168,32 +158,21 @@ fun CourseSelectScreen(
                     }
                 }
             }
-            PrismButton(
-                onClick = onOpenAcademicPortal,
-                filled = state !is UiState.Ready<*>,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.AutoMirrored.Rounded.OpenInNew, null)
-                Spacer(Modifier.width(8.dp))
-                Text("打开教务系统")
-            }
             Spacer(Modifier.height(12.dp))
         }
     }
 }
+// ---------------- 课程信息预览 ----------------
 
-// ---------------- 课程预览与官方系统交接 ----------------
-
-/** 课程确认预览；写接口尚未建立课程标识映射，不发送无法对应所选课程的请求。 */
+/** 课程信息预览；不在这里伪造选课提交。 */
 @Composable
 fun ConfirmSelectionScreen(
     course: SelectableCourse,
     onBack: () -> Unit,
-    onOpenAcademicPortal: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     UnionScreenScaffold(
-        title = "课程预览",
+        title = "课程信息",
         onBack = onBack,
         modifier = modifier,
     ) { padding ->
@@ -218,174 +197,10 @@ fun ConfirmSelectionScreen(
                 ).joinToString(" · ")
                 Text(listOf(details, course.time.ifBlank { "时间待定" }).filter { it.isNotBlank() }.joinToString("\n"), style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
-            PrismButton(
-                onClick = onOpenAcademicPortal,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.AutoMirrored.Rounded.OpenInNew, null)
-                Spacer(Modifier.width(8.dp))
-                Text("打开教务系统")
-            }
-            Text("请在教务系统核对并完成选课。", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             PrismTextButton(onClick = onBack, modifier = Modifier.fillMaxWidth()) {
-                Text("返回选课")
+                Text("返回课程列表")
             }
             Spacer(Modifier.height(12.dp))
         }
-    }
-}
-
-// ---------------- 教学评价 ----------------
-
-/** 教学评价：待评课程、三项评分、主观意见与提交。 */
-@Composable
-fun EvaluationScreen(
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val jw = ServiceLocator.jwRepository
-    var pending by remember { mutableStateOf<List<com.union.campus.domain.EvaluationItem>>(emptyList()) }
-    var loading by remember { mutableStateOf(true) }
-    var error by remember { mutableStateOf<String?>(null) }
-    var current by remember { mutableStateOf<com.union.campus.domain.EvaluationItem?>(null) }
-    var q1 by rememberSaveable { mutableFloatStateOf(0.9f) }
-    var q2 by rememberSaveable { mutableFloatStateOf(0.95f) }
-    var q3 by rememberSaveable { mutableFloatStateOf(0.85f) }
-    var comment by rememberSaveable { mutableStateOf("") }
-    var submitting by rememberSaveable { mutableStateOf(false) }
-    var confirmSubmit by rememberSaveable { mutableStateOf(false) }
-    var result by rememberSaveable { mutableStateOf<String?>(null) }
-
-    LaunchedEffect(Unit) {
-        loading = true
-        try {
-            pending = jw.pendingEvaluations()
-            current = pending.firstOrNull()
-            error = null
-        } catch (e: AppError) {
-            error = e.userMessage
-        } catch (e: Exception) {
-            error = "评教加载失败：${e.message}"
-        }
-        loading = false
-    }
-
-    if (confirmSubmit) {
-        PrismAlertDialog(
-            title = "提交评教",
-            body = "确认提交「${current?.courseName ?: "课程"}」评价？结果以教务为准。",
-            confirmText = "确认提交",
-            onConfirm = {
-                confirmSubmit = false
-                submitting = true
-                launchUi {
-                    try {
-                        jw.submitEvaluation(
-                            mapOf(
-                                "hidekey" to (current?.hideKey ?: ""),
-                                "xnxq" to (current?.xnxq ?: ""),
-                                "score1" to ((q1 * 100).toInt().toString()),
-                                "score2" to ((q2 * 100).toInt().toString()),
-                                "score3" to ((q3 * 100).toInt().toString()),
-                                "comment" to comment,
-                            ),
-                        )
-                        submitting = false
-                        result = "已提交，结果仅在教务系统生效。"
-                    } catch (e: AppError) {
-                        submitting = false
-                        result = "提交失败：${e.userMessage}（草稿已保留）"
-                    } catch (e: Exception) {
-                        submitting = false
-                        result = "提交失败：${e.message}"
-                    }
-                }
-            },
-            onDismiss = { confirmSubmit = false },
-        )
-    }
-    if (result != null) {
-        PrismAlertDialog(
-            title = "评教结果",
-            body = result ?: "",
-            confirmText = "确定",
-            dismissText = null,
-            onConfirm = { result = null },
-            onDismiss = { result = null },
-        )
-    }
-
-    UnionScreenScaffold(
-        title = "教学评价",
-        onBack = onBack,
-        modifier = modifier,
-    ) { padding ->
-        Column(
-            Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            when {
-                loading -> PrismLoadingBlock(label = "评教加载中")
-                error != null -> Text(error ?: "", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                pending.isEmpty() -> NullStatus(Icons.Rounded.Star, "暂无进行中的评教", "评教开放后显示")
-                else -> {
-                    Text("待评 ${pending.size} 门 · 截止以教务为准", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    if (pending.size > 1) {
-                        Row(
-                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            pending.forEach { p ->
-                                PrismChip(
-                                    label = p.courseName,
-                                    selected = current == p,
-                                    onClick = { current = p },
-                                )
-                            }
-                        }
-                    }
-                    current?.let { cur ->
-                        Text("课程：${cur.courseName} · ${cur.teacher.ifBlank { "教师未标注" }}", style = headlineStyle())
-                        SliderQuestion("课堂组织", q1) { q1 = it }
-                        SliderQuestion("教学态度", q2) { q2 = it }
-                        SliderQuestion("收获程度", q3) { q3 = it }
-                        PrismTextField(
-                            value = comment,
-                            onValueChange = { comment = it },
-                            label = "主观意见（选填）",
-                            singleLine = false,
-                            minLines = 3,
-                            maxLines = 6,
-                        )
-                        PrismButton(
-                            onClick = { confirmSubmit = true },
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !submitting,
-                            loading = submitting,
-                        ) {
-                            Text("提交评教")
-                        }
-                        Text("评教结果仅在教务系统生效", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                }
-            }
-            Spacer(Modifier.height(12.dp))
-        }
-    }
-}
-
-@Composable
-private fun SliderQuestion(title: String, value: Float, onChange: (Float) -> Unit) {
-    Column {
-        Row(Modifier.fillMaxWidth()) {
-            Text(title, style = subheadlineStyle())
-            Spacer(Modifier.weight(1f))
-            Text("${(value * 100).toInt()} 分", style = subheadlineStyle(), color = MaterialTheme.colorScheme.primary)
-        }
-        PrismSlider(value = value, onValueChange = onChange, valueRange = 0f..1f)
     }
 }

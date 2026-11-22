@@ -17,8 +17,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.union.campus.MainActivityHolder
-import com.union.campus.ui.common.ExternalLinks
-import com.union.campus.ui.common.openExternalLink
 import kotlinx.coroutines.flow.first
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.CourseCell
@@ -79,11 +77,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
     val showerRepo = ServiceLocator.showerRepository
     val activeSession by showerRepo.activeSession.collectAsState(initial = null)
     val messenger = LocalPrismMessenger.current
-    fun openAcademicPortal() {
-        openExternalLink(ExternalLinks.AcademicPortal, onFailure = {
-            messenger.error("无法打开教务系统，请检查浏览器")
-        })
-    }
     val motion = rememberPrismMotion()
 
     // 已完成引导/绑定的用户冷启动直接进今天页
@@ -319,7 +312,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
             composable(Screen.CourseSelect.route) {
                 CourseSelectScreen(
                     onBack = { navController.popBackStack() },
-                    onOpenAcademicPortal = ::openAcademicPortal,
                     onConfirm = { c ->
                         AppState.confirmCourse = c
                         navController.navigate(Screen.ConfirmSelection.route)
@@ -334,7 +326,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     ConfirmSelectionScreen(
                         course = c,
                         onBack = { navController.popBackStack() },
-                        onOpenAcademicPortal = ::openAcademicPortal,
                     )
                 }
             }

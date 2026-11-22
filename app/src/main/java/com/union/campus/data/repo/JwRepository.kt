@@ -9,6 +9,7 @@ import com.union.campus.data.store.SettingsStore
 import com.union.campus.domain.CourseCell
 import com.union.campus.domain.DayCourses
 import com.union.campus.domain.EvaluationItem
+import com.union.campus.domain.EvaluationForm
 import com.union.campus.domain.Exam
 import com.union.campus.domain.ExamsData
 import com.union.campus.domain.FreeClassroom
@@ -320,29 +321,30 @@ class JwRepository constructor(
 
     // ---------------- 评教 ----------------
 
-    suspend fun pendingEvaluations(): List<EvaluationItem> {
-        val element = client.h5Call("getJxpj_wjs")
-        val arr = parse.array(element)
-        return parse.objects(arr).mapIndexed { i, e ->
-            EvaluationItem(
-                hideKey = parse.str(e, "hidekey", "id"),
-                courseName = parse.str(e, "kcmc", "course").ifBlank { "课程 $i" },
-                teacher = parse.str(e, "jsmc", "rkjs", "teacher"),
-                round = parse.str(e, "pjlcmc", "pjlcdm", "round"),
-                xnxq = parse.str(e, "xnxq", "xnxqdm"),
-            )
-        }
+    suspend fun pendingEvaluations(): List<EvaluationItem> =
+        parseEvaluationItems(client.h5Call("getJxpj_wjs"))
+
+    suspend fun evaluationQuestions(item: EvaluationItem): EvaluationForm {
+        val params = evaluationCourseParams(item)
+        if (!hasCoreEvaluationIds(item)) throw AppError.Validation("教务返回的课程评教信息不完整")
+        val response = client.h5Call("getJxpjnr", params)
+        return parseEvaluationForm(response)
     }
 
-    suspend fun evaluationQuestions(hideKey: String, xnxq: String): JsonElement =
-        client.h5Call(
-            "getJxpjnr",
-            mapOf("hidekey" to hideKey, "xnxq" to xnxq),
-        )
-
-    suspend fun submitEvaluation(payload: Map<String, String>) {
-        // 写接口：不自动重试；结果以教务返回为准
-        client.h5Call("submitJxpj", payload)
+    suspend fun submitEvaluation(
+        item: EvaluationItem,
+        form: EvaluationForm,
+        answers: Map<String, String>,
+    ) {
+        // This is a one-shot write. Never retry after a network-ambiguous result.
+        val studentNo = credentials.load().jwStudentNo
+        val payload = buildEvaluationSubmissionJson(item, form, answers, studentNo)
+        val response = client.h5Call("submitJxpj", buildEvaluationRequestParams(payload), allowRetry = false)
+        val reply = parseEvaluationSubmissionReply(response)
+            ?: throw AppError.Upstream("教务未确认评价提交结果")
+        if (reply.flag != "1") {
+            throw EvaluationSubmissionRejected(reply.message.ifBlank { "教务未接受本次评价" })
+        }
     }
 
     // ---------------- 教材 ----------------
