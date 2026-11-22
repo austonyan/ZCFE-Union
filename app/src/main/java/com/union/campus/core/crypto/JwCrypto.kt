@@ -1,5 +1,6 @@
 package com.union.campus.core.crypto
 
+import com.union.campus.BuildConfig
 import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
@@ -13,7 +14,8 @@ import javax.crypto.spec.SecretKeySpec
  */
 object JwCrypto {
 
-    const val H5_ENCRYPT_KEY = "***REMOVED***"
+    /** 由 local.properties 的 jw.h5EncryptKey 或 JW_H5_ENCRYPT_KEY 环境变量注入，仓库不保存。 */
+    const val H5_ENCRYPT_KEY = BuildConfig.JW_H5_ENCRYPT_KEY
 
     private const val AES_CHARS = "ABCDEFGHJKMNPQRSTWXYZabcdefhijkmnprstwxyz2345678"
     private const val B36 = "0123456789abcdefghijklmnopqrstuvwxyz"

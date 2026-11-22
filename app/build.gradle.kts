@@ -7,14 +7,14 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 }
 
-// 签名口令不写入仓库：优先读 local.properties（已忽略），其次读环境变量。
-val signingProperties = Properties().apply {
+// 签名口令与 H5 加密常量不写入仓库：优先读 local.properties（已忽略），其次读环境变量。
+val localProperties = Properties().apply {
     val file = rootProject.file("local.properties")
     if (file.exists()) file.inputStream().use { load(it) }
 }
 
-fun signingValue(key: String, env: String): String? =
-    signingProperties.getProperty(key) ?: System.getenv(env)
+fun localValue(key: String, env: String): String? =
+    localProperties.getProperty(key) ?: System.getenv(env)
 
 android {
     namespace = "com.union.campus"
@@ -27,14 +27,21 @@ android {
         versionCode = 54
         versionName = "0.2.49"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        val jwH5Key = localValue("jw.h5EncryptKey", "JW_H5_ENCRYPT_KEY") ?: ""
+        buildConfigField(
+            "String",
+            "JW_H5_ENCRYPT_KEY",
+            "\"${jwH5Key.replace("\\", "\\\\").replace("\"", "\\\"")}\"",
+        )
     }
 
     signingConfigs {
         create("release") {
             storeFile = file("union-release.keystore")
-            storePassword = signingValue("union.storePassword", "UNION_STORE_PASSWORD")
-            keyAlias = signingValue("union.keyAlias", "UNION_KEY_ALIAS") ?: "union"
-            keyPassword = signingValue("union.keyPassword", "UNION_KEY_PASSWORD")
+            storePassword = localValue("union.storePassword", "UNION_STORE_PASSWORD")
+            keyAlias = localValue("union.keyAlias", "UNION_KEY_ALIAS") ?: "union"
+            keyPassword = localValue("union.keyPassword", "UNION_KEY_PASSWORD")
         }
     }
     buildTypes {

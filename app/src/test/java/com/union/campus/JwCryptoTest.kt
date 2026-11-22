@@ -10,19 +10,23 @@ import org.junit.Test
 
 class JwCryptoTest {
 
-    // 基准值由 Python 参考实现（allAPI.md §1.3.2）生成
+    // 基准值由 Python 参考实现（allAPI.md §1.3.2）生成；测试用固定 key，真实 key 只在本地配置
     @Test
     fun ofEncrypt_matchesPythonReference() {
         val qs1 = "action=jw_apply&xnxq=202620261&week=3"
         assertEquals(
-            "2j829k3owqyb1wka5s3icm662s5rad2l0wd72vp07i2rj23c1tlde42s4oni1ivl9i3lxfh700002z",
-            JwCrypto.ofEncrypt(qs1),
+            "34ne0f3sgfe3357uuh2jst5x3w1ubw2fo26n2y2uih2mrl9i29nsp51rrs8c25j8qo3q2lui000050",
+            JwCrypto.ofEncrypt(qs1, TEST_KEY),
         )
         val qs2 = "userid=20230001&usertype=STU"
         assertEquals(
-            "2rkcfn3qoshv1sycmr2nye541mfzyf2hg3si2gt29j3u9h791u7duq00005h",
-            JwCrypto.ofEncrypt(qs2),
+            "3bsrfc3t1k6h30f0ka1o7odp2p568s2awcus2hzztc3ob3m9292wel00003q",
+            JwCrypto.ofEncrypt(qs2, TEST_KEY),
         )
+    }
+
+    private companion object {
+        const val TEST_KEY = "TestKey123"
     }
 
     @Test

@@ -22,6 +22,7 @@
 - v0.2.18 变更：课表单元格按块高等比排版（课名/地点/教师完整显示）、去掉「本周 N 节课」与「显示周末」开关、周末有课时自动出列
 - v0.2.17 变更：UI 质感与动效第一批（表面层级 / 1px 边缘 / 文字层级 / tab fade-through / 按压形变 / Dock tonal 选中态），详见 `docs/ui-polish-direction.md`
 - 签名密钥：`app/union-release.keystore`（仅本地保留，已被 git 忽略；store/key 密码从 `local.properties` 的 `union.storePassword` / `union.keyPassword` 读取，或使用 `UNION_STORE_PASSWORD` / `UNION_KEY_PASSWORD` 环境变量，alias `union`）
+- H5 加密常量：`local.properties` 的 `jw.h5EncryptKey`，或 `JW_H5_ENCRYPT_KEY` 环境变量（仓库不保存）
 
 ## 构建
 
