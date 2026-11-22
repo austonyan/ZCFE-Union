@@ -1,10 +1,20 @@
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.util.Properties
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.kotlin.serialization)
 }
+
+// 签名口令不写入仓库：优先读 local.properties（已忽略），其次读环境变量。
+val signingProperties = Properties().apply {
+    val file = rootProject.file("local.properties")
+    if (file.exists()) file.inputStream().use { load(it) }
+}
+
+fun signingValue(key: String, env: String): String? =
+    signingProperties.getProperty(key) ?: System.getenv(env)
 
 android {
     namespace = "com.union.campus"
@@ -22,9 +32,9 @@ android {
     signingConfigs {
         create("release") {
             storeFile = file("union-release.keystore")
-            storePassword = "***REMOVED***"
-            keyAlias = "union"
-            keyPassword = "***REMOVED***"
+            storePassword = signingValue("union.storePassword", "UNION_STORE_PASSWORD")
+            keyAlias = signingValue("union.keyAlias", "UNION_KEY_ALIAS") ?: "union"
+            keyPassword = signingValue("union.keyPassword", "UNION_KEY_PASSWORD")
         }
     }
     buildTypes {
