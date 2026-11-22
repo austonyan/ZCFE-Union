@@ -4,6 +4,8 @@
 
 ## 交付物
 
+构建产物（`*.apk`）与签名密钥不入库；以下版本说明仅作发布记录。
+
 - **`郑财校园-release-v0.2.47.apk`** — 已签名 release APK（versionCode 52，v2 签名，CN=Zhengcai Union，有效期 10000 天）
 - 上一版 `郑财校园-release-v0.2.46.apk`（versionCode 51）保留，便于回滚
 - v0.2.47 变更：按 `docs/前端文本审计.csv` 应用 285 条已填写文案，共替换 45 个生产源码文件中的 317 处字符串；空白项不变，保留变量、必要换行及业务逻辑。同步更新文案相关测试断言。
@@ -19,7 +21,7 @@
 - v0.2.19 变更：时间栏压到 34dp，按本周该节实际楼栋自动选作息；课程卡片加宽；课表支持左右滑动切周
 - v0.2.18 变更：课表单元格按块高等比排版（课名/地点/教师完整显示）、去掉「本周 N 节课」与「显示周末」开关、周末有课时自动出列
 - v0.2.17 变更：UI 质感与动效第一批（表面层级 / 1px 边缘 / 文字层级 / tab fade-through / 按压形变 / Dock tonal 选中态），详见 `docs/ui-polish-direction.md`
-- 签名密钥：`app/union-release.keystore`（store/key 密码 `***REMOVED***`，alias `union`）
+- 签名密钥：`app/union-release.keystore`（仅本地保留，已被 git 忽略；store/key 密码从 `local.properties` 的 `union.storePassword` / `union.keyPassword` 读取，或使用 `UNION_STORE_PASSWORD` / `UNION_KEY_PASSWORD` 环境变量，alias `union`）
 
 ## 构建
 
