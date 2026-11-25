@@ -2,6 +2,7 @@ package com.union.campus.ui.screens.study
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -120,7 +121,9 @@ fun TimetableSettingsScreen(
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
+                        .horizontalScroll(rememberScrollState())
+                        // chip 是单选组：补分组语义，读屏会播报「第 N 项，共 M 项」。
+                        .selectableGroup(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     PrismChip(

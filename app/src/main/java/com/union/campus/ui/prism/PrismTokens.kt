@@ -126,6 +126,14 @@ fun pageTitleStyle(): TextStyle = PrismType.PageTitle
 @Composable
 fun headlineStyle(): TextStyle = PrismType.SectionTitle
 
+/** 对话框标题（M3 Headline Small 24/32，保留 Prism w600 字重）。 */
+@Composable
+fun dialogHeadlineStyle(): TextStyle = PrismType.DialogHeadline
+
+/** 对话框正文（M3 Body Medium 14/20）。 */
+@Composable
+fun dialogBodyStyle(): TextStyle = PrismType.DialogBody
+
 /** 列表标题（17/22 w400）。 */
 @Composable
 fun bodyStyle(): TextStyle = PrismType.ListTitle
@@ -183,18 +191,18 @@ fun prismShape(radius: Float, smoothing: Float = PrismSmoothing): PrismShape {
 fun prismGroupShape(): PrismShape = prismShape(PrismCorner.Xl)
 
 /**
- * 供 `MaterialTheme(shapes = ...)` 使用：让 M3 原生组件（Button / Card / Chip / Slider / Menu）
- * 与 Prism 使用同一套圆角数值，避免两套形状体系并存。
+ * 供 `MaterialTheme(shapes = ...)` 使用：M3 原生组件（Button / Card / Chip / Slider / Menu）
+ * 采用官方形状角色的单调映射，避免"Chip 比 Card 更圆"这类角色错配。
  *
- * M3 的 [Shapes] 只接受 [CornerBasedShape]，因此这里用 RoundedCornerShape 承载同样的 dp 值；
- * Prism 自绘组件仍走 [prismShape] 的连续圆角。
+ * 这些值只喂给原生 M3 组件；Prism 自绘组件仍走 [prismShape] 的品牌连续圆角
+ * （卡 20 / 主卡 28 / 对话框 34 / sheet 38 等），两种体系互不影响。
  */
 val PrismMaterialShapes: Shapes = Shapes(
-    extraSmall = RoundedCornerShape(PrismCorner.Sm.dp),
-    small = RoundedCornerShape(PrismCorner.Lg.dp),
-    medium = RoundedCornerShape(PrismCorner.Md.dp),
-    large = RoundedCornerShape(PrismCorner.Xl.dp),
-    extraLarge = RoundedCornerShape(PrismCorner.Xxl.dp),
+    extraSmall = RoundedCornerShape(4.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(12.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(28.dp),
 )
 
 /** 统一的透明度入口：页面不再直接写 copy(alpha = …)。 */

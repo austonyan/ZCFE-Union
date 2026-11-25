@@ -7,6 +7,7 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -51,6 +52,9 @@ fun UnionScreenScaffold(
     Scaffold(
         modifier = modifier,
         containerColor = surfaceColorOf(SurfaceLevel.Page),
+        // 外层 PrismNavigationScaffold 已消费系统栏 insets；详情页内层不再重复消费，
+        // 否则标题会被双重状态栏内边距下推。
+        contentWindowInsets = WindowInsets(0),
         topBar = {
             TopAppBar(
                 title = {

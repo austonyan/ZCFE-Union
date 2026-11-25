@@ -139,7 +139,8 @@ private fun PrismSegment(
                 interactionSource = interaction,
                 indication = LocalIndication.current,
                 enabled = enabled,
-                role = Role.Tab,
+                // 分段选择器是单选设置控件，不是页面 Tab：用单选组语义而非 tablist。
+                role = Role.RadioButton,
                 onClick = {
                     if (!selected) {
                         haptics.select()

@@ -134,12 +134,10 @@ fun PrismSnackbarHost(
             if (current == null) {
                 Spacer(Modifier.height(0.dp))
             } else {
-                val (container, content) = when (current.tone) {
-                    PrismMessageTone.Success -> PrismStatus.successContainer() to PrismStatus.onSuccessContainer()
-                    PrismMessageTone.Warning -> PrismStatus.warningContainer() to PrismStatus.onWarningContainer()
-                    PrismMessageTone.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.onErrorContainer
-                    PrismMessageTone.Info -> MaterialTheme.colorScheme.inverseSurface to MaterialTheme.colorScheme.inverseOnSurface
-                }
+                // 官方 M3：所有 snackbar 统一 inverse 配色，tone 由图标 + 触觉 + liveRegion 表达。
+                val container = MaterialTheme.colorScheme.inverseSurface
+                val content = MaterialTheme.colorScheme.inverseOnSurface
+                val actionColor = MaterialTheme.colorScheme.inversePrimary
                 val icon = when (current.tone) {
                     PrismMessageTone.Success -> Icons.Rounded.CheckCircle
                     PrismMessageTone.Warning -> Icons.Rounded.WarningAmber
@@ -176,7 +174,7 @@ fun PrismSnackbarHost(
                                 },
                                 modifier = Modifier.defaultMinSize(minHeight = 36.dp),
                             ) {
-                                Text(current.actionLabel, color = content)
+                                Text(current.actionLabel, color = actionColor)
                             }
                         }
                     }

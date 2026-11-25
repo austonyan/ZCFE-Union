@@ -10,6 +10,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.error
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.VisualTransformation
 
 /** Prism 输入框：连续圆角 16、聚焦 2dp 主色、卡片底、错误内联。 */
@@ -36,7 +38,12 @@ fun PrismTextField(
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            // 让 TalkBack 读出「错在哪」，而不只是通用 Invalid input。
+            .semantics {
+                if (isError) supportingText?.let { this.error(it) }
+            },
         label = { Text(label) },
         leadingIcon = leadingIcon?.let { icon ->
             { Icon(icon, contentDescription = null) }

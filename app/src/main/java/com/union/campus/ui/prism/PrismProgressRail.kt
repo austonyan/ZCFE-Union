@@ -42,7 +42,7 @@ fun PrismProgressRail(
                 val active = index < step
                 val color by animateColorAsState(
                     targetValue = if (active) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Track),
+                    else MaterialTheme.colorScheme.surfaceContainerHighest,
                     animationSpec = PrismMotion.tween(PrismMotion.Standard),
                     label = "progress-segment",
                 )
@@ -89,7 +89,7 @@ fun PrismStepBar(step: Int, total: Int, modifier: Modifier = Modifier) {
             .fillMaxWidth()
             .height(4.dp)
             .clip(shape)
-            .background(MaterialTheme.colorScheme.secondaryContainer),
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest),
     ) {
         Box(
             Modifier

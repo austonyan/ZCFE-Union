@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
@@ -209,7 +210,8 @@ fun PrismSnapSheet(
                 .background(surfaceColorOf(SurfaceLevel.Page))
                 .nestedScroll(scrollConnection),
         ) {
-            Column(Modifier.fillMaxSize().navigationBarsPadding()) {
+            // 边到边 + 键盘：面板内容随 IME 抬高，避免输入框/选项被键盘遮挡。
+            Column(Modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
                 Box(
                     Modifier
                         .align(Alignment.CenterHorizontally)

@@ -9,6 +9,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 
 /**
@@ -33,6 +35,8 @@ fun PrismPageHeader(
                 style = pageTitleStyle(),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                // TalkBack 可按标题跳转到各 Tab 页标题。
+                modifier = Modifier.semantics { heading() },
             )
             if (!subtitle.isNullOrBlank()) {
                 Text(
