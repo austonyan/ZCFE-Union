@@ -1,6 +1,7 @@
 package com.union.campus.ui.screens.life
 
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -722,7 +723,9 @@ fun UsageDetailScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(
-                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState())
+                    // chip 是单选组：补分组语义，读屏会播报「第 N 项，共 M 项」。
+                    .selectableGroup(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 listOf(7, 30, 84).forEach { r ->
@@ -783,7 +786,7 @@ fun UsageDetailScreen(
                     }
 
                     PrismCard(modifier = Modifier.fillMaxWidth()) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.selectableGroup(), verticalAlignment = Alignment.CenterVertically) {
                             Text(
                                 if (effectiveMetric == "cost") "每日费用" else "每日用量",
                                 style = headlineStyle(),

@@ -68,6 +68,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.dialog
+import androidx.compose.ui.semantics.dismiss
+import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -273,7 +276,8 @@ fun PrismRow(
                 androidx.compose.material3.Icon(
                     Icons.Rounded.ChevronRight,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant.withAlpha(PrismAlpha.Disabled),
+                    // 导航性图标需 ≥3:1：用完整 onSurfaceVariant，仅禁用态才压暗。
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp),
                 )
             }
@@ -292,7 +296,8 @@ fun GroupDivider(
             .fillMaxWidth()
             .padding(start = startPadding)
             .height(1.dp)
-            .background(MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.DividerSoft)),
+            // 官方 M3：分割线使用 outlineVariant，而不是 onSurface 叠 alpha。
+            .background(MaterialTheme.colorScheme.outlineVariant),
     )
 }
 
@@ -976,14 +981,23 @@ fun PrismAlertDialog(
                 ),
         ) {
             Surface(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        this.paneTitle = title
+                        dialog()
+                        dismiss {
+                            close(onDismiss)
+                            true
+                        }
+                    },
                 shape = shape,
                 color = surfaceColorOf(SurfaceLevel.Card),
             ) {
                 Column(Modifier.padding(top = 24.dp, start = 20.dp, end = 20.dp, bottom = 16.dp)) {
                     Text(
                         title,
-                        style = headlineStyle(),
+                        style = dialogHeadlineStyle(),
                         color = MaterialTheme.colorScheme.onSurface,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),
@@ -991,7 +1005,7 @@ fun PrismAlertDialog(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         body,
-                        style = subheadlineStyle(),
+                        style = dialogBodyStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.fillMaxWidth(),

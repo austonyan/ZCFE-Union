@@ -284,8 +284,7 @@ fun TodayScreen(
                         ).joinToString(" · "),
                         tone = PrismNoticeTone.Info,
                         icon = Icons.Rounded.Notifications,
-                        actionLabel = "查看课表",
-                        onAction = onOpenTimetable,
+                        // 整卡可点已足够；去掉嵌套按钮，避免读屏出现两个指向同一动作的目标。
                         onClick = onOpenTimetable,
                     )
                 }

@@ -55,6 +55,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
@@ -225,7 +226,9 @@ fun PrismLoadingBlock(
     ) {
         Box(
             Modifier.size(72.dp).clip(prismShape(PrismShapeRole.Hero))
-                .background(MaterialTheme.colorScheme.secondaryContainer),
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                // 加载块把 label 作为进度描述，读屏能听到"正在加载什么"。
+                .semantics { if (!label.isNullOrBlank()) contentDescription = label },
             contentAlignment = Alignment.Center,
         ) {
             PrismLoadingIndicator(size = 28.dp, color = MaterialTheme.colorScheme.onSecondaryContainer)

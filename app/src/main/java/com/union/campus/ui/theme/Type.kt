@@ -89,6 +89,12 @@ object PrismType {
 
     /** 指标小数字 20/24 w600 */
     val MetricSmall = Defaults.titleMedium.sized(20f, 24f, 600)
+
+    /** 对话框标题 24/32 w600：对齐 M3 Headline Small，保留 Prism 字重。 */
+    val DialogHeadline = Defaults.headlineSmall.sized(24f, 32f, 600)
+
+    /** 对话框正文 14/20 w400：对齐 M3 Body Medium。 */
+    val DialogBody = Defaults.bodyMedium.sized(14f, 20f, 400)
 }
 
 val UnionTypography = Typography(

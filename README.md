@@ -6,8 +6,11 @@
 
 构建产物（`*.apk`）与签名密钥不入库；以下版本说明仅作发布记录。
 
+- **`郑财校园-release-v0.2.50.apk`** — 已签名 release APK（versionCode 55，v2 签名，CN=Zhengcai Union，16 KB 对齐）
+- 上一版 `郑财校园-release-v0.2.49.apk`（versionCode 54）保留，便于回滚
+- v0.2.50 变更：按 `material-3` skill 官方规范复核并修复 17 个文件的真实偏差（原生组件形状单调映射、对话框 Headline Small 24/32 与对话框语义、分割线/进度轨道/卡片描边改用 colorScheme、snackbar 统一 inverse 配色、分段控件单选语义、输入错误与骨架加载语义、重复 insets 与 IME、页标题 heading）；保留 Prism 品牌与既有产品约定。范围与未做项见 `docs/md3-official-spec-2026-11-25.md`。
+- v0.2.50 校验：104 项单元测试通过；Debug/Release 构建通过；lint 0 error、11 条既有 warning/hint；v2 签名、版本与 16 KB 对齐验证通过。当前未连接设备，未做设备端视觉/TalkBack 走查。
 - **`郑财校园-release-v0.2.47.apk`** — 已签名 release APK（versionCode 52，v2 签名，CN=Zhengcai Union，有效期 10000 天）
-- 上一版 `郑财校园-release-v0.2.46.apk`（versionCode 51）保留，便于回滚
 - v0.2.47 变更：按 `docs/前端文本审计.csv` 应用 285 条已填写文案，共替换 45 个生产源码文件中的 317 处字符串；空白项不变，保留变量、必要换行及业务逻辑。同步更新文案相关测试断言。
 - v0.2.47 校验：91 项单元测试通过；Debug/Release 构建及 AndroidTest 编译通过；lint 0 错误、10 警告；APK 版本、v2 签名和 16 KB 对齐验证通过。当前未连接设备，未运行设备端界面测试。
 - v0.2.46 变更：MD3 Expressive 活泼化（语义形状、连接式列表与分段控件、调和选中态、今天课程主卡、教务入口组、生活状态卡、账号与引导层次）；导航与通用状态转场响应减少动效；新增五 Tab 与公共组件回归测试。范围与校验见 `docs/md3-expressive-v0.2.46.md`。
