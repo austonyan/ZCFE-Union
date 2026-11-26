@@ -7,7 +7,7 @@
 构建产物（`*.apk`）与签名密钥不入库；以下版本说明仅作发布记录。
 
 - **`郑财校园-release-v0.2.50.apk`** — 已签名 release APK（versionCode 55，v2 签名，CN=Zhengcai Union，16 KB 对齐）
-- **GitHub Release**：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.50> — 附件 `ZCFE-Union-v0.2.50.apk`，SHA-256 `3F9214FF…D54A1EE`
+- **GitHub Release**：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.51> — 附件 `ZCFE-Union-v0.2.51.apk`，SHA-256 `07FD8084…40F7AED`
 - 上一版 `郑财校园-release-v0.2.49.apk`（versionCode 54）保留，便于回滚
 - v0.2.50 变更：按 `material-3` skill 官方规范复核并修复 17 个文件的真实偏差（原生组件形状单调映射、对话框 Headline Small 24/32 与对话框语义、分割线/进度轨道/卡片描边改用 colorScheme、snackbar 统一 inverse 配色、分段控件单选语义、输入错误与骨架加载语义、重复 insets 与 IME、页标题 heading）；保留 Prism 品牌与既有产品约定。范围与未做项见 `docs/md3-official-spec-2026-11-25.md`。
 - v0.2.50 校验：104 项单元测试通过；Debug/Release 构建通过；lint 0 error、11 条既有 warning/hint；v2 签名、版本与 16 KB 对齐验证通过。当前未连接设备，未做设备端视觉/TalkBack 走查。
