@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.Badge
 import androidx.compose.material.icons.rounded.Campaign
@@ -207,6 +208,12 @@ fun AcademicsScreen(
 
         PrismSection(title = "教务事务") {
             PrismGroupedList {
+                PrismRow(
+                    title = "学习通作业",
+                    subtitle = "未交清单 · 截止前 24/6/1 小时提醒",
+                    leading = { IconBadge(Icons.AutoMirrored.Rounded.Assignment) },
+                    onClick = { onOpen("homework") },
+                )
                 PrismRow(
                     title = "学籍档案",
                     subtitle = "姓名、院系、专业与学籍状态",

@@ -71,4 +71,7 @@ object CacheTtl {
     const val ELECTRIC_USAGE = 3600_000L
     const val SHOWER_STATE = 30_000L
     const val NOTICES = 3600_000L
+
+    /** 学习通作业：列表很轻，15 分钟缓存避免页面反复打网络。 */
+    const val XXT_HOMEWORK = 15L * 60_000
 }

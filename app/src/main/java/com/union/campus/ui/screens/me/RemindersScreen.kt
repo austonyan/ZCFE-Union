@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.Assignment
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.Grade
 import androidx.compose.material.icons.outlined.Notifications
@@ -70,6 +71,7 @@ fun RemindersCenterScreen(
     val remindExam by settings.remindExam.collectAsState(initial = true)
     val remindLowElectric by settings.remindLowElectric.collectAsState(initial = true)
     val remindEvaluation by settings.remindEvaluation.collectAsState(initial = true)
+    val remindXxt by settings.remindXxtHomework.collectAsState(initial = true)
     val remindShowerQueue by settings.remindShowerQueue.collectAsState(initial = true)
     val quietOn by settings.quietEnabled.collectAsState(initial = true)
     val quietStart by settings.quietStart.collectAsState(initial = 23)
@@ -138,6 +140,14 @@ fun RemindersCenterScreen(
                     checked = remindEvaluation,
                     enabled = remindEnabled,
                     onCheckedChange = { on -> set { settings.setRemindEvaluation(on) } },
+                )
+                PrismToggleRow(
+                    title = "学习通作业",
+                    subtitle = if (remindEnabled && remindXxt) "截止前 24 / 6 / 1 小时各提醒一次" else "已关闭",
+                    leading = { IconBadge(Icons.AutoMirrored.Outlined.Assignment) },
+                    checked = remindXxt,
+                    enabled = remindEnabled,
+                    onCheckedChange = { on -> set { settings.setRemindXxtHomework(on) } },
                 )
                 PrismToggleRow(
                     title = "洗浴排队",
@@ -223,6 +233,7 @@ fun RemindersCenterScreen(
                         settings.setRemindLowElectric(true)
                         settings.setLowElectricThreshold(ElectricLowState.DefaultThreshold)
                         settings.setRemindEvaluation(true)
+                        settings.setRemindXxtHomework(true)
                         settings.setRemindShowerQueue(true)
                         settings.setQuietEnabled(true)
                         settings.setQuietRange(23, 7)
@@ -235,7 +246,7 @@ fun RemindersCenterScreen(
             }
 
             Text(
-                "上课提醒为应用内横幅；考试、评教及低电费加入待办，低电费另发系统通知；洗浴仅在页面打开时到号提醒。",
+                "上课提醒为应用内横幅；考试、评教及低电费加入待办，低电费另发系统通知；学习通作业与低电费走系统通知；洗浴仅在页面打开时到号提醒。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

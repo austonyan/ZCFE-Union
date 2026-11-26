@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Event
@@ -113,6 +114,7 @@ fun TodayScreen(
     onOpenShower: () -> Unit,
     onOpenLife: () -> Unit,
     onOpenReminders: () -> Unit,
+    onOpenHomework: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val entities = ServiceLocator.entities
@@ -367,6 +369,7 @@ fun TodayScreen(
                                     "evaluation" -> Icons.Rounded.RateReview
                                     "exam" -> Icons.Rounded.Event
                                     "lowElectric" -> Icons.Rounded.Bolt
+                                    "homework" -> Icons.AutoMirrored.Rounded.Assignment
                                     else -> Icons.Rounded.Event
                                 }
                                 PrismRow(
@@ -377,6 +380,7 @@ fun TodayScreen(
                                         "evaluation" -> onOpenEvaluation
                                         "exams" -> onOpenExams
                                         "electric" -> onOpenElectric
+                                        "homework" -> onOpenHomework
                                         else -> null
                                     },
                                 )

@@ -23,7 +23,7 @@ sealed class AppError(val userMessage: String, val debugDetail: String? = null) 
     class Unknown(detail: String? = null) : AppError("操作失败，请稍后重试", detail)
 
     enum class Module(val label: String) {
-        JW("教务"), SHOWER("洗浴"), ELECTRIC("电费"),
+        JW("教务"), SHOWER("洗浴"), ELECTRIC("电费"), XXT("学习通"),
     }
 }
 

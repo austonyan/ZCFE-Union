@@ -30,6 +30,7 @@ class SettingsStore(private val context: Context) {
         val remindEvaluation = booleanPreferencesKey("remind_evaluation")
         val remindShowerQueue = booleanPreferencesKey("remind_shower_queue")
         val remindGradeUpdate = booleanPreferencesKey("remind_grade_update")
+        val remindXxtHomework = booleanPreferencesKey("remind_xxt_homework")
         val quietEnabled = booleanPreferencesKey("quiet_enabled")
         val quietStart = intPreferencesKey("quiet_start")
         val quietEnd = intPreferencesKey("quiet_end")
@@ -73,6 +74,7 @@ class SettingsStore(private val context: Context) {
     val remindEvaluation: Flow<Boolean> = context.dataStore.data.map { it[K.remindEvaluation] ?: true }
     val remindShowerQueue: Flow<Boolean> = context.dataStore.data.map { it[K.remindShowerQueue] ?: true }
     val remindGradeUpdate: Flow<Boolean> = context.dataStore.data.map { it[K.remindGradeUpdate] ?: true }
+    val remindXxtHomework: Flow<Boolean> = context.dataStore.data.map { it[K.remindXxtHomework] ?: true }
     val quietEnabled: Flow<Boolean> = context.dataStore.data.map { it[K.quietEnabled] ?: true }
     val quietStart: Flow<Int> = context.dataStore.data.map { it[K.quietStart] ?: 23 }
     val quietEnd: Flow<Int> = context.dataStore.data.map { it[K.quietEnd] ?: 7 }
@@ -115,6 +117,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setRemindEvaluation(v: Boolean) = context.dataStore.edit { it[K.remindEvaluation] = v }
     suspend fun setRemindShowerQueue(v: Boolean) = context.dataStore.edit { it[K.remindShowerQueue] = v }
     suspend fun setRemindGradeUpdate(v: Boolean) = context.dataStore.edit { it[K.remindGradeUpdate] = v }
+    suspend fun setRemindXxtHomework(v: Boolean) = context.dataStore.edit { it[K.remindXxtHomework] = v }
     suspend fun setQuietEnabled(v: Boolean) = context.dataStore.edit { it[K.quietEnabled] = v }
     suspend fun setQuietRange(start: Int, end: Int) = context.dataStore.edit {
         it[K.quietStart] = start; it[K.quietEnd] = end

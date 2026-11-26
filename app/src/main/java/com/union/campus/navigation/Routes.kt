@@ -53,6 +53,8 @@ enum class Screen(
     AcademicAffairs("academic-affairs", "教务事务"),
     StudentRecord("student-record", "学籍档案"),
     Notices("notices", "教务通知"),
+    Homework("homework", "学习通作业"),
+    HomeworkLogin("homework-login", "登录学习通"),
     NoticeDetail("notice-detail", "通知详情"),
 
     // 生活

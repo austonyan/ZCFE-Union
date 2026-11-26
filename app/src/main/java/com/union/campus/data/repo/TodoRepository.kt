@@ -4,6 +4,7 @@ import com.union.campus.core.AppError
 import com.union.campus.data.store.SettingsStore
 import kotlinx.coroutines.flow.first
 import com.union.campus.domain.TodoItem
+import com.union.campus.domain.XxtHomeworkRules
 import java.text.SimpleDateFormat
 import java.time.LocalDate
 import java.util.Date
@@ -15,6 +16,7 @@ import java.util.Locale
 class TodoRepository constructor(
     private val jw: JwRepository,
     private val electric: ElectricRepository,
+    private val xxt: XxtRepository,
     private val settings: SettingsStore,
 ) {
     /** 从缓存聚合本地待办（不主动打网络；各屏刷新时更新来源缓存）。 */
@@ -84,6 +86,26 @@ class TodoRepository constructor(
                         deepLink = "electric",
                     )
                 }
+            }
+        }
+        // 学习通作业：未交且三天内要交的，折叠成一条待办（明细在作业页）
+        if (settings.remindXxtHomework.first()) runCatching {
+            val now = System.currentTimeMillis()
+            val pending = xxt.pendingHomework().filter { it.deadlineAt > now }
+            val soon = pending.filter { it.deadlineAt <= now + 3 * 24 * 3600_000L }
+            val nearest = (if (soon.isNotEmpty()) soon else pending).minByOrNull { it.deadlineAt }
+            if (nearest != null) {
+                todos += TodoItem(
+                    id = "xxt_homework",
+                    source = "xxt",
+                    type = "homework",
+                    title = if (soon.size > 1) "学习通 ${soon.size} 项作业待交"
+                    else "学习通作业：${nearest.title}",
+                    subtitle = "${nearest.courseName} · ${XxtHomeworkRules.countdownText(nearest.deadlineAt)}",
+                    dueText = SimpleDateFormat("yyyy-MM-dd", Locale.CHINA)
+                        .format(Date(nearest.deadlineAt)),
+                    deepLink = "homework",
+                )
             }
         }
         return todos.filterNot { isTodoExpired(it, today) }

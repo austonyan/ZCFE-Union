@@ -24,8 +24,8 @@ android {
         applicationId = "com.union.campus"
         minSdk = 26
         targetSdk = 37
-        versionCode = 55
-        versionName = "0.2.50"
+        versionCode = 56
+        versionName = "0.2.51"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         val jwH5Key = localValue("jw.h5EncryptKey", "JW_H5_ENCRYPT_KEY") ?: ""

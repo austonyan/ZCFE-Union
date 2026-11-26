@@ -50,6 +50,9 @@ link.mjs
 教务/downloads/
 .alma-snapshots
 
+# 外部参考仓库（只读对照，不纳入）
+.ref/
+
 # 逆向研究资料（仅本地保留，不公开）
 教务/
 洗澡/

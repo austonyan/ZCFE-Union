@@ -5,6 +5,7 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import com.union.campus.di.ServiceLocator
 import com.union.campus.work.ReminderWorker
+import com.union.campus.work.XxtHomeworkWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -24,7 +25,9 @@ class UnionApplication : Application() {
             runCatching { ServiceLocator.jwRepository.restoreSession() }
             runCatching { ServiceLocator.showerRepository.restore() }
             runCatching { ServiceLocator.electricRepository.restore() }
+            runCatching { ServiceLocator.xxtRepository.restoreSession() }
             ReminderWorker.schedule(this@UnionApplication)
+            XxtHomeworkWorker.schedule(this@UnionApplication)
         }
     }
 

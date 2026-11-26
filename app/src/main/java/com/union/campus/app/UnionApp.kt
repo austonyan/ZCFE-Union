@@ -36,6 +36,8 @@ import com.union.campus.ui.screens.life.ShowerScreen
 import com.union.campus.ui.screens.life.ShowerSessionScreen
 import com.union.campus.ui.screens.life.UsageDetailScreen
 import com.union.campus.ui.screens.life.WalletScreen
+import com.union.campus.ui.screens.homework.HomeworkLoginScreen
+import com.union.campus.ui.screens.homework.HomeworkScreen
 import com.union.campus.ui.screens.me.CredentialsCenterScreen
 import com.union.campus.ui.screens.me.AboutScreen
 import com.union.campus.ui.screens.me.PrivacyScreen
@@ -205,6 +207,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenShower = { navController.navigate(Screen.Shower.route) },
                     onOpenLife = { navigateToTab(navController, Screen.Life) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
+                    onOpenHomework = { navController.navigate(Screen.Homework.route) },
                 )
             }
 
@@ -233,6 +236,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                             "record" -> navController.navigate(Screen.StudentRecord.route)
                             "freeClassrooms" -> navController.navigate(Screen.FreeClassrooms.route)
                             "notices" -> navController.navigate(Screen.Notices.route)
+                            "homework" -> navController.navigate(Screen.Homework.route)
                             "affairs" -> navController.navigate(Screen.AcademicAffairs.route)
                         }
                     },
@@ -353,6 +357,18 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
             composable(Screen.StudentRecord.route) {
                 StudentRecordScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.Homework.route) {
+                HomeworkScreen(
+                    onBack = { navController.popBackStack() },
+                    onLogin = { navController.navigate(Screen.HomeworkLogin.route) },
+                )
+            }
+            composable(Screen.HomeworkLogin.route) {
+                HomeworkLoginScreen(
+                    onBack = { navController.popBackStack() },
+                    onLoggedIn = { navController.popBackStack() },
+                )
             }
             composable(Screen.Notices.route) {
                 NoticesScreen(

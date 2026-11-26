@@ -4,10 +4,12 @@ import android.content.Context
 import com.union.campus.data.remote.electric.ElectricClient
 import com.union.campus.data.remote.jw.JwClient
 import com.union.campus.data.remote.shower.ShowerClient
+import com.union.campus.data.remote.xxt.XxtClient
 import com.union.campus.data.repo.ElectricRepository
 import com.union.campus.data.repo.JwRepository
 import com.union.campus.data.repo.ShowerRepository
 import com.union.campus.data.repo.TodoRepository
+import com.union.campus.data.repo.XxtRepository
 import com.union.campus.data.store.CredentialStore
 import com.union.campus.data.store.EntityStore
 import com.union.campus.data.store.SettingsStore
@@ -33,6 +35,7 @@ object ServiceLocator {
     val jwClient by lazy { JwClient() }
     val showerClient by lazy { ShowerClient() }
     val electricClient by lazy { ElectricClient() }
+    val xxtClient by lazy { XxtClient() }
 
     val jwRepository by lazy {
         JwRepository(jwClient, entities, credentials, settings)
@@ -43,8 +46,11 @@ object ServiceLocator {
     val electricRepository by lazy {
         ElectricRepository(electricClient, entities, credentials, settings)
     }
+    val xxtRepository by lazy {
+        XxtRepository(xxtClient, entities, credentials, settings)
+    }
     val todoRepository by lazy {
-        TodoRepository(jwRepository, electricRepository, settings)
+        TodoRepository(jwRepository, electricRepository, xxtRepository, settings)
     }
 
     fun init(context: Context) {

@@ -31,6 +31,10 @@ class CredentialStore(private val context: Context) {
         val electricAccount: String = "",
         val electricCustomerCode: String = "7268",
         val electricCommand: String = "JBSWaterElecService",
+        // 学习通（超星）：账号密码与会话 cookie 都只在本机 Keystore 加密保存
+        val xxtAccount: String = "",
+        val xxtPassword: String = "",
+        val xxtCookies: String = "",
     )
 
     private val file by lazy { java.io.File(context.filesDir, "credentials.bin") }

@@ -11,6 +11,10 @@
 - 上一版 `郑财校园-release-v0.2.49.apk`（versionCode 54）保留，便于回滚
 - v0.2.50 变更：按 `material-3` skill 官方规范复核并修复 17 个文件的真实偏差（原生组件形状单调映射、对话框 Headline Small 24/32 与对话框语义、分割线/进度轨道/卡片描边改用 colorScheme、snackbar 统一 inverse 配色、分段控件单选语义、输入错误与骨架加载语义、重复 insets 与 IME、页标题 heading）；保留 Prism 品牌与既有产品约定。范围与未做项见 `docs/md3-official-spec-2026-11-25.md`。
 - v0.2.50 校验：104 项单元测试通过；Debug/Release 构建通过；lint 0 error、11 条既有 warning/hint；v2 签名、版本与 16 KB 对齐验证通过。当前未连接设备，未做设备端视觉/TalkBack 走查。
+- **`郑财校园-release-v0.2.51.apk`** — 已签名 release APK（versionCode 56，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- v0.2.51 变更：新增**学习通作业提醒**——只读同步课程与未交作业、截止时间分档（24 / 6 / 1 小时）系统通知、今天页待办聚合、教务入口与绑定页；协议与实现见 `docs/study-homework-v0.2.51.md`
+- v0.2.51 校验：单元测试全绿（含新增的学习通加密基准、页面解析、时间补年份与提醒分档）；Debug/Release 构建通过；MUMU 模拟器（Android 12）安装运行、页面与登录链路实机核对
+- 上一版 `郑财校园-release-v0.2.50.apk`（versionCode 55）保留，便于回滚
 - **`郑财校园-release-v0.2.47.apk`** — 已签名 release APK（versionCode 52，v2 签名，CN=Zhengcai Union，有效期 10000 天）
 - v0.2.47 变更：按 `docs/前端文本审计.csv` 应用 285 条已填写文案，共替换 45 个生产源码文件中的 317 处字符串；空白项不变，保留变量、必要换行及业务逻辑。同步更新文案相关测试断言。
 - v0.2.47 校验：91 项单元测试通过；Debug/Release 构建及 AndroidTest 编译通过；lint 0 错误、10 警告；APK 版本、v2 签名和 16 KB 对齐验证通过。当前未连接设备，未运行设备端界面测试。
@@ -51,12 +55,13 @@ SDK 位于 `D:\Program Files (x86)\Android SDK`（见 local.properties）。
 ui/            34 屏 Compose UI + prism 设计层（FlClash 风格复刻）
 di/            ServiceLocator 轻量 DI
 data/repo/     教务 / 洗浴 / 电费 / 待办 仓库层（缓存策略 + 会话状态）
-data/remote/   三套协议客户端：
+data/remote/   四套协议客户端：
+  xxt/       学习通 AES-128-CBC 登录 + 课程/作业只读接口（Cookie 加密落盘、签名缓存、限速）
   jw/        CAS 4 步登录（AES-CBC 密码）+ 喜鹊儿 H5（of_encrypt/getMd5_2）
   shower/    大白U帮原生 DES/CBC + SHA-1 信封（5yoOxt9w / q9KswPoz62jQk12W）
   electric/  完美校园 SWAEServlet 命令通道（7268 / JBSWaterElecService）+ loginCheck AES-128-ECB
 data/store/    DataStore 设置 + JSON 实体缓存 + AndroidKeyStore 加密凭证
-work/          低电费每日 20:00 检查 Worker
+work/          低电费每日 20:00 检查 Worker + 学习通作业每 2 小时同步 Worker
 ```
 
 ## 设计语言（prism，复刻自 FlClash prism_ui）
@@ -82,6 +87,7 @@ work/          低电费每日 20:00 检查 Worker
 - 兼容 `MyXjda` 返回的单引号 JavaScript 对象（`{'resultSet':[...]}`）与未加引号键
 - 洗浴支持学校 / 校区 / 楼栋 / 区域四级选择，并记住上次位置；无空闲设备时可加入排队、查看排队进度与取消排队
 - 电费首页兼容 `bussnesstype` 拼写与 `monthuse` 字段，余额/近 7 天/本月用量可正常显示
+- 学习通登录接口实测：加密后的表单被服务端正常解开并返回 `{"msg2":"用户名或密码错误","status":false}`；作业页在 MUMU 模拟器（Android 12）上实机走通「教务 → 学习通作业 → 绑定 → 登录失败提示」链路
 - 待办会过滤早于今天的考试与截止日期；课表改为按周网格（节次时间、课程块、午休/晚休、周末切换）
 - 洗浴非服务时间/未开放等业务限制会显示“当前不在洗浴服务时间，请按浴室开放时间使用”，不再统一“数据源返回异常”
 - 洗浴开启按上游 `need_reserve=1` 先 `DeviceApi/reserve` 预约再 `DeviceApi/turnOn`（直接 turnOn 返回 code 130「您尚未预约任何设备」），开启失败会释放预约；关闭时 code 100170「您没有正在使用的设备」按已结束幂等处理
