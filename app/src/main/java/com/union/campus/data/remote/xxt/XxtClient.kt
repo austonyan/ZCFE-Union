@@ -65,7 +65,21 @@ class XxtCookieJar : CookieJar {
  *
  * 只做查询，不做任何提交/答题/刷课请求；请求之间强制限速。
  */
-class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
+/** 学习通各接口地址；默认是线上地址，单元测试可指向本地 mock 服务验证整条链路。 */
+data class XxtEndpoints(
+    val login: String = "https://passport2.chaoxing.com/fanyalogin",
+    val base: String = "https://i.chaoxing.com/base",
+    val courseList: String = "https://mooc2-ans.chaoxing.com/mooc2-ans/visit/courselistdata",
+    val courseMiddle: String = "https://mooc1.chaoxing.com/visit/stucoursemiddle",
+    val workList: String = "https://mooc1.chaoxing.com/mooc2/work/list",
+    val notices: String = "https://notice.chaoxing.com/pc/notice/getNoticeList",
+    val noticeReferer: String = "https://notice.chaoxing.com/pc/notice/myNotice",
+)
+
+class XxtClient(
+    val cookieJar: XxtCookieJar = XxtCookieJar(),
+    private val endpoints: XxtEndpoints = XxtEndpoints(),
+) {
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -96,12 +110,6 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
         private const val UA =
             "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) " +
                 "Chrome/124.0.0.0 Mobile Safari/537.36"
-        private const val URL_LOGIN = "https://passport2.chaoxing.com/fanyalogin"
-        private const val URL_BASE = "https://i.chaoxing.com/base"
-        private const val URL_COURSELIST = "https://mooc2-ans.chaoxing.com/mooc2-ans/visit/courselistdata"
-        private const val URL_STUMIDDLE = "https://mooc1.chaoxing.com/visit/stucoursemiddle"
-        private const val URL_WORKLIST = "https://mooc1.chaoxing.com/mooc2/work/list"
-        private const val URL_NOTICES = "https://notice.chaoxing.com/pc/notice/getNoticeList"
         private const val NO_PERMISSION_MARKER = "没有此页面访问权限"
         private val SIGNATURE_TTL_MS = TimeUnit.HOURS.toMillis(6)
     }
@@ -182,7 +190,7 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
             "doubleFactorLogin" to "0",
             "independentId" to "0",
         )
-        val text = postForm(URL_LOGIN, form, "https://passport2.chaoxing.com/login").use { resp ->
+        val text = postForm(endpoints.login, form, "https://passport2.chaoxing.com/login").use { resp ->
             resp.body?.string().orEmpty()
         }
         val obj = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull()
@@ -199,14 +207,14 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
         signatureCache.clear()
         if (cookieJar.isEmpty()) {
             // 少数节点先返回 302 再种 cookie，这里补一次主页访问把会话落全
-            runCatching { get(URL_BASE).use { it.body?.string() } }
+            runCatching { get(endpoints.base).use { it.body?.string() } }
         }
     }
 
     /** 登录态是否仍有效（用 i.chaoxing.com/base 探测，未登录会被 302 到 passport2）。 */
     suspend fun checkLogin(): Boolean {
         if (cookieJar.isEmpty()) return false
-        return get(URL_BASE).use { resp ->
+        return get(endpoints.base).use { resp ->
             val body = resp.body?.string().orEmpty()
             resp.isSuccessful &&
                 !XxtParse.looksLikeLogin(resp.request.url.toString(), body) &&
@@ -240,7 +248,7 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
 
     /** 个人主页里的 fid（学校标识），课程列表接口需要。 */
     private suspend fun fetchFid(): String {
-        val body = bodyText(URL_BASE)
+        val body = bodyText(endpoints.base)
         return Regex("\"fid\"\\s*:\\s*\"?(\\d+)\"?").find(body)?.groupValues?.get(1)
             ?: Regex("var fid = '(\\d+)'").find(body)?.groupValues?.get(1)
             ?: "0"
@@ -249,8 +257,8 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
     suspend fun fetchCourses(): List<XxtCourse> {
         val fid = fetchFid()
         val body = bodyText(
-            "$URL_COURSELIST?courseType=1&courseFid=$fid&courseTeacherid=0&courseOrderBy=0",
-            referer = URL_COURSELIST,
+            "${endpoints.courseList}?courseType=1&courseFid=$fid&courseTeacherid=0&courseOrderBy=0",
+            referer = endpoints.courseList,
         )
         return XxtParse.parseCourses(body)
     }
@@ -263,7 +271,7 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
             return cached.value
         }
         val body = bodyText(
-            "$URL_STUMIDDLE?courseid=${course.courseId}&clazzid=${course.clazzId}" +
+            "${endpoints.courseMiddle}?courseid=${course.courseId}&clazzid=${course.clazzId}" +
                 "&cpi=${course.cpi}&ismooc2=1&v=2",
         )
         val value = Signatures(
@@ -289,10 +297,10 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
             throw AppError.Upstream("${course.name} 未开放作业（没有作业签名）")
         }
         val body = bodyText(
-            "$URL_WORKLIST?courseId=${course.courseId}&classId=${course.clazzId}" +
+            "${endpoints.workList}?courseId=${course.courseId}&classId=${course.clazzId}" +
                 "&cpi=${course.cpi}&ut=s&openc=${sig.openc}&enc=${sig.workEnc}" +
                 "&t=${System.currentTimeMillis()}&stuenc=${sig.enc}&isdisplaytable=2",
-            referer = URL_WORKLIST,
+            referer = endpoints.workList,
         )
         if (body.contains(NO_PERMISSION_MARKER)) return null
         return XxtParse.parseHomeworkList(body)
@@ -318,7 +326,7 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
                 "filterSenderPuids" to "", "filterTags" to "",
             )
             val text = postForm(
-                URL_NOTICES, form, "https://notice.chaoxing.com/pc/notice/myNotice",
+                endpoints.notices, form, endpoints.noticeReferer,
             ).use { it.body?.string().orEmpty() }
             val payload = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull()
                 ?: throw AppError.Upstream("通知接口返回的不是 JSON")

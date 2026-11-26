@@ -26,7 +26,8 @@
 
 ## 2. 自动化测试
 
-- 单元测试 **130 项 / 0 失败**：登录加密 openssl 基准、时间补年份、分档与免打扰、页面解析（课程/作业/详情/通知/登录页/反爬页）、提醒去重、列表分组。
+- 单元测试 **131 项 / 0 失败**：登录加密 openssl 基准、时间补年份、分档与免打扰、页面解析（课程/作业/详情/通知/登录页/反爬页）、提醒去重、列表分组。
+- 端到端链路 **1 项**：`XxtFlowTest` 用本机 mock 服务 + 真实 OkHttp 走完「登录→会话→课程→作业列表→详情→通知」
 - 设备端用例 **5 项通过**（MUMU / Android 12）：
   - `HomeworkContentTest` × 4：概览数量、分组标题、倒计时徽标、只看未交、全部含已交、截止未知、未读通知区块
   - `XxtNotificationTest` × 1：提醒真的进入通知栏（`dumpsys notification` + 截图 `docs/img/xxt-11-notification.png`）
@@ -40,10 +41,10 @@
 ## 4. 产物校验
 
 ```
-versionCode=58  versionName=0.2.53
+versionCode=59  versionName=0.2.54
 apksigner verify --verbose → APK Signature Scheme v2: true
-sha256 郑财校园-release-v0.2.53.apk = C536FBD05EC8582BA5B09D7C458CEFD1041933097F186872BFDCBB963B6A7A58
-gh release view v0.2.53 → ZCFE-Union-v0.2.53.apk (18,040,510 B)，下载 HTTP 200
+sha256 郑财校园-release-v0.2.54.apk = 06910DD15B2E105FC400A8A32EBD48E13FC0439D4713D06652FC2F0B44634C9C
+gh release view v0.2.54 → ZCFE-Union-v0.2.54.apk (18,040,510 B)，下载 HTTP 200
 ```
 
 ## 5. 边界（如实）

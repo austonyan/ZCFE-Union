@@ -93,3 +93,9 @@
 - `work/XxtNotifications.kt`：通道、深链（`deepLink=homework`）、标题/正文/优先级集中一处；Worker 与设备端测试共用同一段代码，避免“测试测的是另一份实现”。
 - `XxtNotificationTest`（androidTest）：调用 `XxtNotifications.notify()` 发一条「6 小时内截止」提醒，再从 `NotificationManager.activeNotifications` 查回标题；`dumpsys notification` 与通知栏截图双证（`docs/img/xxt-11-notification.png`）。
 - 版本 0.2.53（versionCode 58），功能行为与 v0.2.52 一致，仅提升可验证性。
+
+## 八、v0.2.54：接口地址可注入 + 整链路回归
+
+- `XxtEndpoints` 把五个接口地址集中成默认值参数，线上行为不变，测试可以指向本机 mock。
+- `XxtFlowTest`（JVM）：本机 HTTP 服务回放登录、课程、作业列表、详情、通知的真实响应形状，真实 OkHttp 依次走完；断言会话 cookie、课程、作业状态、截止时间与未读通知。
+- 版本 0.2.54（versionCode 59），行为与 v0.2.53 一致。

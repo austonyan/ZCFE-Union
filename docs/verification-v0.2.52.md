@@ -21,7 +21,7 @@
 ```
 $ ./gradlew.bat :app:testDebugUnitTest
 BUILD SUCCESSFUL
-app/build/test-results/testDebugUnitTest/*.xml → tests=130 failures=0 errors=0
+app/build/test-results/testDebugUnitTest/*.xml → tests=131 failures=0 errors=0
 ```
 
 本次新增用例：`XxtCryptoTest`（openssl 基准向量）、`XxtTimeTest`（跨年补年份/分档/免打扰/状态词）、`XxtParsingTest`（课程、作业列表、隐藏域、详情、登录页、反爬页、通知 JSON）、`XxtReminderTest`（分档、去重、新作业、通知、已交/过期跳过）、`HomeworkGroupingTest`（列表分组）。
@@ -98,6 +98,16 @@ $ adb exec-out screencap -p > docs/img/xxt-11-notification.png
 ```
 
 截图里能看到「郑财校园 · 现在 / 6 小时内截止：单元测试作业 / 高等数学 还有 5 小时（11-27 23:59）」。
+
+## 9. 端到端链路（v0.2.54）
+
+`XxtFlowTest` 在本机起一个极简 HTTP 服务，按学习通真实响应形状回包，让**真实 OkHttp 客户端**走完整链路：
+
+```
+login → checkLogin → fetchCourses → fetchHomeworkList → fetchHomeworkDetail → fetchNotices
+```
+
+断言覆盖：会话 cookie、课程名/教师、作业标题/状态/详情直链、题量与作答时间、通知未读状态。这条用例验证的是“网络层 → 解析层”之间的接线，不依赖账号。
 
 ## 8. 未覆盖
 

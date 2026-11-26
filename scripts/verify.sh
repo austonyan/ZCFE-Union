@@ -5,7 +5,7 @@ cd "$(dirname "$0")/.." || exit 1
 export HTTPS_PROXY=${HTTPS_PROXY:-http://127.0.0.1:7890}
 export HTTP_PROXY=${HTTP_PROXY:-http://127.0.0.1:7890}
 SDK=${ANDROID_SDK_ROOT:-"/d/Program Files (x86)/Android SDK"}
-APK=${APK:-"郑财校园-release-v0.2.53.apk"}
+APK=${APK:-"郑财校园-release-v0.2.54.apk"}
 
 echo "== 1. 单元测试 =="
 ./gradlew.bat :app:testDebugUnitTest --console=plain -q || exit 1
@@ -26,7 +26,7 @@ sha256sum "$APK" | awk '{print "sha256:", toupper($1)}'
 echo "== 3. 远端与 Release =="
 gh api repos/austonyan/ZCFE-Union/commits/master --jq '"remote: " + .sha'
 git rev-parse --short HEAD | awk '{print "local:  " $1}'
-gh release view v0.2.53 --json assets --jq '"asset:  " + .assets[0].name + " (" + (.assets[0].size|tostring) + " bytes)"'
+gh release view v0.2.54 --json assets --jq '"asset:  " + .assets[0].name + " (" + (.assets[0].size|tostring) + " bytes)"'
 
 echo "== 4. 设备（可选）=="
 ADB=$(command -v adb 2>/dev/null || true)
