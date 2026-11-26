@@ -41,3 +41,13 @@ gh release view v0.2.53 → ZCFE-Union-v0.2.53.apk (18,040,510 B)，下载 HTTP 
 ## 5. 边界（如实）
 
 没有可用的真实学习通账号，登录后的真实课程 / 作业 / 通知数据未端到端跑通；该段由参考项目的实测协议结论 + 页面 fixture 回归覆盖。拿到账号后应补一次真实同步核对。
+
+## 6. 界面实拍
+
+| 入口（Release 包） | 登录页 | 作业列表 |
+| --- | --- | --- |
+| ![未绑定](docs/img/xxt-02-bind.png) | ![登录](docs/img/xxt-03-login.png) | ![列表](docs/img/xxt-08-ready.png) |
+
+| 未读通知区块 | 真机服务端报错 | 通知栏里的提醒 |
+| --- | --- | --- |
+| ![通知](docs/img/xxt-09-notices.png) | ![登录失败](docs/img/xxt-07-login-server.png) | ![通知栏](docs/img/xxt-11-notification.png) |
