@@ -47,6 +47,23 @@ sha256 郑财校园-release-v0.2.54.apk = 06910DD15B2E105FC400A8A32EBD48E13FC043
 gh release view v0.2.54 → ZCFE-Union-v0.2.54.apk (18,040,510 B)，下载 HTTP 200
 ```
 
+
+### 发布包确实包含新功能（防“陈旧产物”）
+
+```
+$ unzip -o 郑财校园-release-v0.2.54.apk 'classes*.dex'
+$ grep -a 'Lcom/union/campus/...' classes*.dex
+OK  Lcom/union/campus/data/remote/xxt/XxtClient;
+OK  Lcom/union/campus/work/XxtHomeworkWorker;
+OK  Lcom/union/campus/work/XxtNotifications;
+OK  Lcom/union/campus/ui/screens/homework/HomeworkScreenKt;
+OK  Lcom/union/campus/core/crypto/XxtCrypto;
+$ grep -ao 'chaoxing.com...' classes*.dex
+passport2.chaoxing.com/fanyalogin
+mooc1.chaoxing.com/mooc2/work/list
+notice.chaoxing.com/pc/notice/getNoticeList
+```
+
 ## 5. 边界（如实）
 
 没有可用的真实学习通账号，登录后的真实课程 / 作业 / 通知数据未端到端跑通；该段由参考项目的实测协议结论 + 页面 fixture 回归覆盖。拿到账号后应补一次真实同步核对。
