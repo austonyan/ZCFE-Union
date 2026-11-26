@@ -4,12 +4,15 @@ import com.union.campus.core.AppError
 import com.union.campus.core.crypto.XxtCrypto
 import com.union.campus.data.repo.XxtParse
 import com.union.campus.domain.XxtCourse
+import com.union.campus.domain.XxtNotice
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import okhttp3.Cookie
 import okhttp3.CookieJar
@@ -98,6 +101,7 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
         private const val URL_COURSELIST = "https://mooc2-ans.chaoxing.com/mooc2-ans/visit/courselistdata"
         private const val URL_STUMIDDLE = "https://mooc1.chaoxing.com/visit/stucoursemiddle"
         private const val URL_WORKLIST = "https://mooc1.chaoxing.com/mooc2/work/list"
+        private const val URL_NOTICES = "https://notice.chaoxing.com/pc/notice/getNoticeList"
         private const val NO_PERMISSION_MARKER = "没有此页面访问权限"
         private val SIGNATURE_TTL_MS = TimeUnit.HOURS.toMillis(6)
     }
@@ -298,5 +302,36 @@ class XxtClient(val cookieJar: XxtCookieJar = XxtCookieJar()) {
     suspend fun fetchHomeworkDetail(url: String): XxtParse.WorkDetail {
         if (!url.startsWith("http")) throw AppError.Upstream("该作业没有可用的详情链接")
         return XxtParse.parseHomeworkDetail(bodyText(url))
+    }
+
+    // ---------------------------------------------------------------- 通知
+
+    /** 通知中心列表（游标翻页，只读）。 */
+    suspend fun fetchNotices(limit: Int = 20, maxPages: Int = 2): List<XxtNotice> {
+        val items = mutableListOf<XxtNotice>()
+        var lastId = ""
+        repeat(maxPages.coerceAtLeast(1)) {
+            val form = linkedMapOf(
+                "type" to "0", "notice_type" to "0", "lastValue" to lastId, "sort" to "0",
+                "folderUUID" to "", "kw" to "", "startTime" to "", "endTime" to "",
+                "gKw" to "", "gName" to "", "year" to "", "tag" to "", "fidsCode" to "",
+                "filterSenderPuids" to "", "filterTags" to "",
+            )
+            val text = postForm(
+                URL_NOTICES, form, "https://notice.chaoxing.com/pc/notice/myNotice",
+            ).use { it.body?.string().orEmpty() }
+            val payload = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull()
+                ?: throw AppError.Upstream("通知接口返回的不是 JSON")
+            val status = (payload["status"] as? JsonPrimitive)?.booleanOrNull
+                ?: ((payload["status"] as? JsonPrimitive)?.contentOrNull == "true")
+            if (status == false) throw AppError.Upstream("通知接口返回失败")
+            val page = XxtParse.parseNotices(payload)
+            items += page.items
+            lastId = page.lastId
+            if (page.items.isEmpty() || page.lastPage || items.size >= limit) {
+                return items.take(limit)
+            }
+        }
+        return items.take(limit)
     }
 }

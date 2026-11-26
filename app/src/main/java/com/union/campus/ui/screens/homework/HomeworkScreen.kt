@@ -18,6 +18,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Assignment
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
@@ -41,6 +42,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.XxtHomework
+import com.union.campus.domain.XxtNotice
 import com.union.campus.domain.XxtHomeworkRules
 import com.union.campus.domain.XxtHomeworkSnapshot
 import com.union.campus.ui.common.UiState
@@ -539,6 +541,15 @@ internal fun HomeworkReadyContent(
                 }
             }
         }
+        if (snapshot.notices.isNotEmpty()) {
+            item {
+                PrismSection(title = "学习通通知 · ${snapshot.unreadNotices.size} 条未读") {
+                    PrismGroupedList {
+                        snapshot.notices.take(5).forEach { notice -> NoticeRow(notice) }
+                    }
+                }
+            }
+        }
         item {
             Text(
                 "只读同步：不会提交作业、答题或刷课。截止时间以学习通为准，后台每 2 小时检查一次，系统省电时可能顺延。",
@@ -554,4 +565,35 @@ internal fun HomeworkReadyContent(
             )
         }
     }
+}
+
+/** 通知行：未读标出来，正文压成一行副标题；全文仍以学习通为准。 */
+@Composable
+private fun NoticeRow(notice: XxtNotice) {
+    PrismRow(
+        title = notice.title,
+        subtitle = listOfNotNull(
+            notice.sender.takeIf { it.isNotBlank() },
+            formatNoticeTime(notice.publishTime).takeIf { it.isNotBlank() },
+            notice.content.take(48).takeIf { it.isNotBlank() },
+        ).joinToString(" · "),
+        leading = { IconBadge(Icons.Rounded.Notifications) },
+        trailing = if (notice.read) null else {
+            {
+                Text(
+                    "未读",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+        },
+        subtitleMaxLines = 2,
+    )
+}
+
+/** completeTime 是毫秒时间戳；解析不了就原样留空，不猜时间。 */
+private fun formatNoticeTime(raw: String): String {
+    val millis = raw.toLongOrNull() ?: return ""
+    return java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm")
+        .format(Instant.ofEpochMilli(millis).atZone(ZoneId.systemDefault()))
 }

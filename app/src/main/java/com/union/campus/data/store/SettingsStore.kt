@@ -31,6 +31,7 @@ class SettingsStore(private val context: Context) {
         val remindShowerQueue = booleanPreferencesKey("remind_shower_queue")
         val remindGradeUpdate = booleanPreferencesKey("remind_grade_update")
         val remindXxtHomework = booleanPreferencesKey("remind_xxt_homework")
+        val remindXxtNotice = booleanPreferencesKey("remind_xxt_notice")
         val quietEnabled = booleanPreferencesKey("quiet_enabled")
         val quietStart = intPreferencesKey("quiet_start")
         val quietEnd = intPreferencesKey("quiet_end")
@@ -75,6 +76,7 @@ class SettingsStore(private val context: Context) {
     val remindShowerQueue: Flow<Boolean> = context.dataStore.data.map { it[K.remindShowerQueue] ?: true }
     val remindGradeUpdate: Flow<Boolean> = context.dataStore.data.map { it[K.remindGradeUpdate] ?: true }
     val remindXxtHomework: Flow<Boolean> = context.dataStore.data.map { it[K.remindXxtHomework] ?: true }
+    val remindXxtNotice: Flow<Boolean> = context.dataStore.data.map { it[K.remindXxtNotice] ?: true }
     val quietEnabled: Flow<Boolean> = context.dataStore.data.map { it[K.quietEnabled] ?: true }
     val quietStart: Flow<Int> = context.dataStore.data.map { it[K.quietStart] ?: 23 }
     val quietEnd: Flow<Int> = context.dataStore.data.map { it[K.quietEnd] ?: 7 }
@@ -118,6 +120,7 @@ class SettingsStore(private val context: Context) {
     suspend fun setRemindShowerQueue(v: Boolean) = context.dataStore.edit { it[K.remindShowerQueue] = v }
     suspend fun setRemindGradeUpdate(v: Boolean) = context.dataStore.edit { it[K.remindGradeUpdate] = v }
     suspend fun setRemindXxtHomework(v: Boolean) = context.dataStore.edit { it[K.remindXxtHomework] = v }
+    suspend fun setRemindXxtNotice(v: Boolean) = context.dataStore.edit { it[K.remindXxtNotice] = v }
     suspend fun setQuietEnabled(v: Boolean) = context.dataStore.edit { it[K.quietEnabled] = v }
     suspend fun setQuietRange(start: Int, end: Int) = context.dataStore.edit {
         it[K.quietStart] = start; it[K.quietEnd] = end

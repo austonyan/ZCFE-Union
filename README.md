@@ -7,10 +7,12 @@
 构建产物（`*.apk`）与签名密钥不入库；以下版本说明仅作发布记录。
 
 - **`郑财校园-release-v0.2.50.apk`** — 已签名 release APK（versionCode 55，v2 签名，CN=Zhengcai Union，16 KB 对齐）
-- **GitHub Release**：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.51> — 附件 `ZCFE-Union-v0.2.51.apk`，SHA-256 `07FD8084…40F7AED`
+- **GitHub Release**：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.52> — 附件 `ZCFE-Union-v0.2.52.apk`，SHA-256 `7E011B49…B003AF`（v0.2.51 仍在）
 - 上一版 `郑财校园-release-v0.2.49.apk`（versionCode 54）保留，便于回滚
 - v0.2.50 变更：按 `material-3` skill 官方规范复核并修复 17 个文件的真实偏差（原生组件形状单调映射、对话框 Headline Small 24/32 与对话框语义、分割线/进度轨道/卡片描边改用 colorScheme、snackbar 统一 inverse 配色、分段控件单选语义、输入错误与骨架加载语义、重复 insets 与 IME、页标题 heading）；保留 Prism 品牌与既有产品约定。范围与未做项见 `docs/md3-official-spec-2026-11-25.md`。
 - v0.2.50 校验：104 项单元测试通过；Debug/Release 构建通过；lint 0 error、11 条既有 warning/hint；v2 签名、版本与 16 KB 对齐验证通过。当前未连接设备，未做设备端视觉/TalkBack 走查。
+- **`郑财校园-release-v0.2.52.apk`** — 已签名 release APK（versionCode 57，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- v0.2.52 变更：学习通通知中心接入——只读拉取未读通知并入作业页，未读逐条提醒（可在提醒中心关闭），首次同步不补发；其余同 v0.2.51
 - **`郑财校园-release-v0.2.51.apk`** — 已签名 release APK（versionCode 56，v2 签名，CN=Zhengcai Union，有效期 10000 天）
 - v0.2.51 变更：新增**学习通作业提醒**——只读同步课程与未交作业、截止时间分档（24 / 6 / 1 小时）系统通知、今天页待办聚合、教务入口与绑定页；协议与实现见 `docs/study-homework-v0.2.51.md`
 - v0.2.51 校验：单元测试全绿（含新增的学习通加密基准、页面解析、时间补年份与提醒分档）；Debug/Release 构建通过；MUMU 模拟器（Android 12）安装运行、页面与登录链路实机核对

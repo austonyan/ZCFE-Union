@@ -44,16 +44,30 @@ data class XxtHomework(
     val firstSeenAt: Long = 0L,
 )
 
+/** 学习通通知中心的一条通知（正文保留全文，展示时截断）。 */
+@Serializable
+data class XxtNotice(
+    val noticeId: String,
+    val title: String,
+    val content: String = "",
+    val sender: String = "",
+    val publishTime: String = "",
+    val read: Boolean = false,
+    val firstSeenAt: Long = 0L,
+)
+
 /** 一次同步的结果快照。 */
 @Serializable
 data class XxtHomeworkSnapshot(
     val items: List<XxtHomework> = emptyList(),
+    val notices: List<XxtNotice> = emptyList(),
     val syncedAt: Long = 0L,
     val courseCount: Int = 0,
     val errors: List<String> = emptyList(),
 ) {
     val pending: List<XxtHomework> get() = items.filter { !it.done }
     val pendingCount: Int get() = items.count { !it.done }
+    val unreadNotices: List<XxtNotice> get() = notices.filter { !it.read }
 }
 
 /** 提醒档位：进入更近的一档才补一次，同一档只响一次。 */
@@ -194,6 +208,25 @@ object XxtHomeworkRules {
         }
         return out
     }
+
+    /** 新通知提醒：只提醒未读、且没发过的。 */
+    fun newNoticeReminders(
+        notices: List<XxtNotice>,
+        alreadySent: Set<String> = emptySet(),
+    ): List<HomeworkReminder> = notices
+        .filter { !it.read && "${it.noticeId}|notice" !in alreadySent }
+        .map { notice ->
+            HomeworkReminder(
+                key = notice.noticeId,
+                tag = "notice",
+                title = "学习通通知：${notice.title}",
+                body = buildString {
+                    if (notice.sender.isNotBlank()) appendLine(notice.sender)
+                    append(notice.content.take(120))
+                },
+                urgent = false,
+            )
+        }
 
     /** 新作业提醒：本轮首次出现、且还没发过 new。 */
     fun newHomeworkReminders(

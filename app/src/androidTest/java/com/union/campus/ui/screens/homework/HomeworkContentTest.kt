@@ -9,6 +9,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.union.campus.domain.XxtHomework
 import com.union.campus.domain.XxtHomeworkSnapshot
+import com.union.campus.domain.XxtNotice
 import com.union.campus.ui.theme.UnionTheme
 import org.junit.Rule
 import org.junit.Test
@@ -118,5 +119,31 @@ class HomeworkContentTest {
         )
         compose.onNodeWithText("截止未知 · 1").assertExists()
         compose.onNodeWithText("待公布").assertExists()
+    }
+
+    @Test
+    fun rendersUnreadNotices() {
+        render(
+            XxtHomeworkSnapshot(
+                items = listOf(hw("a", "第一次作业", 5.5)),
+                notices = listOf(
+                    XxtNotice(
+                        noticeId = "n1",
+                        title = "关于期末考试安排的通知",
+                        content = "请于本周五前确认考场",
+                        sender = "教务处",
+                        publishTime = "1795000000000",
+                        read = false,
+                    ),
+                ),
+                syncedAt = now,
+                courseCount = 1,
+            ),
+        )
+
+        compose.onNodeWithText("学习通通知 · 1 条未读").assertExists()
+        compose.onNodeWithText("关于期末考试安排的通知").assertExists()
+        compose.onNodeWithText("未读").assertExists()
+        capture("xxt-homework-notices.png")
     }
 }

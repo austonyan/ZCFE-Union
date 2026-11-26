@@ -48,9 +48,11 @@ class XxtHomeworkWorker(context: Context, params: WorkerParameters) :
 
         val now = System.currentTimeMillis()
         val sent = repo.journal().keys.toMutableSet()
+        val noticesOn = settings.remindXxtNotice.first()
         val reminders = buildList {
             addAll(XxtHomeworkRules.newHomeworkReminders(snapshot.pending, now, sent))
             addAll(XxtHomeworkRules.dueReminders(snapshot.pending, now, alreadySent = sent))
+            if (noticesOn) addAll(XxtHomeworkRules.newNoticeReminders(snapshot.unreadNotices, sent))
         }
         if (reminders.isEmpty()) return Result.success()
 

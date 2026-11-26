@@ -1,6 +1,8 @@
 package com.union.campus
 
 import com.union.campus.data.repo.XxtParse
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -123,5 +125,43 @@ class XxtParsingTest {
                 "<h1>作业</h1>" + "题干".repeat(600) + "请输入验证码",
             ),
         )
+    }
+
+    private val noticePayload = """
+        {"status":true,"notices":{"lastGetId":"100","lastPage":false,"list":[
+          {"id":"n1","title":"关于期末考试安排的通知","content":"<p>请于本周五前确认考场</p>",
+           "createrName":"教务处","completeTime":"1795000000000","isread":false},
+          {"noticeId":"n2","title":"停课通知","content":"周五下午停课","createrName":"学院",
+           "completeTime":"1794000000000","isread":"1"}
+        ]}}
+    """.trimIndent()
+
+    @Test
+    fun parsesNoticeListWithUnreadStateAndCursor() {
+        val payload = Json.parseToJsonElement(noticePayload).jsonObject
+        val page = XxtParse.parseNotices(payload)
+        assertEquals(2, page.items.size)
+        assertEquals("100", page.lastId)
+        assertEquals(false, page.lastPage)
+        val first = page.items[0]
+        assertEquals("n1", first.noticeId)
+        assertEquals("关于期末考试安排的通知", first.title)
+        // 正文里的 HTML 被压成纯文本
+        assertEquals("请于本周五前确认考场", first.content)
+        assertEquals("教务处", first.sender)
+        assertEquals(false, first.read)
+        // isread 用字符串 "1" 也表示已读
+        assertEquals(true, page.items[1].read)
+    }
+
+    @Test
+    fun noticeWithoutIdGetsStableFallback() {
+        val payload = Json.parseToJsonElement(
+            """{"notices":{"list":[{"title":"没有 id 的通知","completeTime":"1794"}]}}""",
+        ).jsonObject
+        val first = XxtParse.parseNotices(payload).items.single()
+        val second = XxtParse.parseNotices(payload).items.single()
+        assertEquals(first.noticeId, second.noticeId)
+        assertTrue(first.noticeId.startsWith("t"))
     }
 }

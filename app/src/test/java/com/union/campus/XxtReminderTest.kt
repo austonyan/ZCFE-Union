@@ -2,6 +2,7 @@ package com.union.campus
 
 import com.union.campus.domain.XxtHomework
 import com.union.campus.domain.XxtHomeworkRules
+import com.union.campus.domain.XxtNotice
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -84,5 +85,19 @@ class XxtReminderTest {
         assertTrue(reminder.title.contains("24 小时内截止"))
         assertTrue(reminder.body.contains("高等数学"))
         assertTrue(reminder.body.contains("还有"))
+    }
+
+    @Test
+    fun noticeRemindersOnlyForUnreadAndOnce() {
+        val notices = listOf(
+            XxtNotice(noticeId = "n1", title = "考试安排", content = "本周五确认考场", sender = "教务处"),
+            XxtNotice(noticeId = "n2", title = "已读的通知", read = true),
+        )
+        val first = XxtHomeworkRules.newNoticeReminders(notices)
+        assertEquals(1, first.size)
+        assertEquals("notice", first[0].tag)
+        assertTrue(first[0].title.contains("考试安排"))
+        assertTrue(first[0].body.contains("教务处"))
+        assertTrue(XxtHomeworkRules.newNoticeReminders(notices, setOf("n1|notice")).isEmpty())
     }
 }

@@ -72,6 +72,7 @@ fun RemindersCenterScreen(
     val remindLowElectric by settings.remindLowElectric.collectAsState(initial = true)
     val remindEvaluation by settings.remindEvaluation.collectAsState(initial = true)
     val remindXxt by settings.remindXxtHomework.collectAsState(initial = true)
+    val remindXxtNotice by settings.remindXxtNotice.collectAsState(initial = true)
     val remindShowerQueue by settings.remindShowerQueue.collectAsState(initial = true)
     val quietOn by settings.quietEnabled.collectAsState(initial = true)
     val quietStart by settings.quietStart.collectAsState(initial = 23)
@@ -148,6 +149,14 @@ fun RemindersCenterScreen(
                     checked = remindXxt,
                     enabled = remindEnabled,
                     onCheckedChange = { on -> set { settings.setRemindXxtHomework(on) } },
+                )
+                PrismToggleRow(
+                    title = "学习通通知",
+                    subtitle = if (remindEnabled && remindXxtNotice) "未读通知逐条提醒" else "已关闭",
+                    leading = { IconBadge(Icons.Outlined.Notifications) },
+                    checked = remindXxtNotice,
+                    enabled = remindEnabled,
+                    onCheckedChange = { on -> set { settings.setRemindXxtNotice(on) } },
                 )
                 PrismToggleRow(
                     title = "洗浴排队",
@@ -234,6 +243,7 @@ fun RemindersCenterScreen(
                         settings.setLowElectricThreshold(ElectricLowState.DefaultThreshold)
                         settings.setRemindEvaluation(true)
                         settings.setRemindXxtHomework(true)
+                        settings.setRemindXxtNotice(true)
                         settings.setRemindShowerQueue(true)
                         settings.setQuietEnabled(true)
                         settings.setQuietRange(23, 7)

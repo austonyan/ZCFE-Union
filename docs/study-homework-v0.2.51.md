@@ -54,13 +54,13 @@
 
 环境：MUMU 模拟器（Android 12，1080×1920 @440dpi，竖屏）。
 
-- **单元测试 127 项全部通过**，其中本次新增：登录加密基准 2 组、时间补年份 / 分档 / 免打扰 / 状态词、页面解析（课程、作业列表、隐藏域、详情时间、登录页与反爬页）、提醒规则（分档、去重、新作业、已交与过期跳过）、列表分组 2 项。
-- **设备端 Compose 测试 3 项通过**（`HomeworkContentTest`：概览数量、分组标题、倒计时徽标、只看未交、全部包含已交、截止未知），渲染结果见 `docs/img/xxt-08-ready.png`。
+- **单元测试 130 项全部通过**（v0.2.51 起的累计；v0.2.52 增补通知解析 2 项、通知提醒 1 项），其中本次新增：登录加密基准 2 组、时间补年份 / 分档 / 免打扰 / 状态词、页面解析（课程、作业列表、隐藏域、详情时间、登录页与反爬页）、提醒规则（分档、去重、新作业、已交与过期跳过）、列表分组 2 项。
+- **设备端 Compose 测试 4 项通过**（`HomeworkContentTest`：概览数量、分组标题、倒计时徽标、只看未交、全部包含已交、截止未知、未读通知区块），渲染结果见 `docs/img/xxt-08-ready.png` 与 `docs/img/xxt-09-notices.png`。
 - **登录链路真机实测**：模拟器经宿主代理访问 `passport2.chaoxing.com/fanyalogin`，服务端真实返回 `{"msg2":"用户名或密码错误","status":false}`，App 显示「学习通账号或密码不正确（用户名或密码错误）」。这条链路覆盖 AES 加密、表单字段、HTTPS、JSON 解析与错误映射（`docs/img/xxt-07-login-server.png`）。
 - **未登录探测**：匿名访问 `i.chaoxing.com/base` 会被 302 到 `passport2.chaoxing.com/mlogin`。因此失效判定改为“整个 passport2 域 + 重定向链”，只认 `/login` 会把过期会话误判成“已登录、只是没有作业”。
 - **反爬拦截**：识别 `antispiderShowVerify` 与正文开头的“操作异常，请输入图片中的验证码”，命中即停止本轮详情请求，避免把拦截页当成“截止时间不存在”。
 - **后台任务**：安装签名 Release 包后，`dumpsys jobscheduler` 中可见 WorkManager 下一轮延迟 1h59m59s 的作业，对应本功能的 2 小时周期同步。
-- **全量设备回归**：整套 androidTest 74 项，同一模拟器上 69 项通过。5 项失败集中在 `PrismExpressiveComponentsTest`（大字号 + 深色）、`PrismIconButtonSemanticsTest`、`RemindersSelectionTest`、`TargetResolutionLayoutTest`（320dp / 1.4x），均为既有用例在本模拟器环境下的失败：把 `RemindersScreen` 回退到本次改动前重跑，`RemindersSelectionTest` 仍以同样方式失败，可确认与本次改动无关。本次新增的 3 项用例单独运行与整套运行均通过（整套中有过一次 flaky，二次通过）。
+- **全量设备回归**：整套 androidTest 74 项，同一模拟器上 69 项通过。5 项失败集中在 `PrismExpressiveComponentsTest`（大字号 + 深色）、`PrismIconButtonSemanticsTest`、`RemindersSelectionTest`、`TargetResolutionLayoutTest`（320dp / 1.4x），均为既有用例在本模拟器环境下的失败：把 `RemindersScreen` 回退到本次改动前重跑，`RemindersSelectionTest` 仍以同样方式失败，可确认与本次改动无关。本次新增的 4 项用例单独运行与整套运行均通过（整套中有过一次 flaky，二次通过）。
 - **已知边界**：手上没有可用的真实学习通账号，登录后的课程/作业真实数据未在设备上端到端跑通。该段由 xxt-assistant 的实测协议结论加页面 fixture 回归覆盖；拿到账号后应补一次真实同步核对。
 
 截图：
@@ -72,3 +72,17 @@
 | `docs/img/xxt-06-login-result.png` | 无网络时的可解释错误（含失败详情） |
 | `docs/img/xxt-07-login-server.png` | 真机服务端返回的账号/密码错误 |
 | `docs/img/xxt-08-ready.png` | 作业列表：24 小时 / 3 天分组、5h 徽标、行尾截止时间 |
+| `docs/img/xxt-09-notices.png` | 作业列表下方的「学习通通知 · 1 条未读」区块 |
+
+## 六、v0.2.52 增补：学习通通知中心
+
+把参考项目里的“未读通知”接口一并接进来，作为作业页的补充信息，不改变只读边界。
+
+| 用途 | 请求 | 关键点 |
+| --- | --- | --- |
+| 通知列表 | `POST https://notice.chaoxing.com/pc/notice/getNoticeList` | 表单 `type/notice_type/lastValue/sort` 等空字段；游标 `lastGetId`，`lastPage` 结束；需要 `Referer: notice.chaoxing.com/pc/notice/myNotice` |
+| 字段 | `notices.list[]` | `id`/`noticeId`、`title`、`content`（HTML 压成纯文本）、`createrName`、`completeTime`（毫秒时间戳）、`isread`（布尔或 `"1"`） |
+
+- 页面：作业分组下方新增「学习通通知 · N 条未读」，最多展示 5 条，未读行尾标注「未读」。
+- 提醒：只提醒**未读且没发过**的通知；首次同步只记日志不补发，避免一次弹一串；提醒中心可单独关闭「学习通通知」。
+- 容错：通知接口失败只记一条错误，不影响作业同步；会话失效仍按整体失效处理。

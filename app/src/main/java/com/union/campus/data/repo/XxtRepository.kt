@@ -9,6 +9,7 @@ import com.union.campus.data.store.SettingsStore
 import com.union.campus.domain.XxtHomework
 import com.union.campus.domain.XxtHomeworkRules
 import com.union.campus.domain.XxtHomeworkSnapshot
+import com.union.campus.domain.XxtNotice
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -192,18 +193,20 @@ class XxtRepository constructor(
         }
 
         fillDetails(items, now, onProgress, errors)
+        val notices = syncNotices(previous, errors)
 
         val snapshot = XxtHomeworkSnapshot(
             items = items.sortedWith(
                 compareBy({ it.done }, { if (it.deadlineAt == 0L) Long.MAX_VALUE else it.deadlineAt }),
             ),
+            notices = notices,
             syncedAt = System.currentTimeMillis(),
             courseCount = courses.size,
             errors = errors,
         )
         store.write(KEY_SNAPSHOT, XxtHomeworkSnapshot.serializer(), snapshot)
         persistSession()
-        seedJournalIfFirstRun(previous, items, now)
+        seedJournalIfFirstRun(previous, items, notices, now)
         _sessionState.value = SessionState.VALID
         return snapshot
     }
@@ -247,15 +250,39 @@ class XxtRepository constructor(
         }
     }
 
-    /** 首次同步不补发“新作业”通知，只把当前条目记进日志。 */
+    /** 通知：失败不打断整轮；未读状态以服务端为准，首次出现时间沿用上一轮。 */
+    private suspend fun syncNotices(
+        previous: XxtHomeworkSnapshot?,
+        errors: MutableList<String>,
+    ): List<XxtNotice> {
+        val now = System.currentTimeMillis()
+        val prev = previous?.notices.orEmpty().associateBy { it.noticeId }
+        return try {
+            client.fetchNotices().map { notice ->
+                notice.copy(firstSeenAt = prev[notice.noticeId]?.firstSeenAt ?: now)
+            }
+        } catch (e: AppError.AuthExpired) {
+            throw e
+        } catch (e: AppError) {
+            errors += "通知：${e.userMessage}"
+            previous?.notices.orEmpty()
+        } catch (e: Exception) {
+            errors += "通知：同步失败"
+            previous?.notices.orEmpty()
+        }
+    }
+
+    /** 首次同步不补发“新作业/新通知”，只把当前条目记进日志。 */
     private suspend fun seedJournalIfFirstRun(
         previous: XxtHomeworkSnapshot?,
         items: List<XxtHomework>,
+        notices: List<XxtNotice>,
         now: Long,
     ) {
         if (previous != null) return
         if (store.read(KEY_JOURNAL, jsonMap) != null) return
-        val journal = items.associate { "${it.key}|new" to now }
+        val journal = items.associate { "${it.key}|new" to now }.toMutableMap()
+        notices.forEach { journal["${it.noticeId}|notice"] = now }
         store.write(KEY_JOURNAL, jsonMap, journal)
     }
 

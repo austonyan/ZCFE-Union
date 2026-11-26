@@ -1,6 +1,12 @@
 package com.union.campus.data.repo
 
 import com.union.campus.domain.XxtCourse
+import com.union.campus.domain.XxtNotice
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 
 /**
  * 学习通页面的纯解析函数（不联网、不依赖 Android），单元测试可直接覆盖。
@@ -170,4 +176,48 @@ object XxtParse {
     fun isAntispider(url: String, body: String): Boolean =
         url.contains("antispiderShowVerify") ||
             body.take(800).contains("操作异常，请输入图片中的验证码")
+
+    // ---------------------------------------------------------------- 通知中心
+
+    /** 通知接口一页：items + 游标（lastGetId）与是否最后一页。 */
+    data class NoticePage(
+        val items: List<XxtNotice>,
+        val lastId: String,
+        val lastPage: Boolean,
+    )
+
+    /**
+     * 解析 notice.chaoxing.com/pc/notice/getNoticeList 的 JSON。
+     * 结构：{"status":true,"notices":{"list":[...],"lastGetId":"...","lastPage":false}}
+     * 正文 content 可能带 HTML，展示前先压成纯文本。
+     */
+    fun parseNotices(payload: JsonObject): NoticePage {
+        val data = payload["notices"] as? JsonObject ?: JsonObject(emptyMap())
+        val items = mutableListOf<XxtNotice>()
+        (data["list"] as? JsonArray).orEmpty().forEach { element ->
+            val obj = element as? JsonObject ?: return@forEach
+            fun str(key: String): String =
+                (obj[key] as? JsonPrimitive)?.contentOrNull.orEmpty().trim()
+            val title = str("title").ifBlank { "(无标题)" }
+            val publishTime = str("completeTime").ifBlank { str("publishTime") }
+            val id = str("id").ifBlank { str("noticeId") }
+                .ifBlank { "t" + (title + publishTime).hashCode().toUInt().toString(16) }
+            val read = (obj["isread"] as? JsonPrimitive)?.let { p ->
+                p.booleanOrNull ?: (p.contentOrNull == "1" || p.contentOrNull == "true")
+            } ?: false
+            items += XxtNotice(
+                noticeId = id,
+                title = title,
+                content = stripTags(str("content")),
+                sender = str("createrName"),
+                publishTime = publishTime,
+                read = read,
+            )
+        }
+        return NoticePage(
+            items = items,
+            lastId = (data["lastGetId"] as? JsonPrimitive)?.contentOrNull.orEmpty(),
+            lastPage = (data["lastPage"] as? JsonPrimitive)?.booleanOrNull == true,
+        )
+    }
 }
