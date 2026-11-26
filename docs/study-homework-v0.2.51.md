@@ -60,6 +60,7 @@
 - **未登录探测**：匿名访问 `i.chaoxing.com/base` 会被 302 到 `passport2.chaoxing.com/mlogin`。因此失效判定改为“整个 passport2 域 + 重定向链”，只认 `/login` 会把过期会话误判成“已登录、只是没有作业”。
 - **反爬拦截**：识别 `antispiderShowVerify` 与正文开头的“操作异常，请输入图片中的验证码”，命中即停止本轮详情请求，避免把拦截页当成“截止时间不存在”。
 - **后台任务**：安装签名 Release 包后，`dumpsys jobscheduler` 中可见 WorkManager 下一轮延迟 1h59m59s 的作业，对应本功能的 2 小时周期同步。
+- **全量设备回归**：整套 androidTest 74 项，同一模拟器上 69 项通过。5 项失败集中在 `PrismExpressiveComponentsTest`（大字号 + 深色）、`PrismIconButtonSemanticsTest`、`RemindersSelectionTest`、`TargetResolutionLayoutTest`（320dp / 1.4x），均为既有用例在本模拟器环境下的失败：把 `RemindersScreen` 回退到本次改动前重跑，`RemindersSelectionTest` 仍以同样方式失败，可确认与本次改动无关。本次新增的 3 项用例单独运行与整套运行均通过（整套中有过一次 flaky，二次通过）。
 - **已知边界**：手上没有可用的真实学习通账号，登录后的课程/作业真实数据未在设备上端到端跑通。该段由 xxt-assistant 的实测协议结论加页面 fixture 回归覆盖；拿到账号后应补一次真实同步核对。
 
 截图：
