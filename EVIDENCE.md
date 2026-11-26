@@ -2,6 +2,14 @@
 
 一句话：把 [xxt-assistant](https://github.com/led629263224-cmyk/xxt-assistant) 的学习通**登录 / 作业 / 通知**接口用 Kotlin 重新实现，接进本项目的 Prism 设计系统，做成「作业提醒」；已在 MUMU 模拟器验收，并发布 v0.2.51 → v0.2.53 三个 Release。
 
+## 0. 一键复跑
+
+```bash
+./scripts/verify.sh
+```
+
+依次跑单元测试、校验 APK 签名与哈希、核对远端 commit 与 Release 资产，最后（有 adb 时）读设备版本与后台任务。
+
 ## 1. 需求 → 产物对照
 
 | 需求 | 产物 |
