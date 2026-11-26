@@ -1,20 +1,11 @@
 package com.union.campus.work
 
-import android.Manifest
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.union.campus.MainActivity
-import com.union.campus.R
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.HomeworkReminder
 import com.union.campus.domain.XxtHomeworkRules
@@ -75,36 +66,8 @@ class XxtHomeworkWorker(context: Context, params: WorkerParameters) :
         now: Calendar = Calendar.getInstance(),
     ): Boolean = XxtHomeworkRules.inQuietHours(now.get(Calendar.HOUR_OF_DAY), startHour, endHour)
 
-    private fun notify(reminder: HomeworkReminder): Boolean {
-        val context = applicationContext
-        if (Build.VERSION.SDK_INT >= 33 &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            return false
-        }
-        val intent = Intent(context, MainActivity::class.java).apply {
-            putExtra("deepLink", "homework")
-        }
-        val pending = PendingIntent.getActivity(
-            context,
-            reminder.key.hashCode(),
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = NotificationCompat.Builder(context, "union_reminders")
-            .setSmallIcon(R.drawable.ic_stat_union)
-            .setContentTitle(reminder.title)
-            .setContentText(reminder.body.replace("\n", " · "))
-            .setStyle(NotificationCompat.BigTextStyle().bigText(reminder.body))
-            .setPriority(if (reminder.urgent) NotificationCompat.PRIORITY_HIGH else NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .build()
-        val id = ("xxt:" + reminder.key + "|" + reminder.tag).hashCode()
-        NotificationManagerCompat.from(context).notify(id, notification)
-        return true
-    }
+    private fun notify(reminder: HomeworkReminder): Boolean =
+        XxtNotifications.notify(applicationContext, reminder)
 
     companion object {
         private const val UNIQUE_NAME = "union_xxt_homework"

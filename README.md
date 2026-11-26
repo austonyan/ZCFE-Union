@@ -7,10 +7,12 @@
 构建产物（`*.apk`）与签名密钥不入库；以下版本说明仅作发布记录。
 
 - **`郑财校园-release-v0.2.50.apk`** — 已签名 release APK（versionCode 55，v2 签名，CN=Zhengcai Union，16 KB 对齐）
-- **GitHub Release**：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.52> — 附件 `ZCFE-Union-v0.2.52.apk`，SHA-256 `7E011B49…B003AF`（v0.2.51 仍在）
+- **GitHub Release**：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.53> — 附件 `ZCFE-Union-v0.2.53.apk`，SHA-256 `C536FBD0…B6A7A58`（v0.2.52 / v0.2.51 仍在）
 - 上一版 `郑财校园-release-v0.2.49.apk`（versionCode 54）保留，便于回滚
 - v0.2.50 变更：按 `material-3` skill 官方规范复核并修复 17 个文件的真实偏差（原生组件形状单调映射、对话框 Headline Small 24/32 与对话框语义、分割线/进度轨道/卡片描边改用 colorScheme、snackbar 统一 inverse 配色、分段控件单选语义、输入错误与骨架加载语义、重复 insets 与 IME、页标题 heading）；保留 Prism 品牌与既有产品约定。范围与未做项见 `docs/md3-official-spec-2026-11-25.md`。
 - v0.2.50 校验：104 项单元测试通过；Debug/Release 构建通过；lint 0 error、11 条既有 warning/hint；v2 签名、版本与 16 KB 对齐验证通过。当前未连接设备，未做设备端视觉/TalkBack 走查。
+- **`郑财校园-release-v0.2.53.apk`** — 已签名 release APK（versionCode 58，v2 签名，CN=Zhengcai Union，有效期 10000 天）
+- v0.2.53 变更：通知构建抽到 `work/XxtNotifications.kt`，Worker 与设备端测试共用同一段逻辑；新增 `XxtNotificationTest` 证明作业提醒真的能到达通知栏；功能与 v0.2.52 一致
 - **`郑财校园-release-v0.2.52.apk`** — 已签名 release APK（versionCode 57，v2 签名，CN=Zhengcai Union，有效期 10000 天）
 - v0.2.52 变更：学习通通知中心接入——只读拉取未读通知并入作业页，未读逐条提醒（可在提醒中心关闭），首次同步不补发；其余同 v0.2.51
 - **`郑财校园-release-v0.2.51.apk`** — 已签名 release APK（versionCode 56，v2 签名，CN=Zhengcai Union，有效期 10000 天）

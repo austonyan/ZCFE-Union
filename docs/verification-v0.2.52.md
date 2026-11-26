@@ -39,6 +39,13 @@ OK (4 tests)
 覆盖：概览数量、分组标题、倒计时徽标、只看未交、全部含已交、截止未知、未读通知区块。
 渲染截图：`docs/img/xxt-08-ready.png`、`docs/img/xxt-09-notices.png`。
 
+v0.2.53 追加通知到达用例（共 5 项设备端用例）：
+
+```
+$ adb shell am instrument -w -e class com.union.campus.ui.screens.homework.XxtNotificationTest       com.union.campus.test/androidx.test.runner.AndroidJUnitRunner
+OK (1 test)
+```
+
 全量 `androidTest`（74 项）在同一模拟器上 69 项通过；5 项失败均为既有用例（Prism 组件大字/深色、图标语义、提醒选择、320dp 布局）。把 `RemindersScreen` 回退到改动前重跑，`RemindersSelectionTest` 仍以同样方式失败，可确认与本次改动无关。
 
 ## 4. 真机链路
@@ -79,7 +86,20 @@ b9e17440a7189eed6bbecb908eeb57619e77f89b   # 与本地 HEAD 一致
 - Release：<https://github.com/austonyan/ZCFE-Union/releases/tag/v0.2.52>（上一版 v0.2.51 保留）
 - 本地产物：`郑财校园-release-v0.2.52.apk`
 
-## 7. 未覆盖
+## 7. 通知真的到达通知栏（v0.2.53）
+
+Worker 与测试共用 `work/XxtNotifications.notify()`；测试发一条「6 小时内截止」提醒后，从系统侧查回：
+
+```
+$ adb shell dumpsys notification --noredact | grep android.title
+android.title=String (6 小时内截止：单元测试作业)
+$ adb shell cmd statusbar expand-notifications
+$ adb exec-out screencap -p > docs/img/xxt-11-notification.png
+```
+
+截图里能看到「郑财校园 · 现在 / 6 小时内截止：单元测试作业 / 高等数学 还有 5 小时（11-27 23:59）」。
+
+## 8. 未覆盖
 
 没有可用的真实学习通账号，登录后的课程 / 作业 / 通知真实数据未在设备上端到端跑通。
 该段由参考项目的实测协议结论 + 页面 fixture 回归覆盖；拿到账号后应补一次真实同步核对。

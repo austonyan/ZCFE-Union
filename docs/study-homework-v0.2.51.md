@@ -54,8 +54,8 @@
 
 环境：MUMU 模拟器（Android 12，1080×1920 @440dpi，竖屏）。
 
-- **单元测试 130 项全部通过**（v0.2.51 起的累计；v0.2.52 增补通知解析 2 项、通知提醒 1 项），其中本次新增：登录加密基准 2 组、时间补年份 / 分档 / 免打扰 / 状态词、页面解析（课程、作业列表、隐藏域、详情时间、登录页与反爬页）、提醒规则（分档、去重、新作业、已交与过期跳过）、列表分组 2 项。
-- **设备端 Compose 测试 4 项通过**（`HomeworkContentTest`：概览数量、分组标题、倒计时徽标、只看未交、全部包含已交、截止未知、未读通知区块），渲染结果见 `docs/img/xxt-08-ready.png` 与 `docs/img/xxt-09-notices.png`。
+- **单元测试 130 项全部通过**（v0.2.51 起的累计；v0.2.52 增补通知解析 2 项、通知提醒 1 项；v0.2.53 只抽通知构建，不改规则），其中本次新增：登录加密基准 2 组、时间补年份 / 分档 / 免打扰 / 状态词、页面解析（课程、作业列表、隐藏域、详情时间、登录页与反爬页）、提醒规则（分档、去重、新作业、已交与过期跳过）、列表分组 2 项。
+- **设备端 Compose 测试 5 项通过**（`HomeworkContentTest` 4 项：概览数量、分组标题、倒计时徽标、只看未交、全部包含已交、截止未知、未读通知区块；`XxtNotificationTest` 1 项：提醒真的进入通知栏），渲染结果见 `docs/img/xxt-08-ready.png`、`docs/img/xxt-09-notices.png`、通知栏截图 `docs/img/xxt-11-notification.png`。
 - **登录链路真机实测**：模拟器经宿主代理访问 `passport2.chaoxing.com/fanyalogin`，服务端真实返回 `{"msg2":"用户名或密码错误","status":false}`，App 显示「学习通账号或密码不正确（用户名或密码错误）」。这条链路覆盖 AES 加密、表单字段、HTTPS、JSON 解析与错误映射（`docs/img/xxt-07-login-server.png`）。
 - **未登录探测**：匿名访问 `i.chaoxing.com/base` 会被 302 到 `passport2.chaoxing.com/mlogin`。因此失效判定改为“整个 passport2 域 + 重定向链”，只认 `/login` 会把过期会话误判成“已登录、只是没有作业”。
 - **反爬拦截**：识别 `antispiderShowVerify` 与正文开头的“操作异常，请输入图片中的验证码”，命中即停止本轮详情请求，避免把拦截页当成“截止时间不存在”。
@@ -73,6 +73,7 @@
 | `docs/img/xxt-07-login-server.png` | 真机服务端返回的账号/密码错误 |
 | `docs/img/xxt-08-ready.png` | 作业列表：24 小时 / 3 天分组、5h 徽标、行尾截止时间 |
 | `docs/img/xxt-09-notices.png` | 作业列表下方的「学习通通知 · 1 条未读」区块 |
+| `docs/img/xxt-11-notification.png` | 系统通知栏里的作业提醒（由 `XxtNotificationTest` 真实发出） |
 
 ## 六、v0.2.52 增补：学习通通知中心
 
@@ -86,3 +87,9 @@
 - 页面：作业分组下方新增「学习通通知 · N 条未读」，最多展示 5 条，未读行尾标注「未读」。
 - 提醒：只提醒**未读且没发过**的通知；首次同步只记日志不补发，避免一次弹一串；提醒中心可单独关闭「学习通通知」。
 - 容错：通知接口失败只记一条错误，不影响作业同步；会话失效仍按整体失效处理。
+
+## 七、v0.2.53：通知构建抽出并可验
+
+- `work/XxtNotifications.kt`：通道、深链（`deepLink=homework`）、标题/正文/优先级集中一处；Worker 与设备端测试共用同一段代码，避免“测试测的是另一份实现”。
+- `XxtNotificationTest`（androidTest）：调用 `XxtNotifications.notify()` 发一条「6 小时内截止」提醒，再从 `NotificationManager.activeNotifications` 查回标题；`dumpsys notification` 与通知栏截图双证（`docs/img/xxt-11-notification.png`）。
+- 版本 0.2.53（versionCode 58），功能行为与 v0.2.52 一致，仅提升可验证性。
