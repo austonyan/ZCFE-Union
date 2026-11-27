@@ -18,12 +18,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.ui.common.UnionScreenScaffold
-import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.pageTitleStyle
-import com.union.campus.ui.prism.subheadlineStyle
 
 /** 教室详情：容量、设备与今日空闲时段。 */
 @Composable
@@ -51,21 +49,13 @@ fun ClassroomDetailScreen(
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(20.dp),
             ) {
                 Text(room, style = pageTitleStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
-                Spacer(Modifier.height(4.dp))
-                Text("容量与设备信息以教务数据为准", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onPrimaryContainer)
             }
             PrismSection(title = "今日空闲时段") {
                 // 时段以教务 getJsxx 返回为准；上游未返回明细时不编造数据
                 NullStatus(
                     Icons.Rounded.CalendarMonth,
                     "暂无分时段数据",
-                    "空闲时段以教务返回为准",
                 )
-            }
-            PrismCard {
-                CardHeader("说明")
-                Spacer(Modifier.height(6.dp))
-                Text("教室容量、设备及空闲时段以教务系统为准。", style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             Spacer(Modifier.height(12.dp))
         }

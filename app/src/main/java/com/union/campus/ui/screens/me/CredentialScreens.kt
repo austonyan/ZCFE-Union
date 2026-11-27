@@ -150,12 +150,6 @@ fun CredentialsCenterScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                "三平台账号独立管理，可检查已保存凭证是否有效。",
-                style = subheadlineStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
             val jwBound = cred.jwStudentNo.isNotBlank()
             CredentialAccountCard(
                 title = "教务",
@@ -229,11 +223,6 @@ fun CredentialsCenterScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("检查全部账号")
             }
-            Text(
-                "重新登录仅刷新当前账号；全部退出将清除三套凭证与本地缓存。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             PrismTextButton(
                 onClick = { confirmLogout = true },
                 modifier = Modifier.fillMaxWidth(),

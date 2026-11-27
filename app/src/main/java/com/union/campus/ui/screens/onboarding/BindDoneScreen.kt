@@ -46,7 +46,6 @@ import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSpec
 import com.union.campus.ui.prism.PrismToggleRow
-import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
@@ -172,7 +171,6 @@ fun BindDoneScreen(
                 Icon(Icons.Rounded.ArrowForward, null)
             }
 
-            Text("可在设置中调整", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
         }
     }

@@ -101,11 +101,6 @@ fun TimetableSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             SectionHeader("学期")
-            Text(
-                "仅切换课表学期，不影响成绩及考试等页面。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             if (semesters.isEmpty()) {
                 PrismCard(
                     modifier = Modifier.fillMaxWidth(),
@@ -155,11 +150,6 @@ fun TimetableSettingsScreen(
             }
 
             SectionHeader("教学楼作息")
-            Text(
-                "两套作息：S1–S6、J7 与 J1–J6，仅第 3、4 节时间不同。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             TimetableSchedulePicker(
                 jLate = jLate,
                 onJLateChange = { late -> launchUi { settings.setTimetableJLate(late) } },
@@ -184,11 +174,6 @@ fun TimetableSettingsScreen(
                 Spacer(Modifier.width(6.dp))
                 Text("其余节次（作息相同）", style = headlineStyle())
             }
-            Text(
-                "第 3、4 节按课程楼号自动匹配作息。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             PrismCard(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 12.dp),
@@ -232,11 +217,6 @@ fun TimetableSettingsScreen(
                 }
             }
 
-            Text(
-                "课表最多显示 10 节，第 9、10 节无课时自动隐藏。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             Spacer(Modifier.height(12.dp))
         }
     }

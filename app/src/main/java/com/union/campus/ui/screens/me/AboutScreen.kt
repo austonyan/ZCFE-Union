@@ -80,12 +80,6 @@ fun AboutScreen(
                         )
                     }
                 }
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "整合教务、洗浴、电费、课表与校园生活信息。",
-                    style = subheadlineStyle(),
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                )
             }
 
             PrismSection("应用信息") {
@@ -112,19 +106,14 @@ fun AboutScreen(
                 CardHeader("数据来源")
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "课表、成绩、考试及通知来自教务系统；洗浴来自大白U帮；电费来自完美校园。凭证仅在本机加密保存。",
+                    "课表、成绩与考试来自教务；洗浴来自大白U帮；电费来自完美校园。",
                     style = subheadlineStyle(),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
 
             Text(
-                "个人开发的校园辅助工具，非学校官方应用。功能与数据以来源系统为准。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "Copyright © 2026 Auston. All rights reserved.",
+                "个人开发的校园工具，非学校官方应用。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

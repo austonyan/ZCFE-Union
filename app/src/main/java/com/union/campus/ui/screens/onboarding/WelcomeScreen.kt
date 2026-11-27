@@ -17,32 +17,18 @@ import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Shower
 import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.ExpandLess
-import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
-import com.union.campus.di.ServiceLocator
-import com.union.campus.domain.BuildingGroup
-import com.union.campus.ui.common.TimetableSchedulePicker
-import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismProgressRail
-import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
@@ -54,12 +40,6 @@ fun WelcomeScreen(
     onExplore: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val settings = ServiceLocator.settings
-    val jLate by settings.timetableJLate.collectAsState(initial = true)
-    val fallbackGroupValue by settings.timetableFallbackGroup.collectAsState(initial = 1)
-    val fallbackGroup = if (fallbackGroupValue == 2) BuildingGroup.S1ToS6AndJ7 else BuildingGroup.J1ToJ6
-    var scheduleExpanded by rememberSaveable { mutableStateOf(false) }
-
     Column(
         modifier = modifier
             .pageWidth()
@@ -132,27 +112,5 @@ fun WelcomeScreen(
             style = footnoteStyle(),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        PrismRow(
-            title = "作息设置",
-            modifier = Modifier.semantics {
-                stateDescription = if (scheduleExpanded) "已展开" else "已收起"
-            },
-            onClick = { scheduleExpanded = !scheduleExpanded },
-            trailing = {
-                Icon(if (scheduleExpanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore, null)
-            },
-        )
-        if (scheduleExpanded) {
-            TimetableSchedulePicker(
-                jLate = jLate,
-                onJLateChange = { late -> launchUi { settings.setTimetableJLate(late) } },
-                fallbackGroup = fallbackGroup,
-                onFallbackGroupChange = { group ->
-                    launchUi {
-                        settings.setTimetableFallbackGroup(if (group == BuildingGroup.J1ToJ6) 1 else 2)
-                    }
-                },
-            )
-        }
     }
 }

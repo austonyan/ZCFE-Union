@@ -163,12 +163,6 @@ fun ShowerSessionScreen(
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Spacer(Modifier.height(8.dp))
-                    Text(
-                        "按实际时长计费，以最终账单为准。",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                 }
                 Spacer(Modifier.height(8.dp))
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -186,12 +180,9 @@ fun ShowerSessionScreen(
                     )
                 }
             }
-            Text("按实际时长计费，预计费用以最终账单为准", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-
             SectionHeader("计费提示")
             PrismGroupedList {
-                PrismRow(title = "已使用时长", subtitle = "按实际使用时长计费", leading = { IconBadge(Icons.Rounded.Info) })
-                PrismRow(title = "结束提醒", subtitle = "离开前请确认关闭设备", leading = { IconBadge(Icons.Rounded.Info) })
+                PrismRow(title = "已使用时长", subtitle = "按实际时长计费，以最终账单为准", leading = { IconBadge(Icons.Rounded.Info) })
             }
 
             PrismButton(

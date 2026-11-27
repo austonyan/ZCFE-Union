@@ -129,7 +129,7 @@ fun HomeworkLoginScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "登录后会自动整理未交作业，按截止时间排序，并在 24 / 6 / 1 小时前提醒。",
+                    "登录后自动整理未交作业，按截止时间排序并分档提醒。",
                     style = subheadlineStyle(),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -142,7 +142,7 @@ fun HomeworkLoginScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "只读：不提交作业、不答题、不刷课。账号密码只在本机加密保存。",
+                        "只读 · 账号密码仅在本机加密保存",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -205,12 +205,7 @@ fun HomeworkLoginScreen(
             }
 
             Text(
-                "学习通对陌生设备可能要求图形验证码。遇到“需要验证码”时，请先在浏览器登录一次学习通，再回来重试。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "同步会串行、限速地读取课程、作业列表和必要的作业详情，频率与正常浏览接近。",
+                "需要图形验证码时，请先在浏览器登录一次学习通再重试。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

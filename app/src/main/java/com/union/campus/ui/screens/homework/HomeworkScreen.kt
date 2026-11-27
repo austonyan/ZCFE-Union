@@ -19,7 +19,6 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Assignment
 import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -49,7 +48,6 @@ import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.formatUpdatedAt
 import com.union.campus.ui.common.pageWidth
-import com.union.campus.ui.prism.CardHeader
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismButton
@@ -223,7 +221,7 @@ fun HomeworkScreen(
     }
 }
 
-/** 未绑定：一句话说清这个入口做什么、不做什么，再给一个动作。 */
+/** 未绑定：一张卡说明用途并给出绑定动作。 */
 @Composable
 private fun BindHomeworkCard(onLogin: () -> Unit, modifier: Modifier = Modifier) {
     Column(
@@ -246,7 +244,7 @@ private fun BindHomeworkCard(onLogin: () -> Unit, modifier: Modifier = Modifier)
             )
             Spacer(Modifier.height(6.dp))
             Text(
-                "登录学习通后，这里按截止时间排列未交作业；今天页也会出现对应待办，截止前 24 / 6 / 1 小时各提醒一次。",
+                "登录后按截止时间排列未交作业，截止前 24 / 6 / 1 小时提醒。只读，不改动学习通数据。",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
@@ -259,37 +257,6 @@ private fun BindHomeworkCard(onLogin: () -> Unit, modifier: Modifier = Modifier)
             ) {
                 Text("绑定学习通账号")
             }
-        }
-
-        PrismCard {
-            CardHeader("这个功能做什么")
-            Spacer(Modifier.height(8.dp))
-            listOf(
-                "读取课程、作业列表与必要的作业详情",
-                "按截止时间分档提醒，同一条作业每档只提醒一次",
-                "免打扰时段内只发 1 小时档的加急提醒",
-                "账号密码与本机会话在设备内加密保存",
-            ).forEach { line ->
-                Row(
-                    Modifier.padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Icon(
-                        Icons.Rounded.CheckCircle,
-                        contentDescription = null,
-                        tint = PrismStatus.success(),
-                        modifier = Modifier.size(18.dp),
-                    )
-                    Text(line, style = subheadlineStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-            Spacer(Modifier.height(6.dp))
-            Text(
-                "不会做：提交作业、答题、刷课、修改任何学习通数据。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         Spacer(Modifier.height(8.dp))
     }
@@ -559,13 +526,6 @@ internal fun HomeworkReadyContent(
                     }
                 }
             }
-        }
-        item {
-            Text(
-                "只读同步：不会提交作业、答题或刷课。截止时间以学习通为准，后台每 2 小时检查一次，系统省电时可能顺延。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
         item {
             Text(

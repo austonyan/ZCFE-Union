@@ -408,14 +408,6 @@ fun TodayScreen(
                     }
                 }
             }
-
-            item {
-                Text(
-                    "数据来自教务、完美校园及大白U帮，以来源系统为准",
-                    style = footnoteStyle(),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
         }
     }
 }

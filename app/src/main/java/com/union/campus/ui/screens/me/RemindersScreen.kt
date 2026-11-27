@@ -256,12 +256,7 @@ fun RemindersCenterScreen(
             }
 
             Text(
-                "上课提醒为应用内横幅；考试、评教及低电费加入待办，低电费另发系统通知；学习通作业与低电费走系统通知；洗浴仅在页面打开时到号提醒。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "后台提醒受系统限制，可能延迟；重要事项请打开应用确认。",
+                "后台提醒可能延迟，重要事项请打开应用确认。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -308,7 +303,7 @@ private fun QuietHoursSheet(
         ) {
             Text("免打扰时段", style = pageTitleStyle())
             Text(
-                "时段内停发系统通知，待办仍显示。支持跨日，如 23:00–07:00。",
+                "时段内停发系统通知，待办仍显示。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

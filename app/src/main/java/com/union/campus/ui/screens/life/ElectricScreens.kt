@@ -531,7 +531,7 @@ fun ElectricScreen(
                             }
                             Spacer(Modifier.height(8.dp))
                             Text(
-                                "按 ¥${ElectricStats.formatMoney(price)}/度计算，以完美校园账单为准",
+                                "按 ¥${ElectricStats.formatMoney(price)}/度估算",
                                 style = footnoteStyle(),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -846,23 +846,14 @@ fun UsageDetailScreen(
                                 )
                             }
                         }
-                        if (!showAll && sorted.size > 7) {
-                            Text(
-                                "默认显示近 7 天，选择「展开全部」查看完整明细",
-                                style = footnoteStyle(),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
                     }
-                    Text(
-                        if (price != null) {
-                            "按 ¥${ElectricStats.formatMoney(price!!)}/度计算，以完美校园账单为准。"
-                        } else {
-                            "暂无电价，仅显示用量。"
-                        },
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    if (price == null) {
+                        Text(
+                            "暂无电价，仅显示用量。",
+                            style = footnoteStyle(),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
             Spacer(Modifier.height(12.dp))
