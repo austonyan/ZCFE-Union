@@ -30,7 +30,6 @@ import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextButton
-import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 
 /** 欢迎页：说明 Union 把教务、洗浴、电费合成一个入口。 */
@@ -106,11 +105,5 @@ fun WelcomeScreen(
             Spacer(Modifier.width(8.dp))
             Text("暂不绑定")
         }
-
-        Text(
-            text = "登录状态仅保存在本机",
-            style = footnoteStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

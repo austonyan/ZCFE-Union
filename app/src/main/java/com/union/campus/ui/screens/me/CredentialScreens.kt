@@ -35,7 +35,6 @@ import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismActionRow
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismIconSize
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
@@ -134,13 +133,6 @@ fun CredentialsCenterScreen(
         title = "凭证中心",
         onBack = onBack,
         modifier = modifier,
-        actions = {
-            PrismIconButton(
-                icon = Icons.Outlined.Sync,
-                contentDescription = "检查",
-                onClick = { healthCheck() },
-            )
-        },
     ) { padding ->
         Column(
             Modifier

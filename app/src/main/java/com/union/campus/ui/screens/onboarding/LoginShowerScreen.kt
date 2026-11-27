@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material.icons.rounded.Login
 import androidx.compose.material.icons.rounded.Phone
@@ -47,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
-import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismProgressRail
@@ -84,7 +82,6 @@ fun LoginShowerScreen(
     var smsSentAt by rememberSaveable { mutableLongStateOf(0L) }
     var resendSeconds by remember { mutableIntStateOf(0) }
     var error by rememberSaveable { mutableStateOf<String?>(null) }
-    var info by rememberSaveable { mutableStateOf<String?>(null) }
     var passwordVisible by remember { mutableStateOf(false) }
     val busy = loading || sendingSms
     val smsSentToCurrent = smsSentMobile.isNotBlank() && smsSentMobile == mobile.trim()
@@ -164,27 +161,9 @@ fun LoginShowerScreen(
         }
     }
 
-    if (info != null) {
-        PrismAlertDialog(
-            title = "提示",
-            body = info ?: "",
-            confirmText = "确定",
-            dismissText = null,
-            onConfirm = { info = null },
-            onDismiss = { info = null },
-        )
-    }
-
     UnionScreenScaffold(
         title = "登录大白U帮",
         onBack = onBack,
-        actions = {
-            PrismIconButton(
-                icon = Icons.AutoMirrored.Outlined.HelpOutline,
-                contentDescription = "帮助",
-                onClick = { info = "使用大白U帮手机号与密码，仅用于本人查询及设备启停。" },
-            )
-        },
     ) { padding ->
         Column(
             modifier = modifier

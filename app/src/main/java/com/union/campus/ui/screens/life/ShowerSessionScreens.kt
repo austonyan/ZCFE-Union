@@ -91,7 +91,7 @@ fun ShowerSessionScreen(
     if (endConfirm) {
         PrismAlertDialog(
             title = "结束洗浴",
-            body = "确认关闭设备并结束洗浴？离开前请确认设备已关闭。",
+            body = "确认关闭设备并结束洗浴？",
             confirmText = "结束洗浴",
             destructive = true,
             onConfirm = {

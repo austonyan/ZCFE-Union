@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.BarChart
 import androidx.compose.material.icons.rounded.Bolt
@@ -165,9 +166,6 @@ fun WalletScreen(
                         Icon(Icons.Rounded.Payment, null)
                         Spacer(Modifier.width(8.dp))
                         Text("充值")
-                    }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
-                        Text("充值将跳转至支付宝官方小程序充值页面", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     PrismSection(
                         title = "最近订单",
@@ -383,12 +381,16 @@ fun ElectricScreen(
         modifier = modifier,
         actions = {
             PrismIconButton(
+                icon = Icons.Outlined.Refresh,
+                contentDescription = "刷新",
+                onClick = { load(true) },
+            )
+            PrismIconButton(
                 icon = Icons.Outlined.MoreVert,
                 contentDescription = "更多",
                 onClick = { menuOpen = true },
             )
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                DropdownMenuItem(text = { Text("刷新") }, onClick = { menuOpen = false; load(true) })
                 DropdownMenuItem(text = { Text("添加房间") }, onClick = { menuOpen = false; onOpenBind() })
                 DropdownMenuItem(text = { Text("解绑房间") }, onClick = { menuOpen = false; unbindConfirm = true })
             }

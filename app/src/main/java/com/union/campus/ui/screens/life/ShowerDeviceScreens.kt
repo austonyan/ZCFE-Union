@@ -211,7 +211,7 @@ fun DeviceDetailScreen(
                         device.state == 1 -> "使用中"
                         device.state == 2 -> "已预约"
                         else -> "故障/维护"
-                    } + "\n按实际使用时长计费，以账单为准",
+                    },
                     style = subheadlineStyle(),
                     color = deviceOnContainer,
                 )

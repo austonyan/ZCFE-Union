@@ -86,12 +86,6 @@ fun TimetableSchedulePicker(
                     )
                 },
             )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "仅影响未识别楼号课程，识别楼号课程自动匹配作息。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }

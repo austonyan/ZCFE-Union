@@ -377,7 +377,7 @@ fun NoticeDetailScreen(
             Text("${notice.date} · ${notice.source}", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(4.dp))
             Text(
-                notice.body.ifBlank { "本页仅显示标题与来源，完整正文请查看教务网页。" },
+                notice.body.ifBlank { "完整正文见教务网页" },
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurface,
             )

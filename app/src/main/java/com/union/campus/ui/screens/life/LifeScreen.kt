@@ -13,7 +13,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.MeetingRoom
-import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.WarningAmber
@@ -37,13 +36,10 @@ import com.union.campus.domain.ShowerArea
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.PrismEntryCard
-import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismPageHeader
-import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSpace
 import com.union.campus.ui.prism.PrismStatus
-import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.SurfaceLevel
 import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.surfaceColorOf
@@ -65,11 +61,9 @@ fun LifeScreen(
 
     var balance by remember { mutableStateOf<ElectricBalance?>(null) }
     var area by remember { mutableStateOf<ShowerArea?>(null) }
-    var lowElectricOn by remember { mutableStateOf(true) }
     var refreshing by remember { mutableStateOf(false) }
 
     suspend fun load(force: Boolean) {
-        lowElectricOn = settings.remindLowElectric.first()
         if (electric.isBound()) runCatching {
             electric.rooms(force).firstOrNull()?.let {
                 balance = electric.balance(it.roomVerify, force)
@@ -187,20 +181,6 @@ fun LifeScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            PrismSection(title = "提醒") {
-                PrismGroupedList {
-                    PrismToggleRow(
-                        title = "低余额提醒",
-                        subtitle = ElectricLowState.thresholdText(lowThreshold),
-                        checked = lowElectricOn,
-                        onCheckedChange = {
-                            lowElectricOn = it
-                            launchUi { settings.setRemindLowElectric(it) }
-                        },
-                        leading = { Icon(Icons.Rounded.Notifications, contentDescription = null) },
-                    )
-                }
-            }
             Spacer(Modifier.height(PrismSpace.Bottom))
         }
     }

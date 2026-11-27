@@ -853,7 +853,7 @@ fun ShowerScreen(
                     } else {
                         Text("当前区域无空闲设备", style = headlineStyle(), color = queueOnContainer)
                         Text(
-                            if (queueNumAtArea > 0) "前方 $queueNumAtArea 人，等待时间以设备释放为准"
+                            if (queueNumAtArea > 0) "前方 $queueNumAtArea 人"
                             else "当前无人排队，加入后到号通知",
                             style = subheadlineStyle(),
                             color = queueOnContainer,
@@ -915,11 +915,6 @@ fun ShowerScreen(
                         }
                     }
                     SectionHeader("设备")
-                    Text(
-                        "选择空闲设备预约，并在倒计时内启动；超时自动取消。",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
                     if (canReserveNow && idleCount > 0 && myQueueAtArea == null) {
                         val firstIdle = devices.firstOrNull { it.state == 0 }
                         Spacer(Modifier.height(8.dp))
