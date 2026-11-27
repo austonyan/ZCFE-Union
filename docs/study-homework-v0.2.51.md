@@ -99,3 +99,29 @@
 - `XxtEndpoints` 把五个接口地址集中成默认值参数，线上行为不变，测试可以指向本机 mock。
 - `XxtFlowTest`（JVM）：本机 HTTP 服务回放登录、课程、作业列表、详情、通知的真实响应形状，真实 OkHttp 依次走完；断言会话 cookie、课程、作业状态、截止时间与未读通知。
 - 版本 0.2.54（versionCode 59），行为与 v0.2.53 一致。
+
+## 九、v0.2.55：真实账号端到端 + 明文跳转修复
+
+用真实账号在 MUMU（Android 12）走完整链路，暴露并修掉两个真实缺陷：
+
+1. **明文跳转被系统拦掉**：登录成功后 `GET https://i.chaoxing.com/base` 会
+   302 到 `http://i.chaoxing.com/base?ws=1` 再跳回 https；Android 默认
+   cleartext 策略把这一跳判死，`checkLogin()` 报“网络连接失败”，同步在第一步就中断
+   （界面表现就是“N 门课程未拉到”）。`network_security_config.xml` 现对
+   `chaoxing.com` 放行明文，其它域仍禁止。
+2. **失败原因不可见**：全部课程失败时只弹“同步完成，N 门课程未拉到”。
+   现在把第一门课的具体原因带进提示（如“学习通会话已失效”），且全部失败时进入失败态，
+   不再用“课程里还没有作业”掩盖。
+
+实测结果（设备端 instrument + 应用缓存）：
+
+| 项 | 值 |
+| --- | --- |
+| 课程 | 7 门（去重后；其中 1 门确实没有作业） |
+| 作业条目 | 54 条，未交 9 条 |
+| 截止时间 | 3 条有（12-19 / 12-20），51 条详情页无“作答时间”，按“待公布”展示 |
+| 未读通知 | 7 条 |
+
+证据：`docs/img/xxt-12-live-ready.png`（debug 包）、`xxt-14-live-release.png`（release 包）、
+`xxt-13-live-login.png`；单元测试 131 项、设备端 5 项通过。
+版本 0.2.55（versionCode 60）。

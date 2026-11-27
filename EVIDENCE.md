@@ -41,10 +41,9 @@
 ## 4. 产物校验
 
 ```
-versionCode=59  versionName=0.2.54
+versionCode=60  versionName=0.2.55（上一版 0.2.54：sha256 06910DD1…4634C9C）
 apksigner verify --verbose → APK Signature Scheme v2: true
-sha256 郑财校园-release-v0.2.54.apk = 06910DD15B2E105FC400A8A32EBD48E13FC0439D4713D06652FC2F0B44634C9C
-gh release view v0.2.54 → ZCFE-Union-v0.2.54.apk (18,040,510 B)，下载 HTTP 200
+gh release view v0.2.55 → ZCFE-Union-v0.2.55.apk，下载 HTTP 200
 ```
 
 
@@ -64,15 +63,44 @@ mooc1.chaoxing.com/mooc2/work/list
 notice.chaoxing.com/pc/notice/getNoticeList
 ```
 
-## 5. 边界（如实）
+## 5. 真实账号端到端（v0.2.55）
 
-没有可用的真实学习通账号，登录后的真实课程 / 作业 / 通知数据未端到端跑通；该段由参考项目的实测协议结论 + 页面 fixture 回归覆盖。拿到账号后应补一次真实同步核对。
+用真实账号在 MUMU（Android 12）上跑通完整链路，设备端 instrument 输出（`logcat -s XXTPROBE`）：
+
+```
+I XXTPROBE: login OK, cookies=1075
+I XXTPROBE: checkLogin=true err=null
+I XXTPROBE: courses=7 err=null
+I XXTPROBE: [习近平新时代中国特色社会主义思想概论] items=0  progress=0/0
+I XXTPROBE: [通用外语]            items=4  progress=4/4
+I XXTPROBE: [文献信息检索]         items=3  progress=2/3
+I XXTPROBE: [软件工程]            items=12 progress=7/12
+I XXTPROBE: [26-27-1《Java Web开发技术》] items=12 progress=12/15
+I XXTPROBE: [26-27-1离散数学]      items=11 progress=10/11
+I XXTPROBE: [Linux系统及应用]      items=12 progress=12/12
+```
+
+设备缓存 `files/cache_data/xxt.homework.json`：54 条作业、9 项未交、7 条未读通知；
+54 条中只有 3 条老师设了截止时间，另 51 条详情页里确实没有“作答时间”（待公布），
+界面按“截止未知 / 待公布”展示，而不是伪造时间。
+
+### 5.1 顺带修掉的两个真实缺陷
+
+1. **已登录后 `/base` 会 302 到 `http://i.chaoxing.com/base?ws=1`**，明文跳转被 Android
+   默认 cleartext 策略拦掉，登录态探测直接报“网络连接失败”，同步前就中断。
+   已在 `network_security_config.xml` 对 `chaoxing.com` 放行明文（其余域仍禁止）。
+2. 全部课程拉取失败时只弹“同步完成，8 门课程未拉到”，看不出原因。
+   现在把第一门课的真实原因带进提示，并整体进入失败态而不是“还没有作业”。
 
 ## 6. 界面实拍
 
 | 入口（Release 包） | 登录页 | 作业列表 |
 | --- | --- | --- |
 | ![未绑定](docs/img/xxt-02-bind.png) | ![登录](docs/img/xxt-03-login.png) | ![列表](docs/img/xxt-08-ready.png) |
+
+| 真实账号作业列表（Release 包） | 真实账号登录页 | 通知栏里的提醒 |
+| --- | --- | --- |
+| ![真机列表](docs/img/xxt-14-live-release.png) | ![真机登录](docs/img/xxt-13-live-login.png) | ![通知栏](docs/img/xxt-11-notification.png) |
 
 | 未读通知区块 | 真机服务端报错 | 通知栏里的提醒 |
 | --- | --- | --- |

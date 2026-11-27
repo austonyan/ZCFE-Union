@@ -13,4 +13,11 @@
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">hydream.cn</domain>
     </domain-config>
+    <!--
+        学习通主页 /base 会 302 到 http://i.chaoxing.com/base?ws=1 再跳回 https，
+        明文这一跳被默认策略拦掉会让登录态探测直接报网络错误，故对超星域放行。
+    -->
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">chaoxing.com</domain>
+    </domain-config>
 </network-security-config>

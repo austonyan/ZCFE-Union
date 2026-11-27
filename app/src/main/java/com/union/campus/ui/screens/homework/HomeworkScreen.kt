@@ -113,15 +113,25 @@ fun HomeworkScreen(
         scope.launch {
             try {
                 val snapshot = repo.snapshot(refresh)
-                state = if (snapshot.items.isEmpty()) {
-                    UiState.Empty("课程里还没有作业")
-                } else {
-                    UiState.Ready(snapshot, snapshot.syncedAt)
+                val reason = snapshot.errors.firstOrNull()?.substringAfter("：", "")?.ifBlank { null }
+                val allFailed = snapshot.items.isEmpty() &&
+                    snapshot.errors.isNotEmpty() &&
+                    snapshot.errors.size >= snapshot.courseCount.coerceAtLeast(1)
+                state = when {
+                    snapshot.items.isNotEmpty() -> UiState.Ready(snapshot, snapshot.syncedAt)
+                    allFailed -> UiState.Failed(reason ?: "作业同步失败，请稍后重试")
+                    else -> UiState.Empty("课程里还没有作业")
                 }
                 if (refresh) {
                     val failed = snapshot.errors.size
-                    if (failed == 0) messenger.success("作业已同步")
-                    else messenger.info("同步完成，${failed} 门课程未拉到")
+                    if (failed == 0) {
+                        messenger.success("作业已同步")
+                    } else {
+                        messenger.info(
+                            "同步完成，${failed} 门课程未拉到" +
+                                (reason?.let { "（$it）" } ?: ""),
+                        )
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
