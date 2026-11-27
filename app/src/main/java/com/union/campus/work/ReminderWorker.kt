@@ -1,27 +1,18 @@
 package com.union.campus.work
 
-import android.Manifest
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
-import android.content.pm.PackageManager
-import android.os.Build
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
-import com.union.campus.MainActivity
-import com.union.campus.R
 import com.union.campus.di.ServiceLocator
 import kotlinx.coroutines.flow.first
 import java.util.Calendar
 import java.util.concurrent.TimeUnit
 
 /**
- * 低电费每日检查（默认 20:00 前后触发）：低于阈值时发本地通知。
+ * 低电费每日检查（默认 20:00 前后触发）：低于阈值时发系统通知。
  * 后台提醒受系统限制（power.md §4.4.2），不保证准时。
  */
 class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWorker(context, params) {
@@ -33,10 +24,10 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
         if (!remindEnabled || !lowElectricOn) return Result.success()
 
         // 免打扰：静音时段内不发系统通知（应用内待办不受影响）
-        if (settings.quietEnabled.first()) {
-            val start = settings.quietStart.first()
-            val end = settings.quietEnd.first()
-            if (inQuietHours(start, end)) return Result.success()
+        if (settings.quietEnabled.first() &&
+            UnionNotifications.inQuietHours(settings.quietStart.first(), settings.quietEnd.first())
+        ) {
+            return Result.success()
         }
 
         val electric = ServiceLocator.electricRepository
@@ -49,52 +40,18 @@ class ReminderWorker(context: Context, params: WorkerParameters) : CoroutineWork
             val balance = electric.balance(room.roomVerify) ?: return Result.success()
             val kwh = balance.kwh.toDoubleOrNull()
             if (kwh != null && kwh < threshold) {
-                notify(
+                UnionNotifications.notify(
+                    context = applicationContext,
+                    id = 2001,
                     title = "电费低于 $threshold 度",
                     text = "${room.fullName} 剩余 ${balance.kwh} 度，建议充值",
+                    deepLink = "electric",
                 )
             }
             Result.success()
         } catch (_: Exception) {
             Result.success() // 后台检查失败不打扰
         }
-    }
-
-    /** 支持跨零点，例如 23 → 7。 */
-    private fun inQuietHours(
-        startHour: Int,
-        endHour: Int,
-        now: Calendar = Calendar.getInstance(),
-    ): Boolean {
-        if (startHour == endHour) return false
-        val hour = now.get(Calendar.HOUR_OF_DAY)
-        return if (startHour < endHour) {
-            hour in startHour until endHour
-        } else {
-            hour >= startHour || hour < endHour
-        }
-    }
-
-    private fun notify(title: String, text: String) {
-        val context = applicationContext
-        if (Build.VERSION.SDK_INT >= 33 &&
-            context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-        ) return
-        val intent = Intent(context, MainActivity::class.java).apply {
-            putExtra("deepLink", "electric")
-        }
-        val pending = PendingIntent.getActivity(
-            context, 0, intent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-        )
-        val notification = NotificationCompat.Builder(context, "union_reminders")
-            .setSmallIcon(R.drawable.ic_stat_union)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setContentIntent(pending)
-            .setAutoCancel(true)
-            .build()
-        NotificationManagerCompat.from(context).notify(2001, notification)
     }
 
     companion object {

@@ -1,5 +1,9 @@
 package com.union.campus.ui.screens.onboarding
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -35,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
@@ -50,6 +55,7 @@ import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.work.UnionNotifications
 import kotlinx.coroutines.flow.first
 
 /** 绑定完成：四套账号就绪状态 + 开启提醒 + 进入应用。 */
@@ -79,6 +85,29 @@ fun BindDoneScreen(
         animationSpec = motion.springSmooth(),
         label = "bind-done-shape",
     )
+
+    val context = LocalContext.current
+
+    fun enter() {
+        launchUi {
+            settings.setOnboardingDone()
+            settings.setBoundDone(true)
+            onEnter()
+        }
+    }
+
+    // 首次引导结束前顺手把系统通知权限问一遍；拒绝也不拦进入应用。
+    val enterPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { enter() }
+    // 打开提醒开关时只申请权限，不直接进入应用。
+    val togglePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
+    fun needsNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !UnionNotifications.canPost(context)
 
     val cred = credentials.load()
     val jwBound = cred.jwStudentNo.isNotBlank()
@@ -154,9 +183,12 @@ fun BindDoneScreen(
                         title = "开启提醒",
                         subtitle = "上课、考试、低电费",
                         checked = remindOn,
-                        onCheckedChange = {
-                            remindOn = it
-                            launchUi { settings.setRemindEnabled(it) }
+                        onCheckedChange = { on ->
+                            remindOn = on
+                            launchUi { settings.setRemindEnabled(on) }
+                            if (on && needsNotificationPermission()) {
+                                togglePermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
                         },
                         leading = { Icon(Icons.Rounded.Notifications, null) },
                     )
@@ -165,10 +197,10 @@ fun BindDoneScreen(
 
             PrismButton(
                 onClick = {
-                    launchUi {
-                        settings.setOnboardingDone()
-                        settings.setBoundDone(true)
-                        onEnter()
+                    if (remindOn && needsNotificationPermission()) {
+                        enterPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        enter()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),

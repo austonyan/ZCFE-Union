@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
@@ -85,6 +86,25 @@ fun UnionApp(modifier: Modifier = Modifier) {
     val startRoute = produceState(initialValue = "", producer = {
         value = if (ServiceLocator.settings.boundDone.first()) Screen.Today.route else Screen.Welcome.route
     })
+
+    // 点系统通知进入时按 deepLink 落到对应页面；没完成初始化的用户先走引导，不跳。
+    val pendingDeepLink = AppState.deepLink
+    LaunchedEffect(pendingDeepLink, startRoute.value) {
+        if (pendingDeepLink == null || startRoute.value.isEmpty()) return@LaunchedEffect
+        AppState.deepLink = null
+        if (startRoute.value != Screen.Today.route) return@LaunchedEffect
+        val target = when (pendingDeepLink) {
+            "electric" -> Screen.Electric
+            "homework" -> Screen.Homework
+            "timetable" -> Screen.Timetable
+            "exams" -> Screen.Exams
+            "evaluation" -> Screen.Evaluation
+            else -> null
+        }
+        if (target != null) {
+            navController.navigate(target.route) { launchSingleTop = true }
+        }
+    }
 
     PrismNavigationScaffold(
         modifier = modifier,

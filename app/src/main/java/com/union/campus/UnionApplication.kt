@@ -1,10 +1,10 @@
 package com.union.campus
 
 import android.app.Application
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import com.union.campus.di.ServiceLocator
+import com.union.campus.work.ClassReminderWorker
 import com.union.campus.work.ReminderWorker
+import com.union.campus.work.UnionNotifications
 import com.union.campus.work.XxtHomeworkWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -19,7 +19,7 @@ class UnionApplication : Application() {
         super.onCreate()
         ServiceLocator.init(this)
         UnionApplicationHolder.init(this)
-        createNotificationChannel()
+        UnionNotifications.ensureChannel(this)
         applicationScope.launch {
             // 三套凭证各自恢复：一个模块恢复失败不能连累其它模块
             runCatching { ServiceLocator.jwRepository.restoreSession() }
@@ -27,17 +27,8 @@ class UnionApplication : Application() {
             runCatching { ServiceLocator.electricRepository.restore() }
             runCatching { ServiceLocator.xxtRepository.restoreSession() }
             ReminderWorker.schedule(this@UnionApplication)
+            ClassReminderWorker.schedule(this@UnionApplication)
             XxtHomeworkWorker.schedule(this@UnionApplication)
         }
-    }
-
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            "union_reminders",
-            "校园提醒",
-            NotificationManager.IMPORTANCE_DEFAULT,
-        ).apply { description = "上课、考试、低电费、评教截止等提醒" }
-        val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(channel)
     }
 }

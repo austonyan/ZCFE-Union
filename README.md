@@ -70,7 +70,7 @@ data/remote/   四套协议客户端：
   shower/    大白U帮原生 DES/CBC + SHA-1 信封（5yoOxt9w / q9KswPoz62jQk12W）
   electric/  完美校园 SWAEServlet 命令通道（7268 / JBSWaterElecService）+ loginCheck AES-128-ECB
 data/store/    DataStore 设置 + JSON 实体缓存 + AndroidKeyStore 加密凭证
-work/          低电费每日 20:00 检查 Worker + 学习通作业每 2 小时同步 Worker
+work/          低电费每日 20:00 检查 + 学习通作业每 2 小时同步 + 上课提醒每 15 分钟巡检（均为 WorkManager）
 ```
 
 ## 设计语言（prism，复刻自 FlClash prism_ui）
@@ -84,6 +84,7 @@ work/          低电费每日 20:00 检查 Worker + 学习通作业每 2 小时
 ## 行为约定（power.md）
 
 - 四套账号独立绑定（教务 / 学习通 / 洗浴 / 电费），初始化里按此顺序引导，全部可跳过；凭证 Keystore 加密，不出设备
+- 系统通知统一走 `work/UnionNotifications.kt`：上课（15 分钟巡检本地课表、按课次去重）、作业截止、低电费共用 `union_reminders` 渠道；点击通知按 deepLink 直达课表 / 作业 / 电费；Android 13+ 在绑定完成页与提醒中心申请通知权限
 - 读接口缓存优先（带更新时间），写操作（开关设备/绑定房间/评教/选课/确认教材）全部二次确认、不自动重试
 - 支付只做跳转/链接指引，不托管支付密码
 - 电费学号固定本人，不提供任意学号查询
