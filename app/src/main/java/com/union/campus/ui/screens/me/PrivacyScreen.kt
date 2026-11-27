@@ -169,7 +169,7 @@ fun PrivacyScreen(
                 )
                 PrismRow(
                     title = "日志脱敏",
-                    subtitle = "不记录 Cookie / Token · 始终开启",
+                    subtitle = "始终开启",
                     leading = { IconBadge(Icons.Outlined.Shield) },
                     trailing = {
                         Icon(
@@ -194,13 +194,12 @@ fun PrivacyScreen(
                     },
                 )
                 PrismRow(
-                    title = "清除全部数据", subtitle = "含凭证，二次确认",
+                    title = "清除全部数据", subtitle = "含凭证，不可撤销",
                     leading = { IconBadge(Icons.Outlined.DeleteForever) },
                     onClick = { confirmWipe = true },
                 )
             }
 
-            Text("仅支持本人账号查询", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(12.dp))
         }
     }
@@ -208,7 +207,7 @@ fun PrivacyScreen(
     PrismOptionSheet(
         visible = autoLockSheet,
         title = "自动锁定延迟",
-        subtitle = "离开应用超过设定时长，再次进入需生物识别验证。",
+        subtitle = "再次进入需验证",
         options = listOf(1, 5, 15, 30).map {
             PrismOption(key = it.toString(), label = "离开 $it 分钟")
         },

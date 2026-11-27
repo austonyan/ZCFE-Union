@@ -1,5 +1,11 @@
 package com.union.campus.ui.screens.me
 
+import android.Manifest
+import android.content.Intent
+import android.os.Build
+import android.provider.Settings
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
@@ -9,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
@@ -30,9 +37,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ElectricLowState
 import com.union.campus.ui.common.UnionScreenScaffold
@@ -54,6 +65,7 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.work.UnionNotifications
 
 // ---------------- 提醒中心 ----------------
 
@@ -65,6 +77,40 @@ fun RemindersCenterScreen(
 ) {
     val settings = ServiceLocator.settings
     val messenger = LocalPrismMessenger.current
+    val context = LocalContext.current
+    var notificationsOn by remember { mutableStateOf(UnionNotifications.canPost(context)) }
+    var askedNotificationPermission by rememberSaveable { mutableStateOf(false) }
+
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { granted ->
+        notificationsOn = granted || UnionNotifications.canPost(context)
+        if (!granted) messenger.warning("未开启系统通知，提醒只在应用内显示")
+    }
+
+    // 从系统设置回来时重新读一次，避免开关状态过期。
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        notificationsOn = UnionNotifications.canPost(context)
+    }
+
+    fun requestNotifications() {
+        if (UnionNotifications.canPost(context)) {
+            notificationsOn = true
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !askedNotificationPermission) {
+            askedNotificationPermission = true
+            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+        } else {
+            // 已问过仍被拒（或系统里被关掉）：直接带到应用通知设置。
+            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            runCatching { context.startActivity(intent) }
+                .onFailure { messenger.warning("无法打开系统设置，请手动允许通知") }
+        }
+    }
 
     val remindEnabled by settings.remindEnabled.collectAsState(initial = true)
     val remindClass by settings.remindClass.collectAsState(initial = true)
@@ -99,6 +145,24 @@ fun RemindersCenterScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (!notificationsOn) {
+                PrismCard(modifier = Modifier.fillMaxWidth()) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text("系统通知未开启", style = headlineStyle())
+                            Text(
+                                "允许后，上课与作业提醒会出现在通知栏",
+                                style = footnoteStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        PrismTextButton(onClick = { requestNotifications() }) {
+                            Text("去开启", maxLines = 1)
+                        }
+                    }
+                }
+            }
             PrismGroupedList {
                 PrismToggleRow(
                     title = "总开关",
@@ -107,7 +171,12 @@ fun RemindersCenterScreen(
                     checked = remindEnabled,
                     onCheckedChange = { on ->
                         set { settings.setRemindEnabled(on) }
-                        if (on) messenger.success("提醒已开启") else messenger.info("已暂停全部提醒")
+                        if (on) {
+                            requestNotifications()
+                            messenger.success("提醒已开启")
+                        } else {
+                            messenger.info("已暂停全部提醒")
+                        }
                     },
                 )
                 PrismToggleRow(
@@ -116,7 +185,10 @@ fun RemindersCenterScreen(
                     leading = { IconBadge(Icons.Outlined.Schedule) },
                     checked = remindClass,
                     enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindClass(on) } },
+                    onCheckedChange = { on ->
+                        set { settings.setRemindClass(on) }
+                        if (on) requestNotifications()
+                    },
                 )
                 PrismToggleRow(
                     title = "考试提醒",
@@ -256,12 +328,7 @@ fun RemindersCenterScreen(
             }
 
             Text(
-                "上课提醒为应用内横幅；考试、评教及低电费加入待办，低电费另发系统通知；学习通作业与低电费走系统通知；洗浴仅在页面打开时到号提醒。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "后台提醒受系统限制，可能延迟；重要事项请打开应用确认。",
+                "后台提醒可能延迟，重要事项请打开应用确认。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -308,7 +375,7 @@ private fun QuietHoursSheet(
         ) {
             Text("免打扰时段", style = pageTitleStyle())
             Text(
-                "时段内停发系统通知，待办仍显示。支持跨日，如 23:00–07:00。",
+                "时段内停发系统通知，待办仍显示。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

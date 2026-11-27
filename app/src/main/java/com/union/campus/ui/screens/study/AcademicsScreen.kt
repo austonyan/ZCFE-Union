@@ -275,11 +275,6 @@ fun AcademicsScreen(
             }
         }
 
-        Text(
-            "成绩、考试与通知以教务系统为准",
-            style = footnoteStyle(),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Spacer(Modifier.height(24.dp))
     }
 }

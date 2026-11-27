@@ -1,5 +1,9 @@
 package com.union.campus.ui.screens.onboarding
 
+import android.Manifest
+import android.os.Build
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -15,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -34,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
@@ -46,13 +52,13 @@ import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSpec
 import com.union.campus.ui.prism.PrismToggleRow
-import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.pageTitleStyle
 import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
+import com.union.campus.work.UnionNotifications
 import kotlinx.coroutines.flow.first
 
-/** 绑定完成：三套账号就绪状态 + 开启提醒 + 进入应用。 */
+/** 绑定完成：四套账号就绪状态 + 开启提醒 + 进入应用。 */
 @Composable
 fun BindDoneScreen(
     onEnter: () -> Unit,
@@ -80,11 +86,35 @@ fun BindDoneScreen(
         label = "bind-done-shape",
     )
 
+    val context = LocalContext.current
+
+    fun enter() {
+        launchUi {
+            settings.setOnboardingDone()
+            settings.setBoundDone(true)
+            onEnter()
+        }
+    }
+
+    // 首次引导结束前顺手把系统通知权限问一遍；拒绝也不拦进入应用。
+    val enterPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { enter() }
+    // 打开提醒开关时只申请权限，不直接进入应用。
+    val togglePermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) { }
+
+    fun needsNotificationPermission(): Boolean =
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !UnionNotifications.canPost(context)
+
     val cred = credentials.load()
     val jwBound = cred.jwStudentNo.isNotBlank()
+    val xxtBound = cred.xxtAccount.isNotBlank()
     val showerBound = cred.showerToken.isNotBlank()
     val electricBound = cred.electricAccount.isNotBlank()
-    val boundCount = listOf(jwBound, showerBound, electricBound).count { it }
+    val boundCount = listOf(jwBound, xxtBound, showerBound, electricBound).count { it }
 
     UnionScreenScaffold(
         title = "绑定完成",
@@ -99,9 +129,9 @@ fun BindDoneScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PrismProgressRail(
-                step = 4,
-                total = 4,
-                labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                step = 5,
+                total = 5,
+                labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
             )
             Surface(
                 shape = RoundedCornerShape(checkCorner, checkCorner, 8.dp, checkCorner),
@@ -117,7 +147,7 @@ fun BindDoneScreen(
             }
             Text("设置完成", style = pageTitleStyle())
             Text(
-                if (boundCount == 3) "已保存三个账号。" else "已保存 $boundCount 个账号，其余可在凭证中心添加。",
+                if (boundCount == 4) "四个账号已就绪。" else "已保存 $boundCount 个账号，其余的可以稍后补上。",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -128,6 +158,11 @@ fun BindDoneScreen(
                         title = "教务系统",
                         subtitle = if (jwBound) "凭证已保存 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可在凭证中心添加",
                         ok = jwBound, icon = Icons.Rounded.School,
+                    )
+                    StatusRow(
+                        title = "学习通",
+                        subtitle = if (xxtBound) "账号 ${ServiceLocator.xxtRepository.maskedAccount()}" else "未绑定，可在学习通作业页添加",
+                        ok = xxtBound, icon = Icons.AutoMirrored.Rounded.Assignment,
                     )
                     StatusRow(
                         title = "大白U帮",
@@ -148,9 +183,12 @@ fun BindDoneScreen(
                         title = "开启提醒",
                         subtitle = "上课、考试、低电费",
                         checked = remindOn,
-                        onCheckedChange = {
-                            remindOn = it
-                            launchUi { settings.setRemindEnabled(it) }
+                        onCheckedChange = { on ->
+                            remindOn = on
+                            launchUi { settings.setRemindEnabled(on) }
+                            if (on && needsNotificationPermission()) {
+                                togglePermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
                         },
                         leading = { Icon(Icons.Rounded.Notifications, null) },
                     )
@@ -159,10 +197,10 @@ fun BindDoneScreen(
 
             PrismButton(
                 onClick = {
-                    launchUi {
-                        settings.setOnboardingDone()
-                        settings.setBoundDone(true)
-                        onEnter()
+                    if (remindOn && needsNotificationPermission()) {
+                        enterPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                    } else {
+                        enter()
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
@@ -172,7 +210,6 @@ fun BindDoneScreen(
                 Icon(Icons.Rounded.ArrowForward, null)
             }
 
-            Text("可在设置中调整", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
         }
     }

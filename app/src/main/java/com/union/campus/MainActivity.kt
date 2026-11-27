@@ -1,5 +1,6 @@
 package com.union.campus
 
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 
@@ -15,9 +16,11 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import com.union.campus.app.AppState
 import com.union.campus.app.UnionApp
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.theme.UnionTheme
+import com.union.campus.work.UnionNotifications
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlin.coroutines.resume
@@ -33,6 +36,7 @@ class MainActivity : FragmentActivity() {
         enableEdgeToEdge()
 
         MainActivityHolder.attach(this)
+        consumeDeepLink(intent)
 
         setContent {
             val screenshotBlock by ServiceLocator.settings.screenshotBlock.collectAsState(initial = false)
@@ -72,6 +76,18 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+    }
+
+    /** 通知点击时若任务已在栈顶，Activity 不会重建，需要在这里接一次。 */
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        consumeDeepLink(intent)
+    }
+
+    private fun consumeDeepLink(intent: Intent?) {
+        val link = intent?.getStringExtra(UnionNotifications.EXTRA_DEEP_LINK)
+        if (!link.isNullOrBlank()) AppState.deepLink = link
     }
 
     override fun onPause() {

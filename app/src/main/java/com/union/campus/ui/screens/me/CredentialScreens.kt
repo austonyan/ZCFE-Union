@@ -35,7 +35,6 @@ import com.union.campus.ui.prism.PrismAlertDialog
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismActionRow
 import com.union.campus.ui.prism.PrismCard
-import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismIconSize
 import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.footnoteStyle
@@ -134,13 +133,6 @@ fun CredentialsCenterScreen(
         title = "凭证中心",
         onBack = onBack,
         modifier = modifier,
-        actions = {
-            PrismIconButton(
-                icon = Icons.Outlined.Sync,
-                contentDescription = "检查",
-                onClick = { healthCheck() },
-            )
-        },
     ) { padding ->
         Column(
             Modifier
@@ -150,12 +142,6 @@ fun CredentialsCenterScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                "三平台账号独立管理，可检查已保存凭证是否有效。",
-                style = subheadlineStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-
             val jwBound = cred.jwStudentNo.isNotBlank()
             CredentialAccountCard(
                 title = "教务",
@@ -229,11 +215,6 @@ fun CredentialsCenterScreen(
                 Spacer(Modifier.width(8.dp))
                 Text("检查全部账号")
             }
-            Text(
-                "重新登录仅刷新当前账号；全部退出将清除三套凭证与本地缓存。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
             PrismTextButton(
                 onClick = { confirmLogout = true },
                 modifier = Modifier.fillMaxWidth(),

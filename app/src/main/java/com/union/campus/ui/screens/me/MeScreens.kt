@@ -150,10 +150,10 @@ fun ProfileScreen(
                 }
                 Spacer(Modifier.width(16.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(if (cred.jwStudentNo.isNotBlank()) "欢迎" else "欢迎", style = MaterialTheme.typography.headlineSmall)
+                    Text("欢迎", style = MaterialTheme.typography.headlineSmall)
                     Text(
                         listOfNotNull(
-                            "郑州财经学院".takeIf { true },
+                            "郑州财经学院",
                             cred.jwStudentNo.takeIf { it.isNotBlank() }?.let { "学号 ${it.take(4)}****" },
                         ).joinToString(" · "),
                         style = subheadlineStyle(),
@@ -200,7 +200,7 @@ fun ProfileScreen(
                 Column(Modifier.weight(1f)) {
                     Text("账号检查", style = headlineStyle())
                     Text(
-                        if (checking) "正在验证三个平台账号" else "凭证有效性以服务器检查结果为准",
+                        if (checking) "正在验证三个平台账号" else "检查三套凭证是否有效",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -224,7 +224,6 @@ fun ProfileScreen(
         }
 
         PrismGroupedList {
-            PrismRow(title = "凭证中心", subtitle = "教务、洗浴与电费账号", leading = { IconBadge(Icons.Outlined.School) }, onClick = onOpenCredentials)
             PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", leading = { IconBadge(Icons.Outlined.Notifications) }, onClick = onOpenReminders)
             PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", leading = { IconBadge(Icons.Outlined.Settings) }, onClick = onOpenSettings)
             PrismRow(title = "关于", subtitle = "版本、作者与版权", leading = { IconBadge(Icons.Outlined.Info) }, onClick = onOpenAbout)

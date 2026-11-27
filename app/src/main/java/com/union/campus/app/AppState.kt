@@ -20,6 +20,9 @@ object AppState {
     var selectedAreaName by androidx.compose.runtime.mutableStateOf("")
     var confirmCourse by androidx.compose.runtime.mutableStateOf<SelectableCourse?>(null)
 
+    /** 系统通知点击带进来的深链；UnionApp 消费后清空。 */
+    var deepLink by androidx.compose.runtime.mutableStateOf<String?>(null)
+
     fun clear() {
         selectedCourse = null
         selectedGrade = null
@@ -28,5 +31,6 @@ object AppState {
         selectedDevice = null
         selectedAreaName = ""
         confirmCourse = null
+        deepLink = null
     }
 }

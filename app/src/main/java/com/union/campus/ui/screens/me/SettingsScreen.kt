@@ -116,12 +116,6 @@ fun SettingsScreen(
 
             PrismSection("外观") {
                 PrismCard {
-                    Text(
-                        "个性化外观",
-                        style = MaterialTheme.typography.titleLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Spacer(Modifier.height(8.dp))
                     PrismSegmented(
                         options = listOf("跟随系统", "浅色", "深色"),
                         selectedIndex = when (themeMode) {
@@ -184,7 +178,7 @@ fun SettingsScreen(
                 PrismGroupedList {
                     PrismRow(
                         title = "隐私与安全",
-                        subtitle = "生物识别、自动锁定、防截屏与数据清理",
+                        subtitle = "解锁、防截屏与数据清理",
                         leading = { IconBadge(Icons.Outlined.Lock) },
                         onClick = onOpenPrivacy,
                     )
@@ -199,7 +193,7 @@ fun SettingsScreen(
                     CardHeader("郑财校园", icon = Icons.Outlined.Info)
                     Spacer(Modifier.height(4.dp))
                     Text(
-                        "查看版本、作者与版权",
+                        "版本与版权",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.primary,
                     )

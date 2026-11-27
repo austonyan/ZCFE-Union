@@ -278,9 +278,9 @@ fun BindElectricScreen(
         ) {
             if (showProgress) {
                 PrismProgressRail(
-                    step = 4,
-                    total = 4,
-                    labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                    step = 5,
+                    total = 5,
+                    labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
                 )
             }
             OnboardingIntro(
@@ -426,9 +426,8 @@ fun BindElectricScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("仅绑定本人宿舍", style = headlineStyle())
-                Text("绑定会写入完美校园账号，上游不校验身份，请核对学号与房间。", style = subheadlineStyle())
+                Text("绑定会写入完美校园账号，请核对学号与房间。", style = subheadlineStyle())
             }
-            Text("登录状态仅保存在本机", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
         }
     }

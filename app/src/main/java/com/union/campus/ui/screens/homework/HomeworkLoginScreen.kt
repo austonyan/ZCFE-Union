@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +44,9 @@ import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismCorner
+import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextField
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
@@ -62,6 +65,8 @@ fun HomeworkLoginScreen(
     onBack: () -> Unit,
     onLoggedIn: () -> Unit,
     modifier: Modifier = Modifier,
+    showProgress: Boolean = false,
+    onSkip: (() -> Unit)? = null,
 ) {
     val repo = ServiceLocator.xxtRepository
     val messenger = LocalPrismMessenger.current
@@ -117,6 +122,13 @@ fun HomeworkLoginScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (showProgress) {
+                PrismProgressRail(
+                    step = 3,
+                    total = 5,
+                    labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
+                )
+            }
             PrismCard(
                 modifier = Modifier.fillMaxWidth(),
                 corner = PrismCorner.Xxl,
@@ -129,7 +141,7 @@ fun HomeworkLoginScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    "登录后会自动整理未交作业，按截止时间排序，并在 24 / 6 / 1 小时前提醒。",
+                    "登录后自动整理未交作业，按截止时间排序并分档提醒。",
                     style = subheadlineStyle(),
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
                 )
@@ -142,7 +154,7 @@ fun HomeworkLoginScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        "只读：不提交作业、不答题、不刷课。账号密码只在本机加密保存。",
+                        "只读 · 账号密码仅在本机加密保存",
                         style = footnoteStyle(),
                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                     )
@@ -204,13 +216,16 @@ fun HomeworkLoginScreen(
                 Text(if (loading) "正在登录…" else "登录学习通")
             }
 
+            onSkip?.let { skip ->
+                PrismTextButton(onClick = skip, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Rounded.Schedule, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("稍后绑定", maxLines = 1)
+                }
+            }
+
             Text(
-                "学习通对陌生设备可能要求图形验证码。遇到“需要验证码”时，请先在浏览器登录一次学习通，再回来重试。",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "同步会串行、限速地读取课程、作业列表和必要的作业详情，频率与正常浏览接近。",
+                "需要图形验证码时，请先在浏览器登录一次学习通再重试。",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
