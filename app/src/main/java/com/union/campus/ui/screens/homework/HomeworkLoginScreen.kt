@@ -19,6 +19,7 @@ import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.Visibility
 import androidx.compose.material.icons.outlined.VisibilityOff
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,7 +44,9 @@ import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismCorner
+import com.union.campus.ui.prism.PrismProgressRail
 import com.union.campus.ui.prism.PrismTextField
+import com.union.campus.ui.prism.PrismTextButton
 import com.union.campus.ui.prism.PrismToggleRow
 import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
@@ -62,6 +65,8 @@ fun HomeworkLoginScreen(
     onBack: () -> Unit,
     onLoggedIn: () -> Unit,
     modifier: Modifier = Modifier,
+    showProgress: Boolean = false,
+    onSkip: (() -> Unit)? = null,
 ) {
     val repo = ServiceLocator.xxtRepository
     val messenger = LocalPrismMessenger.current
@@ -117,6 +122,13 @@ fun HomeworkLoginScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            if (showProgress) {
+                PrismProgressRail(
+                    step = 3,
+                    total = 5,
+                    labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
+                )
+            }
             PrismCard(
                 modifier = Modifier.fillMaxWidth(),
                 corner = PrismCorner.Xxl,
@@ -202,6 +214,14 @@ fun HomeworkLoginScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text(if (loading) "正在登录…" else "登录学习通")
+            }
+
+            onSkip?.let { skip ->
+                PrismTextButton(onClick = skip, enabled = !loading, modifier = Modifier.fillMaxWidth()) {
+                    Icon(Icons.Rounded.Schedule, null)
+                    Spacer(Modifier.width(8.dp))
+                    Text("稍后绑定", maxLines = 1)
+                }
             }
 
             Text(

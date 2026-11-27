@@ -26,6 +26,7 @@ enum class Screen(
     // 绑定流程
     Welcome("welcome", "欢迎"),
     LoginAcademic("login-academic", "登录教务系统"),
+    LoginHomework("login-homework", "登录学习通"),
     LoginShower("login-shower", "登录大白U帮"),
     BindElectric("bind-electric", "绑定电费账户"),
     BindElectricAdd("bind-electric-add", "添加电费房间"),

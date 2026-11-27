@@ -192,8 +192,8 @@ fun LoginAcademicScreen(
             if (showProgress) {
                 PrismProgressRail(
                     step = 2,
-                    total = 4,
-                    labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                    total = 5,
+                    labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
                 )
             }
 

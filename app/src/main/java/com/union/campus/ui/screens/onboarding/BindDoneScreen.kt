@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.CheckCircle
@@ -51,7 +52,7 @@ import com.union.campus.ui.prism.rememberPrismMotion
 import com.union.campus.ui.prism.subheadlineStyle
 import kotlinx.coroutines.flow.first
 
-/** 绑定完成：三套账号就绪状态 + 开启提醒 + 进入应用。 */
+/** 绑定完成：四套账号就绪状态 + 开启提醒 + 进入应用。 */
 @Composable
 fun BindDoneScreen(
     onEnter: () -> Unit,
@@ -81,9 +82,10 @@ fun BindDoneScreen(
 
     val cred = credentials.load()
     val jwBound = cred.jwStudentNo.isNotBlank()
+    val xxtBound = cred.xxtAccount.isNotBlank()
     val showerBound = cred.showerToken.isNotBlank()
     val electricBound = cred.electricAccount.isNotBlank()
-    val boundCount = listOf(jwBound, showerBound, electricBound).count { it }
+    val boundCount = listOf(jwBound, xxtBound, showerBound, electricBound).count { it }
 
     UnionScreenScaffold(
         title = "绑定完成",
@@ -98,9 +100,9 @@ fun BindDoneScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             PrismProgressRail(
-                step = 4,
-                total = 4,
-                labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                step = 5,
+                total = 5,
+                labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
             )
             Surface(
                 shape = RoundedCornerShape(checkCorner, checkCorner, 8.dp, checkCorner),
@@ -116,7 +118,7 @@ fun BindDoneScreen(
             }
             Text("设置完成", style = pageTitleStyle())
             Text(
-                if (boundCount == 3) "已保存三个账号。" else "已保存 $boundCount 个账号，其余可在凭证中心添加。",
+                if (boundCount == 4) "四个账号已就绪。" else "已保存 $boundCount 个账号，其余的可以稍后补上。",
                 style = subheadlineStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -127,6 +129,11 @@ fun BindDoneScreen(
                         title = "教务系统",
                         subtitle = if (jwBound) "凭证已保存 · 学号 ${ServiceLocator.jwRepository.maskedStudentNo()}" else "未绑定，可在凭证中心添加",
                         ok = jwBound, icon = Icons.Rounded.School,
+                    )
+                    StatusRow(
+                        title = "学习通",
+                        subtitle = if (xxtBound) "账号 ${ServiceLocator.xxtRepository.maskedAccount()}" else "未绑定，可在学习通作业页添加",
+                        ok = xxtBound, icon = Icons.AutoMirrored.Rounded.Assignment,
                     )
                     StatusRow(
                         title = "大白U帮",

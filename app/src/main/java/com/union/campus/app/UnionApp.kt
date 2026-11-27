@@ -130,11 +130,20 @@ fun UnionApp(modifier: Modifier = Modifier) {
                         if (credentialMode) {
                             navController.popBackStack()
                         } else {
-                            navController.navigate(Screen.LoginShower.route)
+                            navController.navigate(Screen.LoginHomework.route)
                         }
                     },
                     showProgress = !credentialMode,
                     skipLabel = if (credentialMode) "取消" else "稍后绑定",
+                )
+            }
+            // 初始化第三步：学习通（只读作业同步）。可从本页跳过，继续绑洗浴。
+            composable(Screen.LoginHomework.route) {
+                HomeworkLoginScreen(
+                    onBack = { navController.popBackStack() },
+                    onLoggedIn = { navController.navigate(Screen.LoginShower.route) },
+                    showProgress = true,
+                    onSkip = { navController.navigate(Screen.LoginShower.route) },
                 )
             }
             composable(Screen.LoginShower.route) {
@@ -181,6 +190,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                             popUpTo(Screen.Electric.route) { inclusive = true }
                         }
                     },
+                    showProgress = false,
                 )
             }
             composable(Screen.BindDone.route) {

@@ -13,6 +13,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.Assignment
 import androidx.compose.material.icons.rounded.Explore
 import androidx.compose.material.icons.rounded.School
 import androidx.compose.material.icons.rounded.Shower
@@ -55,8 +56,8 @@ fun WelcomeScreen(
 
         PrismProgressRail(
             step = 1,
-            total = 4,
-            labels = listOf("欢迎", "教务", "洗浴", "电费"),
+            total = 5,
+            labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
         )
 
         Spacer(Modifier.height(8.dp))
@@ -67,7 +68,12 @@ fun WelcomeScreen(
             icon = Icons.Rounded.School,
         )
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(Icons.Rounded.School to "教务", Icons.Rounded.Shower to "洗浴", Icons.Rounded.Bolt to "电费").forEach { (icon, label) ->
+            listOf(
+                Icons.Rounded.School to "教务",
+                Icons.AutoMirrored.Rounded.Assignment to "学习通",
+                Icons.Rounded.Shower to "洗浴",
+                Icons.Rounded.Bolt to "电费",
+            ).forEach { (icon, label) ->
                 Surface(
                     modifier = Modifier.weight(1f),
                     shape = MaterialTheme.shapes.large,

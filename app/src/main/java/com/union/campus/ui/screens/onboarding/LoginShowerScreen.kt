@@ -176,9 +176,9 @@ fun LoginShowerScreen(
         ) {
             if (showProgress) {
                 PrismProgressRail(
-                    step = 3,
-                    total = 4,
-                    labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                    step = 4,
+                    total = 5,
+                    labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
                 )
             }
             OnboardingIntro(

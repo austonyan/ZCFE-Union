@@ -278,9 +278,9 @@ fun BindElectricScreen(
         ) {
             if (showProgress) {
                 PrismProgressRail(
-                    step = 4,
-                    total = 4,
-                    labels = listOf("欢迎", "教务", "洗浴", "电费"),
+                    step = 5,
+                    total = 5,
+                    labels = listOf("欢迎", "教务", "学习通", "洗浴", "电费"),
                 )
             }
             OnboardingIntro(
