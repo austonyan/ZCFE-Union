@@ -7,6 +7,7 @@ import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,13 +38,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
+import com.union.campus.BuildConfig
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BuildingGroup
 import com.union.campus.domain.MorningSlot
 import com.union.campus.domain.TimetableScheduleConfig
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
-import com.union.campus.ui.prism.CardHeader
+import com.union.campus.ui.prism.GroupDivider
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
@@ -59,7 +61,7 @@ import com.union.campus.ui.theme.DarkColors
 import com.union.campus.ui.theme.LightColors
 import com.union.campus.ui.theme.PresetPalettes
 
-/** 设置总页：外观、学习、提醒、隐私与数据的统一入口。 */
+/** 设置总页：外观、学习、通知、隐私与数据、支持五个分区。 */
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
@@ -105,56 +107,55 @@ fun SettingsScreen(
                 .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            PrismSection("学习与课表") {
-                PrismGroupedList {
-                    PrismRow(
-                        title = "课表设置",
-                        subtitle = "教学楼作息 · J1–J6 ${jSlot.startLabel} · S1–S6、J7 ${sSlot.startLabel}",
-                        leading = { IconBadge(Icons.Outlined.Schedule) },
-                        onClick = onOpenTimetableSettings,
-                    )
-                }
-            }
-
             PrismSection("外观") {
-                PrismCard {
-                    PrismSegmented(
-                        options = listOf("跟随系统", "浅色", "深色"),
-                        selectedIndex = when (themeMode) {
-                            "light" -> 1
-                            "dark" -> 2
-                            else -> 0
-                        },
-                        onSelect = { index ->
-                            val mode = when (index) {
-                                1 -> "light"
-                                2 -> "dark"
-                                else -> "system"
-                            }
-                            launchUi { settings.setThemeMode(mode) }
-                        },
-                    )
-                    Spacer(Modifier.height(14.dp))
-                    if (dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                PrismCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(0.dp),
+                ) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 16.dp)) {
                         Text(
-                            "跟随壁纸取色",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        Text(
-                            if (dynamicColor) "系统不支持动态取色，已使用预设主题色" else "预设主题色",
+                            "主题模式",
                             style = subheadlineStyle(),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         Spacer(Modifier.height(8.dp))
-                        ThemeColorPicker(
-                            selectedId = themeColorPreset,
-                            onSelect = { id -> launchUi { settings.setThemeColorPreset(id) } },
+                        PrismSegmented(
+                            options = listOf("跟随系统", "浅色", "深色"),
+                            selectedIndex = when (themeMode) {
+                                "light" -> 1
+                                "dark" -> 2
+                                else -> 0
+                            },
+                            onSelect = { index ->
+                                val mode = when (index) {
+                                    1 -> "light"
+                                    2 -> "dark"
+                                    else -> "system"
+                                }
+                                launchUi { settings.setThemeMode(mode) }
+                            },
                         )
+                        Spacer(Modifier.height(14.dp))
+                        if (dynamicColor && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                            Text(
+                                "跟随壁纸取色",
+                                style = footnoteStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            Text(
+                                if (dynamicColor) "系统不支持动态取色，已使用预设主题色" else "预设主题色",
+                                style = subheadlineStyle(),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            ThemeColorPicker(
+                                selectedId = themeColorPreset,
+                                onSelect = { id -> launchUi { settings.setThemeColorPreset(id) } },
+                            )
+                        }
                     }
-                }
-                PrismGroupedList {
+                    GroupDivider()
                     PrismToggleRow(
                         title = "动态取色（莫奈）",
                         subtitle = "Android 12 及以上可用",
@@ -165,13 +166,35 @@ fun SettingsScreen(
                 }
             }
 
-            PrismSection("通知与提醒") {
+            PrismSection("学习") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "课表设置",
+                        subtitle = "教学楼作息 · J1–J6 ${jSlot.startLabel} · S1–S6、J7 ${sSlot.startLabel}",
+                        leading = { IconBadge(Icons.Outlined.Schedule) },
+                        onClick = onOpenTimetableSettings,
+                    )
+                }
+            }
+
+            PrismSection("通知") {
                 PrismGroupedList {
                     PrismRow(
                         title = "提醒中心",
                         subtitle = reminderSummary,
                         leading = { IconBadge(Icons.Outlined.Notifications) },
                         onClick = onOpenReminders,
+                    )
+                }
+            }
+
+            PrismSection("隐私与数据") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "隐私与安全",
+                        subtitle = "解锁、防截屏与清除数据",
+                        leading = { IconBadge(Icons.Outlined.Lock) },
+                        onClick = onOpenPrivacy,
                     )
                 }
             }
@@ -184,31 +207,11 @@ fun SettingsScreen(
                         leading = { IconBadge(Icons.AutoMirrored.Outlined.HelpOutline) },
                         onClick = onOpenHelp,
                     )
-                }
-            }
-
-            PrismSection("隐私与安全") {
-                PrismGroupedList {
                     PrismRow(
-                        title = "隐私与安全",
-                        subtitle = "解锁、防截屏与数据清理",
-                        leading = { IconBadge(Icons.Outlined.Lock) },
-                        onClick = onOpenPrivacy,
-                    )
-                }
-            }
-
-            PrismSection("关于") {
-                PrismCard(
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = onOpenAbout,
-                ) {
-                    CardHeader("郑财校园", icon = Icons.Outlined.Info)
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        "版本与版权",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.primary,
+                        title = "关于",
+                        subtitle = "版本 ${BuildConfig.VERSION_NAME} · 作者与版权",
+                        leading = { IconBadge(Icons.Outlined.Info) },
+                        onClick = onOpenAbout,
                     )
                 }
             }

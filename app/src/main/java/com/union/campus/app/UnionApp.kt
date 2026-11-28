@@ -265,7 +265,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                             "evaluation" -> navController.navigate(Screen.Evaluation.route)
                             "textbooks" -> navController.navigate(Screen.Textbooks.route)
                             "record" -> navController.navigate(Screen.StudentRecord.route)
-                            "freeClassrooms" -> navController.navigate(Screen.FreeClassrooms.route)
                             "notices" -> navController.navigate(Screen.Notices.route)
                             "homework" -> navController.navigate(Screen.Homework.route)
                             "affairs" -> navController.navigate(Screen.AcademicAffairs.route)
@@ -283,7 +282,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                 LifeScreen(
                     onOpenElectric = { navController.navigate(Screen.Electric.route) },
                     onOpenShower = { navController.navigate(Screen.Shower.route) },
-                    onOpenFreeClassrooms = { navController.navigate(Screen.FreeClassrooms.route) },
                 )
             }
 
@@ -293,8 +291,6 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenCredentials = { navController.navigate(Screen.Credentials.route) },
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
                     onOpenSettings = { navController.navigate(Screen.Settings.route) },
-                    onOpenAbout = { navController.navigate(Screen.About.route) },
-                    onOpenHelp = { navController.navigate(Screen.Help.route) },
                 )
             }
 
@@ -509,6 +505,9 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     },
                     onLoginElectric = {
                         navController.navigate(Screen.BindElectric.route)
+                    },
+                    onLoginXxt = {
+                        navController.navigate(Screen.HomeworkLogin.route)
                     },
                 )
             }

@@ -9,20 +9,23 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 
 /**
- * 一次账号体检：三套账号并行探测，任一模块异常不影响其它模块。
+ * 一次账号体检：四个平台并行探测，任一平台异常不影响其它平台。
  *
  * 结论由各仓库的 `checkAccount()` 给出：未绑定、登录失效与网络不可用分开返回，
- * 不再用「异常/未绑定」笼统覆盖。
+ * 不再用「异常/未绑定」笼统覆盖。学习通与教务是两套独立凭证，分开探测，
+ * 任一失效只影响自己的结论。
  */
-internal suspend fun checkAllAccounts(): List<Pair<String, AccountCheck>> = coroutineScope {
+internal suspend fun checkAllAccounts(): List<Pair<AccountPlatform, AccountCheck>> = coroutineScope {
     // 绑定判断会读取本地加密凭证，统一放到 IO，避免体检时卡住界面
     val jw = async(Dispatchers.IO) { safely { ServiceLocator.jwRepository.checkAccount() } }
+    val xxt = async(Dispatchers.IO) { safely { ServiceLocator.xxtRepository.checkAccount() } }
     val shower = async(Dispatchers.IO) { safely { ServiceLocator.showerRepository.checkAccount() } }
     val electric = async(Dispatchers.IO) { safely { ServiceLocator.electricRepository.checkAccount() } }
     listOf(
-        "教务" to jw.await(),
-        "洗浴" to shower.await(),
-        "电费" to electric.await(),
+        AccountPlatform.Jw to jw.await(),
+        AccountPlatform.Xxt to xxt.await(),
+        AccountPlatform.Shower to shower.await(),
+        AccountPlatform.Electric to electric.await(),
     )
 }
 

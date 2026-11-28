@@ -1,6 +1,9 @@
 package com.union.campus.data.repo
 
+import com.union.campus.core.AccountCheck
+import com.union.campus.core.AccountCheckState
 import com.union.campus.core.AppError
+import com.union.campus.core.toAccountCheck
 import com.union.campus.data.remote.xxt.XxtClient
 import com.union.campus.data.store.CacheTtl
 import com.union.campus.data.store.CredentialStore
@@ -10,6 +13,7 @@ import com.union.campus.domain.XxtHomework
 import com.union.campus.domain.XxtHomeworkRules
 import com.union.campus.domain.XxtHomeworkSnapshot
 import com.union.campus.domain.XxtNotice
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -48,6 +52,24 @@ class XxtRepository constructor(
     // ---------------------------------------------------------------- 账号与会话
 
     fun isBound(): Boolean = credentials.load().xxtAccount.isNotBlank()
+
+    /**
+     * 学习通体检：以已保存账号为准，并区分未绑定、会话失效与网络/上游异常。
+     *
+     * 与教务/洗浴/电费同一套结论：cookie 还活着就是正常；cookie 失效但有保存的密码时
+     * 自动续期一次（和后台同步的行为一致），没有密码才算「登录失效」。
+     */
+    suspend fun checkAccount(): AccountCheck {
+        if (!isBound()) return AccountCheck(AccountCheckState.UNBOUND)
+        return try {
+            ensureLogin()
+            AccountCheck(AccountCheckState.OK)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            e.toAccountCheck()
+        }
+    }
 
     fun maskedAccount(): String {
         val account = credentials.load().xxtAccount

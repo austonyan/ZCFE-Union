@@ -12,11 +12,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Bolt
-import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.WaterDrop
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.WarningAmber
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
@@ -35,7 +33,6 @@ import com.union.campus.domain.ElectricStats
 import com.union.campus.domain.ShowerArea
 import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
-import com.union.campus.ui.prism.PrismEntryCard
 import com.union.campus.ui.prism.PrismIconButton
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismSpace
@@ -45,12 +42,11 @@ import com.union.campus.ui.prism.rememberPrismHaptics
 import com.union.campus.ui.prism.surfaceColorOf
 import kotlinx.coroutines.flow.first
 
-/** 生活：洗浴、电费与空闲教室的生活总览，含低余额提醒开关。 */
+/** 生活：只放缴费类校园服务（洗浴、电费）的状态总览，含低余额告警。 */
 @Composable
 fun LifeScreen(
     onOpenElectric: () -> Unit,
     onOpenShower: () -> Unit,
-    onOpenFreeClassrooms: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val electric = ServiceLocator.electricRepository
@@ -170,14 +166,6 @@ fun LifeScreen(
                 onClick = onOpenShower,
                 container = if (queueing) MaterialTheme.colorScheme.tertiaryContainer else surfaceColorOf(SurfaceLevel.Card),
                 onContainer = if (queueing) MaterialTheme.colorScheme.onTertiaryContainer else MaterialTheme.colorScheme.onSurface,
-                modifier = Modifier.fillMaxWidth(),
-            )
-
-            PrismEntryCard(
-                title = "空闲教室",
-                subtitle = "查找可用教室",
-                icon = Icons.Rounded.MeetingRoom,
-                onClick = onOpenFreeClassrooms,
                 modifier = Modifier.fillMaxWidth(),
             )
 

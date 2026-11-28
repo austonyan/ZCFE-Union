@@ -10,31 +10,28 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.outlined.HelpOutline
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Bolt
-import androidx.compose.material.icons.outlined.CheckCircle
-import androidx.compose.material.icons.outlined.ErrorOutline
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Person
+import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Shower
-import androidx.compose.material.icons.outlined.School
 import androidx.compose.material.icons.outlined.Sync
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -42,27 +39,19 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.union.campus.core.AccountCheck
 import com.union.campus.core.AccountCheckState
 import com.union.campus.data.store.CredentialStore
 import com.union.campus.di.ServiceLocator
-import com.union.campus.ui.common.launchUi
 import com.union.campus.ui.common.pageWidth
 import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismCard
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
-import com.union.campus.ui.prism.PrismLoadingIndicator
 import com.union.campus.ui.prism.PrismPageHeader
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSection
-import com.union.campus.ui.prism.PrismStatus
-import com.union.campus.ui.prism.PrismTextButton
-import com.union.campus.ui.prism.prismTextFaint
-import com.union.campus.ui.prism.bodyStyle
 import com.union.campus.ui.prism.footnoteStyle
-import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.subheadlineStyle
 
 // ---------------- 我的 ----------------
@@ -85,36 +74,43 @@ internal fun rememberCredentialSnapshot(
     return snapshot to { revision++ }
 }
 
-/** 我的：个人资料、三套凭证状态、一键体检、提醒与隐私入口。 */
+/**
+ * 我的 = 账号。四个平台一行一个，行尾徽标承担「是否绑定」与「体检结论」；
+ * 体检是这一组的行内动作，结果直接写回徽标，不再另起一张「账号检查」卡。
+ * 提醒中心与设置是唯一的应用入口；帮助、关于、隐私统一放在设置里。
+ */
 @Composable
 fun ProfileScreen(
     onOpenCredentials: () -> Unit,
     onOpenReminders: () -> Unit,
     onOpenSettings: () -> Unit,
-    onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
-    onOpenHelp: () -> Unit = {},
 ) {
     val messenger = LocalPrismMessenger.current
-    var checking by remember { mutableStateOf(false) }
-    var checkStates by remember { mutableStateOf<Map<String, CheckState>>(emptyMap()) }
+    val scope = rememberCoroutineScope()
+    val health = rememberAccountHealth()
 
     val (cred, _) = rememberCredentialSnapshot(ServiceLocator.credentials)
+    val bound = mapOf(
+        AccountPlatform.Jw to cred.jwStudentNo.isNotBlank(),
+        AccountPlatform.Xxt to cred.xxtAccount.isNotBlank(),
+        AccountPlatform.Shower to cred.showerToken.isNotBlank(),
+        AccountPlatform.Electric to cred.electricAccount.isNotBlank(),
+    )
 
-    fun healthCheck() {
-        if (checking) return
-        checking = true
-        checkStates = listOf("教务", "洗浴", "电费").associateWith { CheckState.Checking }
-        launchUi {
-            // 并行探测三套凭证；结论区分未绑定、登录失效与网络不可用
-            val results = checkAllAccounts()
-            checkStates = results.associate { (name, check) -> name to check.toCheckState() }
-            checking = false
-            val failed = results.filterNot { it.second.isOk }
-            if (failed.isEmpty()) {
-                messenger.success("全部凭证正常")
-            } else {
-                messenger.warning(failed.joinToString("；") { (name, check) -> "$name：${check.displayText}" })
+    fun runCheck() {
+        health.check(scope) { results ->
+            val failures = results.filterNot { it.second.isOk }
+            val actionable = failures.filter { it.second.state != AccountCheckState.UNBOUND }
+            when {
+                results.all { it.second.state == AccountCheckState.UNBOUND } ->
+                    messenger.info("还没有绑定平台账号，去凭证中心登录")
+                actionable.isNotEmpty() ->
+                    messenger.warning(accountCheckSummary(actionable))
+                failures.isEmpty() ->
+                    messenger.success("四个平台凭证正常")
+                else ->
+                    messenger.success("已保存的账号正常")
             }
         }
     }
@@ -165,145 +161,111 @@ fun ProfileScreen(
             }
             Spacer(Modifier.height(16.dp))
             Text(
-                "已保存 ${listOf(cred.jwStudentNo.isNotBlank(), cred.showerToken.isNotBlank(), cred.electricAccount.isNotBlank()).count { it }} / 3 个账号 · 独立管理",
+                "已保存 ${bound.count { it.value }} / ${AccountPlatform.All.size} 个平台账号 · 独立管理",
                 style = footnoteStyle(),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        PrismSection("账号与凭证") {
+        PrismSection("平台账号") {
             PrismGroupedList {
                 PrismRow(
-                    title = "教务", subtitle = if (cred.jwStudentNo.isNotBlank()) "学号 ${cred.jwStudentNo.take(4)}****" else "登录后查看课表、成绩与考试",
+                    title = AccountPlatform.Jw.label,
+                    subtitle = if (bound.getValue(AccountPlatform.Jw)) {
+                        "学号 ${cred.jwStudentNo.take(4)}**** · 课表、成绩与考试"
+                    } else {
+                        "登录后查看课表、成绩与考试"
+                    },
                     leading = { IconBadge(Icons.Outlined.School) },
-                    trailing = { AccountStatusBadge(cred.jwStudentNo.isNotBlank()) },
+                    trailing = {
+                        AccountStatusPill(
+                            bound = bound.getValue(AccountPlatform.Jw),
+                            state = health.stateOf(AccountPlatform.Jw),
+                        )
+                    },
                     subtitleMaxLines = Int.MAX_VALUE,
                     onClick = onOpenCredentials,
                 )
                 PrismRow(
-                    title = "洗浴", subtitle = if (cred.showerToken.isNotBlank()) "手机 ${ServiceLocator.showerRepository.maskedMobile()}" else "登录大白U帮，查看洗浴与账单",
+                    title = AccountPlatform.Xxt.label,
+                    subtitle = if (bound.getValue(AccountPlatform.Xxt)) {
+                        "${ServiceLocator.xxtRepository.maskedAccount()} · 只读同步作业与通知"
+                    } else {
+                        "登录后同步课程作业与通知"
+                    },
+                    leading = { IconBadge(Icons.AutoMirrored.Outlined.MenuBook) },
+                    trailing = {
+                        AccountStatusPill(
+                            bound = bound.getValue(AccountPlatform.Xxt),
+                            state = health.stateOf(AccountPlatform.Xxt),
+                        )
+                    },
+                    subtitleMaxLines = Int.MAX_VALUE,
+                    onClick = onOpenCredentials,
+                )
+                PrismRow(
+                    title = AccountPlatform.Shower.label,
+                    subtitle = if (bound.getValue(AccountPlatform.Shower)) {
+                        "手机 ${ServiceLocator.showerRepository.maskedMobile()} · 洗浴与账单"
+                    } else {
+                        "登录大白U帮，查看洗浴与账单"
+                    },
                     leading = { IconBadge(Icons.Outlined.Shower) },
-                    trailing = { AccountStatusBadge(cred.showerToken.isNotBlank()) },
+                    trailing = {
+                        AccountStatusPill(
+                            bound = bound.getValue(AccountPlatform.Shower),
+                            state = health.stateOf(AccountPlatform.Shower),
+                        )
+                    },
                     subtitleMaxLines = Int.MAX_VALUE,
                     onClick = onOpenCredentials,
                 )
                 PrismRow(
-                    title = "电费", subtitle = if (cred.electricAccount.isNotBlank()) "学号 ${cred.electricAccount.take(4)}****" else "绑定本人宿舍，查看余额与用量",
+                    title = AccountPlatform.Electric.label,
+                    subtitle = if (bound.getValue(AccountPlatform.Electric)) {
+                        "学号 ${cred.electricAccount.take(4)}**** · 余额与用量"
+                    } else {
+                        "绑定本人宿舍，查看余额与用量"
+                    },
                     leading = { IconBadge(Icons.Outlined.Bolt) },
-                    trailing = { AccountStatusBadge(cred.electricAccount.isNotBlank()) },
+                    trailing = {
+                        AccountStatusPill(
+                            bound = bound.getValue(AccountPlatform.Electric),
+                            state = health.stateOf(AccountPlatform.Electric),
+                        )
+                    },
                     subtitleMaxLines = Int.MAX_VALUE,
                     onClick = onOpenCredentials,
+                )
+                PrismRow(
+                    title = if (health.checking) "正在检查四个平台" else "检查全部账号",
+                    subtitle = if (health.checking) {
+                        "正在验证凭证，结果会写回上面四行"
+                    } else {
+                        "验证凭证是否仍然可用"
+                    },
+                    leading = { IconBadge(Icons.Outlined.Sync) },
+                    onClick = if (health.checking) null else ({ runCheck() }),
                 )
             }
         }
 
-        PrismCard(modifier = Modifier.fillMaxWidth()) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("账号检查", style = headlineStyle())
-                    Text(
-                        if (checking) "正在验证三个平台账号" else "检查三套凭证是否有效",
-                        style = footnoteStyle(),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (checking) {
-                    PrismLoadingIndicator(size = 20.dp)
-                } else {
-                    PrismTextButton(onClick = { healthCheck() }) {
-                        Icon(Icons.Outlined.Sync, null)
-                        Spacer(Modifier.width(6.dp))
-                        Text("检查", maxLines = 1)
-                    }
-                }
+        PrismSection("应用") {
+            PrismGroupedList {
+                PrismRow(
+                    title = "提醒中心",
+                    subtitle = "上课、考试、作业与低电费",
+                    leading = { IconBadge(Icons.Outlined.Notifications) },
+                    onClick = onOpenReminders,
+                )
+                PrismRow(
+                    title = "设置",
+                    subtitle = "外观、课表、通知、隐私与帮助",
+                    leading = { IconBadge(Icons.Outlined.Settings) },
+                    onClick = onOpenSettings,
+                )
             }
-            if (checkStates.isNotEmpty()) {
-                Spacer(Modifier.height(4.dp))
-                CheckStateRow("教务", checkStates["教务"] ?: CheckState.Idle)
-                CheckStateRow("洗浴", checkStates["洗浴"] ?: CheckState.Idle)
-                CheckStateRow("电费", checkStates["电费"] ?: CheckState.Idle)
-            }
-        }
-
-        PrismGroupedList {
-            PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", leading = { IconBadge(Icons.Outlined.Notifications) }, onClick = onOpenReminders)
-            PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", leading = { IconBadge(Icons.Outlined.Settings) }, onClick = onOpenSettings)
-            PrismRow(title = "帮助与常见问题", subtitle = "账号、课表、洗浴、电费与提醒", leading = { IconBadge(Icons.AutoMirrored.Outlined.HelpOutline) }, onClick = onOpenHelp)
-            PrismRow(title = "关于", subtitle = "版本、作者与版权", leading = { IconBadge(Icons.Outlined.Info) }, onClick = onOpenAbout)
         }
         Spacer(Modifier.height(24.dp))
-    }
-}
-
-private enum class CheckState { Idle, Checking, Ok, Unbound, Expired, Unavailable }
-
-private fun AccountCheck.toCheckState(): CheckState = when (state) {
-    AccountCheckState.OK -> CheckState.Ok
-    AccountCheckState.UNBOUND -> CheckState.Unbound
-    AccountCheckState.EXPIRED -> CheckState.Expired
-    AccountCheckState.UNAVAILABLE -> CheckState.Unavailable
-}
-
-@Composable
-private fun CheckStateRow(name: String, state: CheckState) {
-    Row(
-        Modifier.fillMaxWidth().padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(name, style = bodyStyle(), modifier = Modifier.weight(1f))
-        when (state) {
-            CheckState.Idle -> Text(
-                "未检查",
-                style = footnoteStyle(),
-                color = prismTextFaint(),
-            )
-            CheckState.Checking -> Text("检查中", style = footnoteStyle(), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            CheckState.Ok -> {
-                Icon(
-                    Icons.Outlined.CheckCircle,
-                    contentDescription = null,
-                    tint = PrismStatus.success(),
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text("正常", style = footnoteStyle(), color = PrismStatus.success())
-            }
-            CheckState.Unbound -> Text(
-                "未绑定",
-                style = footnoteStyle(),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            CheckState.Expired -> {
-                Icon(
-                    Icons.Outlined.ErrorOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text("登录失效", style = footnoteStyle(), color = MaterialTheme.colorScheme.error)
-            }
-            CheckState.Unavailable -> {
-                Icon(
-                    Icons.Outlined.ErrorOutline,
-                    contentDescription = null,
-                    tint = PrismStatus.warning(),
-                    modifier = Modifier.size(18.dp),
-                )
-                Spacer(Modifier.width(6.dp))
-                Text("服务暂不可用", style = footnoteStyle(), color = PrismStatus.warning())
-            }
-        }
-    }
-}
-
-@Composable
-private fun AccountStatusBadge(ok: Boolean) {
-    Surface(
-        shape = RoundedCornerShape(50),
-        color = if (ok) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surfaceContainerHigh,
-        contentColor = if (ok) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-    ) {
-        Text(if (ok) "已保存" else "未绑定", Modifier.padding(horizontal = 10.dp, vertical = 6.dp), style = MaterialTheme.typography.labelMedium, maxLines = 1)
     }
 }
