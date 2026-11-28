@@ -10,8 +10,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.semantics.Role
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalanceWallet
 import androidx.compose.material.icons.rounded.Info
@@ -166,7 +169,22 @@ fun ShowerSessionScreen(
                     )
                 }
                 Spacer(Modifier.height(8.dp))
-                Row(verticalAlignment = Alignment.CenterVertically) {
+                // 整行可点：和设置页的开关行同一套语义（role=Switch），开关本身只作指示。
+                val screenOnInteraction = remember { MutableInteractionSource() }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .toggleable(
+                            value = keepScreenOn,
+                            role = Role.Switch,
+                            interactionSource = screenOnInteraction,
+                            onValueChange = { on ->
+                                haptics.toggle()
+                                launchUi { settings.setKeepScreenOn(on) }
+                            },
+                        ),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
                     Icon(Icons.Rounded.Schedule, null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
                     Column(Modifier.weight(1f)) {
@@ -175,9 +193,8 @@ fun ShowerSessionScreen(
                     }
                     PrismSwitch(
                         checked = keepScreenOn,
-                        onCheckedChange = {
-                            launchUi { settings.setKeepScreenOn(it) }
-                        },
+                        interactive = false,
+                        interactionSource = screenOnInteraction,
                     )
                 }
             }
