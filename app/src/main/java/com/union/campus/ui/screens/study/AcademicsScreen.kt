@@ -23,7 +23,6 @@ import androidx.compose.material.icons.rounded.Campaign
 import androidx.compose.material.icons.rounded.Event
 import androidx.compose.material.icons.rounded.Grade
 import androidx.compose.material.icons.rounded.ListAlt
-import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.RateReview
 import androidx.compose.material.icons.rounded.School
@@ -67,9 +66,12 @@ import com.union.campus.ui.prism.footnoteStyle
 import com.union.campus.ui.prism.headlineStyle
 import com.union.campus.ui.prism.prismShape
 import com.union.campus.ui.prism.subheadlineStyle
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.flow.first
 
-/** 教务首页：常用功能、教务事务与最近通知。 */
+/** 教务首页：常用功能、学习通与教务事务，最后是最近通知。 */
 @Composable
 fun AcademicsScreen(
     onOpen: (String) -> Unit,
@@ -84,6 +86,8 @@ fun AcademicsScreen(
     var week by remember { mutableIntStateOf(1) }
     var courseCount by remember { mutableIntStateOf(0) }
     var notices by remember { mutableStateOf<List<JwNotice>>(emptyList()) }
+    // 学习通行只读本地缓存：未绑定或还没同步过时给登录提示，不触发网络。
+    var homeworkHint by remember { mutableStateOf(HOMEWORK_UNBOUND_SUMMARY) }
 
     LaunchedEffect(Unit) {
         val dm = jw.currentSemesterDm()
@@ -101,6 +105,7 @@ fun AcademicsScreen(
         if (jw.isBound()) {
             notices = runCatching { jw.notices() }.getOrDefault(emptyList()).take(3)
         }
+        homeworkHint = runCatching { homeworkSubtitle() }.getOrDefault(HOMEWORK_UNBOUND_SUMMARY)
     }
 
     Column(
@@ -206,14 +211,19 @@ fun AcademicsScreen(
             }
         }
 
-        PrismSection(title = "教务事务") {
+        PrismSection(title = "学习通") {
             PrismGroupedList {
                 PrismRow(
                     title = "学习通作业",
-                    subtitle = "未交清单 · 截止前 24/6/1 小时提醒",
+                    subtitle = homeworkHint,
                     leading = { IconBadge(Icons.AutoMirrored.Rounded.Assignment) },
                     onClick = { onOpen("homework") },
                 )
+            }
+        }
+
+        PrismSection(title = "教务事务") {
+            PrismGroupedList {
                 PrismRow(
                     title = "学籍档案",
                     subtitle = "姓名、院系、专业与学籍状态",
@@ -225,12 +235,6 @@ fun AcademicsScreen(
                     subtitle = "待确认教材与教材对账",
                     leading = { IconBadge(Icons.Rounded.MenuBook) },
                     onClick = { onOpen("textbooks") },
-                )
-                PrismRow(
-                    title = "空闲教室",
-                    subtitle = "按教学楼查询可自习教室",
-                    leading = { IconBadge(Icons.Rounded.MeetingRoom) },
-                    onClick = { onOpen("freeClassrooms") },
                 )
                 PrismRow(
                     title = "教务通知",
@@ -278,6 +282,33 @@ fun AcademicsScreen(
         Spacer(Modifier.height(24.dp))
     }
 }
+
+private const val HOMEWORK_UNBOUND_SUMMARY = "登录学习通后同步课程作业与通知"
+
+/**
+ * 学习通入口的副标题：只读本地缓存快照，不发任何请求。
+ * 未绑定 / 无快照 → 登录提示；有快照 → 未交条数 + 最近一条有截止时间的作业。
+ */
+private fun homeworkSubtitle(): String {
+    val xxt = ServiceLocator.xxtRepository
+    if (!xxt.isBound()) return HOMEWORK_UNBOUND_SUMMARY
+    val snapshot = xxt.cached() ?: return HOMEWORK_UNBOUND_SUMMARY
+    val pending = snapshot.pending
+    if (pending.isEmpty()) return "作业已全部提交 · 只读同步"
+    val nearest = pending.filter { it.deadlineAt > 0 }.minByOrNull { it.deadlineAt }
+    return if (nearest == null) {
+        "未交 ${pending.size} 条作业"
+    } else {
+        "未交 ${pending.size} 条作业 · 最近截止 ${deadlineText(nearest.deadlineAt)}"
+    }
+}
+
+/**
+ * 设计稿要求「M月d日 HH:mm」，与作业页的 [com.union.campus.domain.XxtHomeworkRules.formatDeadline]
+ * （「11-28 23:59」）不是同一套写法，所以这里单列一个短格式。
+ */
+private fun deadlineText(deadlineAt: Long): String =
+    SimpleDateFormat("M月d日 HH:mm", Locale.getDefault()).format(Date(deadlineAt))
 
 /** 四个入口共用图标底与次级色调；小内角将它们连接成一组，而非四张独立卡片。 */
 @Composable

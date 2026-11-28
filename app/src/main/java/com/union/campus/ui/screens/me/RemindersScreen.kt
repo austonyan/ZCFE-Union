@@ -53,6 +53,7 @@ import com.union.campus.ui.prism.PrismMessageTone
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
+import com.union.campus.ui.prism.PrismSection
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismSnapSheet
 import com.union.campus.ui.prism.SnapSheetDefaults
@@ -154,151 +155,170 @@ fun RemindersCenterScreen(
                     }
                 }
             }
-            PrismGroupedList {
-                PrismToggleRow(
-                    title = "总开关",
-                    subtitle = if (remindEnabled) "提醒已开启" else "已暂停全部提醒",
-                    leading = { IconBadge(Icons.Outlined.Notifications) },
-                    checked = remindEnabled,
-                    onCheckedChange = { on ->
-                        set { settings.setRemindEnabled(on) }
-                        if (on) {
-                            requestNotifications()
-                            messenger.success("提醒已开启")
-                        } else {
-                            // 用户可控：暂停是误触时可直接撤销，不用回到开关再点一次。
-                            messenger.show(
-                                text = "已暂停全部提醒",
-                                tone = PrismMessageTone.Info,
-                                actionLabel = "撤销",
-                                onAction = { set { settings.setRemindEnabled(true) } },
+            PrismSection("提醒") {
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "总开关",
+                        subtitle = if (remindEnabled) "提醒已开启" else "已暂停全部提醒",
+                        leading = { IconBadge(Icons.Outlined.Notifications) },
+                        checked = remindEnabled,
+                        onCheckedChange = { on ->
+                            set { settings.setRemindEnabled(on) }
+                            if (on) {
+                                requestNotifications()
+                                messenger.success("提醒已开启")
+                            } else {
+                                // 用户可控：暂停是误触时可直接撤销，不用回到开关再点一次。
+                                messenger.show(
+                                    text = "已暂停全部提醒",
+                                    tone = PrismMessageTone.Info,
+                                    actionLabel = "撤销",
+                                    onAction = { set { settings.setRemindEnabled(true) } },
+                                )
+                            }
+                        },
+                    )
+                }
+            }
+
+            PrismSection("课程与考试") {
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "上课提醒",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindClass) "课前 $classLead 分钟" else "已关闭",
+                        leading = { IconBadge(Icons.Outlined.Schedule) },
+                        checked = remindClass,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on ->
+                            set { settings.setRemindClass(on) }
+                            if (on) requestNotifications()
+                        },
+                    )
+                    PrismToggleRow(
+                        title = "考试提醒",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindExam) "近期考试加入待办" else "已关闭",
+                        leading = { IconBadge(Icons.Outlined.Grade) },
+                        checked = remindExam,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on -> set { settings.setRemindExam(on) } },
+                    )
+                    PrismToggleRow(
+                        title = "评教截止",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindEvaluation) "待评课程加入待办" else "已关闭",
+                        leading = { IconBadge(Icons.Outlined.RateReview) },
+                        checked = remindEvaluation,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on -> set { settings.setRemindEvaluation(on) } },
+                    )
+                }
+                // 成绩没有系统通知通道：说明留在分组末尾，不再用禁用开关占位。
+                Text(
+                    "成绩更新暂不支持系统通知。",
+                    style = footnoteStyle(),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PrismCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(if (remindEnabled) 1f else 0.5f),
+                ) {
+                    CardHeader("课前提醒时间")
+                    Spacer(Modifier.height(10.dp))
+                    PrismSegmented(
+                        options = leadOptions.map { "课前 $it 分钟" },
+                        selectedIndex = leadOptions.indexOf(classLead).coerceAtLeast(0),
+                        enabled = remindEnabled && remindClass,
+                        onSelect = { index ->
+                            set { settings.setRemindClassLead(leadOptions[index]) }
+                        },
+                    )
+                }
+            }
+
+            PrismSection("生活") {
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "低电费提醒",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindLowElectric) "低于 $lowThreshold 度，每天 20:00" else "已关闭",
+                        leading = { IconBadge(Icons.Outlined.Bolt) },
+                        checked = remindLowElectric,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on -> set { settings.setRemindLowElectric(on) } },
+                    )
+                    PrismToggleRow(
+                        title = "洗浴排队",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindShowerQueue) "仅在洗浴页打开时到号提醒" else "已关闭",
+                        leading = { IconBadge(Icons.Outlined.Shower) },
+                        checked = remindShowerQueue,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on -> set { settings.setRemindShowerQueue(on) } },
+                    )
+                }
+                PrismCard(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .alpha(if (remindEnabled) 1f else 0.5f),
+                ) {
+                    CardHeader("低电费阈值")
+                    Spacer(Modifier.height(10.dp))
+                    PrismSegmented(
+                        options = thresholdOptions.map { "$it 度" },
+                        selectedIndex = thresholdOptions.indexOf(lowThreshold).coerceAtLeast(0),
+                        enabled = remindEnabled && remindLowElectric,
+                        onSelect = { index ->
+                            set { settings.setLowElectricThreshold(thresholdOptions[index]) }
+                        },
+                    )
+                }
+            }
+
+            PrismSection("学习通") {
+                PrismGroupedList {
+                    PrismToggleRow(
+                        title = "学习通作业",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindXxt) "截止前 24 / 6 / 1 小时各提醒一次" else "已关闭",
+                        leading = { IconBadge(Icons.AutoMirrored.Outlined.Assignment) },
+                        checked = remindXxt,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on -> set { settings.setRemindXxtHomework(on) } },
+                    )
+                    PrismToggleRow(
+                        title = "学习通通知",
+                        subtitle = if (!remindEnabled) "随总开关暂停" else if (remindXxtNotice) "未读通知逐条提醒" else "已关闭",
+                        leading = { IconBadge(Icons.Outlined.Notifications) },
+                        checked = remindXxtNotice,
+                        enabled = remindEnabled,
+                        onCheckedChange = { on -> set { settings.setRemindXxtNotice(on) } },
+                    )
+                }
+            }
+
+            PrismSection("免打扰") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "免打扰时段",
+                        subtitle = "${formatHour(quietStart)}–${formatHour(quietEnd)} · ${if (quietOn) "已开启" else "已关闭"}",
+                        leading = { IconBadge(Icons.Outlined.Notifications) },
+                        trailing = {
+                            Text(
+                                "修改",
+                                style = footnoteStyle(),
+                                color = MaterialTheme.colorScheme.primary,
                             )
-                        }
-                    },
-                )
-                PrismToggleRow(
-                    title = "上课提醒",
-                    subtitle = if (remindEnabled && remindClass) "课前 $classLead 分钟" else "已关闭",
-                    leading = { IconBadge(Icons.Outlined.Schedule) },
-                    checked = remindClass,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on ->
-                        set { settings.setRemindClass(on) }
-                        if (on) requestNotifications()
-                    },
-                )
-                PrismToggleRow(
-                    title = "考试提醒",
-                    subtitle = if (remindEnabled && remindExam) "近期考试加入待办" else "已关闭",
-                    leading = { IconBadge(Icons.Outlined.Grade) },
-                    checked = remindExam,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindExam(on) } },
-                )
-                PrismToggleRow(
-                    title = "低电费提醒",
-                    subtitle = if (remindEnabled && remindLowElectric) "低于 $lowThreshold 度，每天 20:00" else "已关闭",
-                    leading = { IconBadge(Icons.Outlined.Bolt) },
-                    checked = remindLowElectric,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindLowElectric(on) } },
-                )
-                PrismToggleRow(
-                    title = "评教截止",
-                    subtitle = if (remindEnabled && remindEvaluation) "待评课程加入待办" else "已关闭",
-                    leading = { IconBadge(Icons.Outlined.RateReview) },
-                    checked = remindEvaluation,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindEvaluation(on) } },
-                )
-                PrismToggleRow(
-                    title = "学习通作业",
-                    subtitle = if (remindEnabled && remindXxt) "截止前 24 / 6 / 1 小时各提醒一次" else "已关闭",
-                    leading = { IconBadge(Icons.AutoMirrored.Outlined.Assignment) },
-                    checked = remindXxt,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindXxtHomework(on) } },
-                )
-                PrismToggleRow(
-                    title = "学习通通知",
-                    subtitle = if (remindEnabled && remindXxtNotice) "未读通知逐条提醒" else "已关闭",
-                    leading = { IconBadge(Icons.Outlined.Notifications) },
-                    checked = remindXxtNotice,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindXxtNotice(on) } },
-                )
-                PrismToggleRow(
-                    title = "洗浴排队",
-                    subtitle = if (remindEnabled && remindShowerQueue) "仅在洗浴页打开时到号提醒" else "已关闭",
-                    leading = { IconBadge(Icons.Outlined.Shower) },
-                    checked = remindShowerQueue,
-                    enabled = remindEnabled,
-                    onCheckedChange = { on -> set { settings.setRemindShowerQueue(on) } },
-                )
-                PrismToggleRow(
-                    title = "成绩更新",
-                    subtitle = "暂不支持系统通知",
-                    leading = { IconBadge(Icons.Outlined.Grade) },
-                    checked = false,
-                    enabled = false,
-                    onCheckedChange = { },
-                )
-            }
-
-            PrismCard(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .alpha(if (remindEnabled) 1f else 0.5f),
-            ) {
-                CardHeader("提醒设置")
-                Spacer(Modifier.height(10.dp))
-                Text("课前提醒时间", style = subheadlineStyle())
-                Spacer(Modifier.height(6.dp))
-                PrismSegmented(
-                    options = leadOptions.map { "课前 $it 分钟" },
-                    selectedIndex = leadOptions.indexOf(classLead).coerceAtLeast(0),
-                    enabled = remindEnabled && remindClass,
-                    onSelect = { index ->
-                        set { settings.setRemindClassLead(leadOptions[index]) }
-                    },
-                )
-                Spacer(Modifier.height(14.dp))
-                Text("低电费阈值", style = subheadlineStyle())
-                Spacer(Modifier.height(6.dp))
-                PrismSegmented(
-                    options = thresholdOptions.map { "$it 度" },
-                    selectedIndex = thresholdOptions.indexOf(lowThreshold).coerceAtLeast(0),
-                    enabled = remindEnabled && remindLowElectric,
-                    onSelect = { index ->
-                        set { settings.setLowElectricThreshold(thresholdOptions[index]) }
-                    },
-                )
-            }
-
-            PrismGroupedList {
-                PrismRow(
-                    title = "免打扰时段",
-                    subtitle = "${formatHour(quietStart)}–${formatHour(quietEnd)} · ${if (quietOn) "已开启" else "已关闭"}",
-                    leading = { IconBadge(Icons.Outlined.Notifications) },
-                    trailing = {
-                        Text(
-                            "修改",
-                            style = footnoteStyle(),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    onClick = { quietSheet = true },
-                )
-                PrismToggleRow(
-                    title = "免打扰开关",
-                    subtitle = "时段内不发送系统通知",
-                    leading = { IconBadge(Icons.Outlined.Notifications) },
-                    checked = quietOn,
-                    onCheckedChange = { on ->
-                        set { settings.setQuietEnabled(on) }
-                        if (on) messenger.success("免打扰已开启") else messenger.info("免打扰已关闭")
-                    },
-                )
+                        },
+                        onClick = { quietSheet = true },
+                    )
+                    PrismToggleRow(
+                        title = "免打扰开关",
+                        subtitle = "时段内不发送系统通知",
+                        leading = { IconBadge(Icons.Outlined.Notifications) },
+                        checked = quietOn,
+                        onCheckedChange = { on ->
+                            set { settings.setQuietEnabled(on) }
+                            if (on) messenger.success("免打扰已开启") else messenger.info("免打扰已关闭")
+                        },
+                    )
+                }
             }
 
             PrismTextButton(

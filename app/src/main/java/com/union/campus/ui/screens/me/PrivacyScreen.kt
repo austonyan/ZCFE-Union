@@ -78,6 +78,7 @@ fun PrivacyScreen(
                 confirmWipe = false
                 launchUi {
                     ServiceLocator.jwRepository.logout()
+                    ServiceLocator.xxtRepository.logout()
                     ServiceLocator.showerRepository.logout()
                     ServiceLocator.electricRepository.unbindAccount()
                     entities.removeAll()
