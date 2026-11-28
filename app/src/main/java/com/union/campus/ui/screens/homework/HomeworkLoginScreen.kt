@@ -37,6 +37,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.IconBadge
@@ -101,7 +102,7 @@ fun HomeworkLoginScreen(
                     ?.let { "${e.userMessage}（$it）" } ?: e.userMessage
             } catch (e: Exception) {
                 haptics.error()
-                error = "登录失败：${e.message ?: "未知错误"}"
+                error = "登录失败：${e.userFacingMessage()}"
             } finally {
                 loading = false
             }

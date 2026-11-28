@@ -41,6 +41,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.JwNotice
 import com.union.campus.domain.StudentRecord
@@ -236,7 +237,7 @@ fun StudentRecordScreen(
             } catch (e: AppError) {
                 UiState.Failed(e.userMessage)
             } catch (e: Exception) {
-                UiState.Failed("学籍信息加载失败：${e.message}")
+                UiState.Failed("学籍信息加载失败：${e.userFacingMessage()}")
             }
         }
     }

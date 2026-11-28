@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.data.repo.isShowerQueueTurn
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ShowerArea
@@ -158,7 +159,7 @@ fun ShowerScreen(
                     }
                 }
             } catch (e: Exception) {
-                error = "洗浴加载失败：${e.message}"
+                error = "洗浴加载失败：${e.userFacingMessage()}"
                 loading = false
             }
         }
@@ -229,7 +230,7 @@ fun ShowerScreen(
                 }
             }
         } catch (e: Exception) {
-            error = "校区加载失败：${e.message}"
+            error = "校区加载失败：${e.userFacingMessage()}"
             loading = false
         }
     }
@@ -308,7 +309,7 @@ fun ShowerScreen(
             error = e.userMessage
             loading = false
         } catch (e: Exception) {
-            error = "区域加载失败：${e.message}"
+            error = "区域加载失败：${e.userFacingMessage()}"
             loading = false
         }
     }
@@ -346,7 +347,7 @@ fun ShowerScreen(
         } catch (e: AppError) {
             error = e.userMessage
         } catch (e: Exception) {
-            error = "设备加载失败：${e.message}"
+            error = "设备加载失败：${e.userFacingMessage()}"
         } finally {
             loading = false
         }
@@ -487,7 +488,7 @@ fun ShowerScreen(
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
-                result = "加入排队失败：${e.message}"
+                result = "加入排队失败：${e.userFacingMessage()}"
             } finally {
                 queueBusy = false
             }
@@ -508,7 +509,7 @@ fun ShowerScreen(
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
-                result = "取消排队失败：${e.message}"
+                result = "取消排队失败：${e.userFacingMessage()}"
             } finally {
                 queueBusy = false
             }
@@ -550,7 +551,7 @@ fun ShowerScreen(
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
-                result = "预约失败：${e.message}"
+                result = "预约失败：${e.userFacingMessage()}"
             } finally {
                 reserveBusy = false
             }
@@ -584,7 +585,7 @@ fun ShowerScreen(
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
-                result = "预约状态刷新失败：${e.message}"
+                result = "预约状态刷新失败：${e.userFacingMessage()}"
             } finally {
                 reservationBusy = false
             }
@@ -608,7 +609,7 @@ fun ShowerScreen(
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
-                result = "取消预约失败：${e.message}"
+                result = "取消预约失败：${e.userFacingMessage()}"
             } finally {
                 reservationBusy = false
             }
@@ -672,7 +673,7 @@ fun ShowerScreen(
                         result = e.userMessage
                         reservation = runCatching { shower.refreshReservation() }.getOrNull()
                     } catch (e: Exception) {
-                        result = "启动失败：${e.message}，请刷新设备状态"
+                        result = "启动失败：${e.userFacingMessage()}，请刷新设备状态"
                     }
                 }
             },

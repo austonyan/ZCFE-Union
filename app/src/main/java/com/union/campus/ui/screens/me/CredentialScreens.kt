@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.launchUi
@@ -121,7 +122,7 @@ fun CredentialsCenterScreen(
                         haptics.success()
                         messenger.info("已退出${target.label}账号")
                     } catch (e: Exception) {
-                        messenger.error("退出失败：${e.message ?: "请稍后重试"}")
+                        messenger.error("退出失败：${e.userFacingMessage()}")
                     }
                 }
             },

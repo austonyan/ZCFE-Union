@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ShowerDevice
 import com.union.campus.domain.ShowerReservation
@@ -105,7 +106,7 @@ fun DeviceDetailScreen(
             } catch (e: AppError) {
                 result = e.userMessage
             } catch (e: Exception) {
-                result = "取消预约失败：${e.message}"
+                result = "取消预约失败：${e.userFacingMessage()}"
             } finally {
                 reservationBusy = false
             }
@@ -141,7 +142,7 @@ fun DeviceDetailScreen(
                         result = e.userMessage
                         reservation = runCatching { shower.refreshReservation() }.getOrNull()
                     } catch (e: Exception) {
-                        result = "启动失败：${e.message}，请刷新确认状态"
+                        result = "启动失败：${e.userFacingMessage()}，请刷新确认状态"
                     }
                 }
             },
@@ -167,7 +168,7 @@ fun DeviceDetailScreen(
                             messenger.info("预约已提交，请刷新确认状态与等待时间")
                         }
                     } catch (e: AppError) { result = e.userMessage }
-                    catch (e: Exception) { result = "预约失败：${e.message}" }
+                    catch (e: Exception) { result = "预约失败：${e.userFacingMessage()}" }
                 }
             },
             onDismiss = { reserveConfirm = false },

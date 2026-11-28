@@ -23,6 +23,7 @@ import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Grade
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -59,7 +60,9 @@ import com.union.campus.domain.gradeBandOf
 import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.common.dataOrNull
+import com.union.campus.ui.common.formatUpdatedAt
 import com.union.campus.ui.common.launchUi
+import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.NullStatus
 import com.union.campus.ui.prism.PrismAlpha
 import com.union.campus.ui.prism.PrismCorner
@@ -67,6 +70,7 @@ import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGpaRuler
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismLoadingIndicator
 import com.union.campus.ui.prism.PrismRow
 import com.union.campus.ui.prism.PrismSegmented
 import com.union.campus.ui.prism.PrismShape
@@ -110,6 +114,9 @@ fun GradesScreen(
     var state by remember { mutableStateOf<UiState<GradesData>>(UiState.Loading) }
     // 补考标记：只读原始成绩缓存里不及格的课程代码，不额外发网络请求。
     var rawFailCodes by remember { mutableStateOf<Set<String>>(emptySet()) }
+    // 已显示内容时，刷新只在顶栏图标转圈，不把整页换成骨架屏。
+    val messenger = LocalPrismMessenger.current
+    var refreshing by remember { mutableStateOf(false) }
 
     // 补考标记：每次进入/切换学期都向上游要一次原始成绩，用户不必先手动点「原始成绩」。
     LaunchedEffect(semesterDm, effective) {
@@ -184,6 +191,24 @@ fun GradesScreen(
         }
     }
 
+    /** 顶栏刷新：保留已显示的成绩，只向上游要一次最新数据。 */
+    fun refresh() {
+        if (refreshing || state is UiState.Loading) return
+        refreshing = true
+        launchUi {
+            try {
+                loadInner(force = true)
+                when (val current = state) {
+                    is UiState.Failed -> messenger.error(current.message)
+                    is UiState.Ready -> messenger.success("成绩已刷新")
+                    else -> Unit
+                }
+            } finally {
+                refreshing = false
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (semesterDm.isBlank()) semesterDm = jw.currentSemesterDm()
         if (semesters.isEmpty()) {
@@ -220,11 +245,29 @@ fun GradesScreen(
     val semesterName = semesters.firstOrNull { it.dm == semesterDm }?.name
         ?: semesterDm.ifBlank { "本学期" }
 
+    // 缓存回读时才带更新时间；直接取上游时没有可信时间戳，就不写“xx 更新”。
+    val updatedAt = (state as? UiState.Ready)?.updatedAt ?: 0L
+
     UnionScreenScaffold(
         title = "成绩",
+        subtitle = if (updatedAt > 0) "数据 ${formatUpdatedAt(updatedAt)}" else null,
         onBack = onBack,
         modifier = modifier,
         actions = {
+            Box {
+                PrismIconButton(
+                    icon = Icons.Rounded.Refresh,
+                    contentDescription = "刷新成绩",
+                    enabled = !refreshing && state !is UiState.Loading,
+                    onClick = { refresh() },
+                )
+                if (refreshing) {
+                    PrismLoadingIndicator(
+                        modifier = Modifier.align(Alignment.Center),
+                        size = 18.dp,
+                    )
+                }
+            }
             PrismIconButton(
                 icon = Icons.Outlined.Share,
                 contentDescription = "分享",

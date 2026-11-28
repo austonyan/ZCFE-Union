@@ -52,6 +52,7 @@ import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismMessageTone
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
@@ -175,7 +176,13 @@ fun RemindersCenterScreen(
                             requestNotifications()
                             messenger.success("提醒已开启")
                         } else {
-                            messenger.info("已暂停全部提醒")
+                            // 用户可控：暂停是误触时可直接撤销，不用回到开关再点一次。
+                            messenger.show(
+                                text = "已暂停全部提醒",
+                                tone = PrismMessageTone.Info,
+                                actionLabel = "撤销",
+                                onAction = { set { settings.setRemindEnabled(true) } },
+                            )
                         }
                     },
                 )

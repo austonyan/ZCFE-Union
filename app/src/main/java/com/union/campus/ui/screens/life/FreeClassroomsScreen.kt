@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.FreeClassroom
 import com.union.campus.domain.SectionTime
@@ -116,7 +117,7 @@ fun FreeClassroomsScreen(
                 buildingsError = e.userMessage
                 emptyList()
             } catch (e: Exception) {
-                buildingsError = "教学楼加载失败：${e.message}"
+                buildingsError = "教学楼加载失败：${e.userFacingMessage()}"
                 emptyList()
             }
         } else {
@@ -184,7 +185,7 @@ fun FreeClassroomsScreen(
                         } catch (e: AppError) {
                             failures[building.dm to dateIso] = e.userMessage
                         } catch (e: Exception) {
-                            failures[building.dm to dateIso] = "教室查询失败：${e.message}"
+                            failures[building.dm to dateIso] = "教室查询失败：${e.userFacingMessage()}"
                         }
                     }
                 }

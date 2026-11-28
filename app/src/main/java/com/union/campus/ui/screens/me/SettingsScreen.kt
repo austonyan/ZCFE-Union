@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Notifications
@@ -67,6 +68,7 @@ fun SettingsScreen(
     onOpenPrivacy: () -> Unit,
     onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenHelp: () -> Unit = {},
 ) {
     val settings = ServiceLocator.settings
     val themeMode by settings.themeMode.collectAsState(initial = "system")
@@ -170,6 +172,17 @@ fun SettingsScreen(
                         subtitle = reminderSummary,
                         leading = { IconBadge(Icons.Outlined.Notifications) },
                         onClick = onOpenReminders,
+                    )
+                }
+            }
+
+            PrismSection("支持") {
+                PrismGroupedList {
+                    PrismRow(
+                        title = "帮助与常见问题",
+                        subtitle = "账号、课表、洗浴、电费与提醒",
+                        leading = { IconBadge(Icons.AutoMirrored.Outlined.HelpOutline) },
+                        onClick = onOpenHelp,
                     )
                 }
             }

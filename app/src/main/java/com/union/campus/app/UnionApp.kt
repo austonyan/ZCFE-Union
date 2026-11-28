@@ -41,6 +41,7 @@ import com.union.campus.ui.screens.homework.HomeworkLoginScreen
 import com.union.campus.ui.screens.homework.HomeworkScreen
 import com.union.campus.ui.screens.me.CredentialsCenterScreen
 import com.union.campus.ui.screens.me.AboutScreen
+import com.union.campus.ui.screens.me.HelpScreen
 import com.union.campus.ui.screens.me.PrivacyScreen
 import com.union.campus.ui.screens.me.ProfileScreen
 import com.union.campus.ui.screens.me.RemindersCenterScreen
@@ -293,6 +294,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
                     onOpenSettings = { navController.navigate(Screen.Settings.route) },
                     onOpenAbout = { navController.navigate(Screen.About.route) },
+                    onOpenHelp = { navController.navigate(Screen.Help.route) },
                 )
             }
 
@@ -520,6 +522,7 @@ fun UnionApp(modifier: Modifier = Modifier) {
                     onOpenReminders = { navController.navigate(Screen.Reminders.route) },
                     onOpenPrivacy = { navController.navigate(Screen.Privacy.route) },
                     onOpenAbout = { navController.navigate(Screen.About.route) },
+                    onOpenHelp = { navController.navigate(Screen.Help.route) },
                 )
             }
             composable(Screen.Privacy.route) {
@@ -535,6 +538,9 @@ fun UnionApp(modifier: Modifier = Modifier) {
             }
             composable(Screen.About.route) {
                 AboutScreen(onBack = { navController.popBackStack() })
+            }
+            composable(Screen.Help.route) {
+                HelpScreen(onBack = { navController.popBackStack() })
             }
         }
     }

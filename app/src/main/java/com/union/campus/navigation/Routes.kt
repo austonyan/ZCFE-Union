@@ -77,6 +77,7 @@ enum class Screen(
     Settings("settings", "设置"),
     Privacy("privacy", "隐私与安全"),
     About("about", "关于"),
+    Help("help", "帮助与常见问题"),
     ;
 
     companion object {
