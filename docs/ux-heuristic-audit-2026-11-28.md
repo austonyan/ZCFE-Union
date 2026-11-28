@@ -61,6 +61,25 @@
 - 页面框架统一顶栏与返回语义：`ui/common/ScreenScaffold.kt:88` 起
 - 新的帮助页只组合 `PrismSection` / `PrismCard` / `PrismRow` / `GroupDivider`，与设置、关于页同一节奏
 
+#### 组件级：开关对齐 material3 `Switch`
+
+参考官方 [`Switch` 文档](https://developer.android.com/develop/ui/compose/components/switch) 的三块实现（带图标、自定义颜色、整行可点），把 `ui/prism/PrismSwitch.kt` 重做了一遍，全项目 18 处开关统一走它：
+
+| 项 | 实现 |
+|----|------|
+| 尺寸 | 轨道 52×32、滑块 24、四周 4dp；按下滑块长到 28（M3 pressed handle）；触控区 52×48 |
+| 选中 | 轨道 `primary`、滑块 `onPrimary`、图标 `onPrimaryContainer` |
+| 未选中 | 轨道 `surfaceContainerHighest`、滑块 `outline` |
+| 禁用 | 轨道 `onSurface` 12%、滑块 `onSurface` 38%（与 M3 disabled token 一致） |
+| 带图标 | 选中时滑块内 16dp 对勾（`Icons.Rounded.Check`），只画图形、`contentDescription = null` |
+| 整行可点 | `PrismToggleRow` 用 `toggleable(role = Role.Switch)` 承接整行点击，右侧开关 `interactive = false` 且 `clearAndSetSemantics {}`，读屏只有一个目标 |
+| 按压反馈 | 行与指示器共享 `interactionSource`，按住整行时滑块同步放大 |
+| 禁用文字 | 标题/副标题按 M3 压到 `onSurface` 38%，不再保留正常对比度 |
+
+刻意偏差一处：**禁用且选中时轨道保留 38% 的 primary**，不跟着变成中性灰。M3 的 disabled 让「开/关」看起来一样，实测（关掉提醒总开关）用户会把子开关全读成未选中，看不出哪些本来是开的——状态可见性优先于 token 细节。
+
+替换点：`ui/prism/PrismComponents.kt` 的 `PrismToggleRow`（17 处在用）与 `ui/screens/life/ShowerSessionScreens.kt` 的「屏幕常亮」（原来只有开关本身可点，现在整行可点）。
+
 ### 5. 防错
 
 - 登录表单逐字段定位焦点，而不是一句"输入有误"：`ui/screens/onboarding/LoginAcademicScreen.kt:119`
@@ -123,6 +142,10 @@
 | `ui/common/ExternalLinks.kt` | `Feedback` 链接常量 | 10 |
 | `app/src/test/.../AppErrorCopyTest.kt`（新增） | 3 项：原始异常不上屏、IO → 网络文案、AppError 保留原文案 | 9 |
 | `work/UnionNotifications.kt` | 新增 `requestPostNotificationPermission()`：固定 requestCode，绕开启动器自动码超 16 位的崩溃 | 5 / 9 |
+| `ui/prism/PrismSwitch.kt` | 重做：M3 尺寸/颜色/禁用 token、选中对勾、按压放大、指示器不进无障碍树 | 1 / 4 / 5 |
+| `ui/prism/PrismComponents.kt` | `PrismToggleRow` 共享 `interactionSource`，禁用文字压到 38% | 4 |
+| `ui/screens/life/ShowerSessionScreens.kt` | 「屏幕常亮」从只有开关可点改成整行可点 | 4 |
+| `app/src/androidTest/.../PrismSwitchTest.kt` | 新增 2 项：禁用态不回调、开关行只暴露一个 Switch 目标 | 4 |
 | `ui/screens/me/RemindersScreen.kt`、`onboarding/BindDoneScreen.kt` | 通知权限改用上面的固定码入口（设备实测崩溃修复） | 5 / 9 |
 
 ## 验证
@@ -132,7 +155,7 @@
 ```bash
 ./gradlew.bat assembleDebug          # BUILD SUCCESSFUL
 ./gradlew.bat testDebugUnitTest      # 含新增 AppErrorCopyTest
-./gradlew.bat lintDebug
+./gradlew.bat lintDebug              # 需网络拉 lint-gradle；本机代理中断时跳过
 ```
 
 设备实测（模拟器 `Medium_Phone_API_37.0`，Android 17，WHPX）：
@@ -140,6 +163,8 @@
 - 首次启动仍是「一帧空白 → 欢迎页」（`app/UnionApp.kt:119`，见「未覆盖」第 1 条）
 - 今天 / 生活 / 教务 / 我的 / 设置渲染正常，空态文案与「去绑定」入口都在
 - 帮助页：两处入口可用，问答展开/收起、分隔线随内容重排正常，展开状态在页面内保持
+- 开关：选中态滑块内出现对勾；关掉提醒总开关后，子开关从「看不清开没开」变成「淡化但仍然看得出是开的」（禁用且选中保留 38% primary 轨道）；禁用行的标题也按 M3 压到 38%
+- 仪器测试在 Android 17 模拟器上跑不动：Espresso 走 `InputManager.getInstance` 反射注入，被系统移除后直接 `NoSuchMethodException`，既有测试（如 `PrismChipSemanticsTest`）同样失败——环境问题，需 API ≤ 35 的镜像或真机；本轮以编译 + 设备截图为准
 - 提醒中心：关掉总开关 → 提示条带「撤销」；点撤销后 `union_settings.preferences_pb` 里 `remind_enabled` 回写为 `true`（模拟器上 DataStore 落盘约 2–3s，不是逻辑问题）
 - 成绩页：顶栏刷新在未登录时给「登录教务后才能同步成绩」，不再点了没反应
 - **发现并修复的崩溃**：点「开启提醒」/ 绑定完成页的提醒开关时，`rememberLauncherForActivityResult` 自动生成的 requestCode 超出低 16 位，抛 `IllegalArgumentException: Can only use lower 16 bits for requestCode`（栈顶 `FragmentActivity.checkForValidRequestCode` → `ActivityCompat.requestPermissions`）。改用 `UnionNotifications.requestPostNotificationPermission()`：固定 `0x6e01` + `ActivityCompat.requestPermissions`，结果由 ON_RESUME 重读 `canPost`。修复后系统授权框正常弹出，允许后「系统通知未开启」卡片自动消失

@@ -614,6 +614,8 @@ fun PrismToggleRow(
     enabled: Boolean = true,
 ) {
     val haptics = rememberPrismHaptics()
+    // 整行是唯一的开关目标；把按下的交互流共享给右侧指示器，按下时滑块也会跟着放大。
+    val interaction = remember { MutableInteractionSource() }
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -621,6 +623,7 @@ fun PrismToggleRow(
                 value = checked,
                 enabled = enabled,
                 role = androidx.compose.ui.semantics.Role.Switch,
+                interactionSource = interaction,
                 onValueChange = {
                     haptics.toggle()
                     onCheckedChange(it)
@@ -636,7 +639,12 @@ fun PrismToggleRow(
             Text(
                 title,
                 style = bodyStyle(),
-                color = MaterialTheme.colorScheme.onSurface,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.onSurface
+                } else {
+                    // M3：禁用文字用 onSurface 38%，不再保留正常对比度。
+                    MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)
+                },
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
             )
@@ -644,7 +652,11 @@ fun PrismToggleRow(
                 Text(
                     subtitle,
                     style = footnoteStyle(),
-                    color = prismTextMuted(),
+                    color = if (enabled) {
+                        prismTextMuted()
+                    } else {
+                        MaterialTheme.colorScheme.onSurface.withAlpha(PrismAlpha.Disabled)
+                    },
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
@@ -655,6 +667,7 @@ fun PrismToggleRow(
             onCheckedChange = onCheckedChange,
             enabled = enabled,
             interactive = false,
+            interactionSource = interaction,
         )
     }
 }
