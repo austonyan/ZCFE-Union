@@ -122,16 +122,27 @@
 | `ui/screens/me/SettingsScreen.kt`、`MeScreens.kt` | 「帮助与常见问题」入口 | 10 |
 | `ui/common/ExternalLinks.kt` | `Feedback` 链接常量 | 10 |
 | `app/src/test/.../AppErrorCopyTest.kt`（新增） | 3 项：原始异常不上屏、IO → 网络文案、AppError 保留原文案 | 9 |
+| `work/UnionNotifications.kt` | 新增 `requestPostNotificationPermission()`：固定 requestCode，绕开启动器自动码超 16 位的崩溃 | 5 / 9 |
+| `ui/screens/me/RemindersScreen.kt`、`onboarding/BindDoneScreen.kt` | 通知权限改用上面的固定码入口（设备实测崩溃修复） | 5 / 9 |
 
 ## 验证
 
-按要求本轮**未执行构建**（未跑 `assembleDebug` / `assembleRelease` / `testDebugUnitTest`）。验收时建议依次执行：
+构建与单测（本机 Android SDK 已迁至 `D:\Android\Sdk`，JDK 25 + Gradle 9.7.1）：
 
 ```bash
+./gradlew.bat assembleDebug          # BUILD SUCCESSFUL
 ./gradlew.bat testDebugUnitTest      # 含新增 AppErrorCopyTest
-./gradlew.bat assembleDebug
-./gradlew.bat lintDebug              # 新增页面不应引入 error
+./gradlew.bat lintDebug
 ```
+
+设备实测（模拟器 `Medium_Phone_API_37.0`，Android 17，WHPX）：
+
+- 首次启动仍是「一帧空白 → 欢迎页」（`app/UnionApp.kt:119`，见「未覆盖」第 1 条）
+- 今天 / 生活 / 教务 / 我的 / 设置渲染正常，空态文案与「去绑定」入口都在
+- 帮助页：两处入口可用，问答展开/收起、分隔线随内容重排正常，展开状态在页面内保持
+- 提醒中心：关掉总开关 → 提示条带「撤销」；点撤销后 `union_settings.preferences_pb` 里 `remind_enabled` 回写为 `true`（模拟器上 DataStore 落盘约 2–3s，不是逻辑问题）
+- 成绩页：顶栏刷新在未登录时给「登录教务后才能同步成绩」，不再点了没反应
+- **发现并修复的崩溃**：点「开启提醒」/ 绑定完成页的提醒开关时，`rememberLauncherForActivityResult` 自动生成的 requestCode 超出低 16 位，抛 `IllegalArgumentException: Can only use lower 16 bits for requestCode`（栈顶 `FragmentActivity.checkForValidRequestCode` → `ActivityCompat.requestPermissions`）。改用 `UnionNotifications.requestPostNotificationPermission()`：固定 `0x6e01` + `ActivityCompat.requestPermissions`，结果由 ON_RESUME 重读 `canPost`。修复后系统授权框正常弹出，允许后「系统通知未开启」卡片自动消失
 
 静态自查：
 
@@ -147,8 +158,9 @@
 
 ## 未覆盖（建议下一轮）
 
-1. 冷启动 `Box(Modifier.fillMaxSize())`（`app/UnionApp.kt:119`）与系统启动画面之间仍有一帧空白，可合并为品牌启动页
-2. 表单返回直接丢弃已输入内容（只有评教页有 `BackHandler`：`ui/screens/study/EvaluationScreen.kt:222`），登录/绑定页可加"放弃填写？"
-3. 空闲教室、洗浴缺少手动刷新入口，依赖回到前台重载
-4. 高频操作快捷方式（如洗浴"再来一次上次设备"）仍缺，属灵活高效原则的下一层
-5. 本轮无设备：未做 TalkBack、大字号、1200×2670 视觉复核（上一轮见 `docs/layout-regression-1200x2670.md`）
+1. 冷启动 `Box(Modifier.fillMaxSize())`（`app/UnionApp.kt:119`）与系统启动画面之间仍有一帧空白（设备实测复现），可合并为品牌启动页
+2. 欢迎页「暂不绑定」不写 `boundDone`，所以没绑账号的用户每次冷启动都会再看一次欢迎页；是否改成「跳过即视为完成后不再拦」需要产品确认
+3. 表单返回直接丢弃已输入内容（只有评教页有 `BackHandler`：`ui/screens/study/EvaluationScreen.kt:222`），登录/绑定页可加"放弃填写？"
+4. 空闲教室、洗浴缺少手动刷新入口，依赖回到前台重载
+5. 高频操作快捷方式（如洗浴"再来一次上次设备"）仍缺，属灵活高效原则的下一层
+6. 设备走查只覆盖了 720×1600 一档：TalkBack、大字号、1200×2670 视觉复核仍未做（上一轮见 `docs/layout-regression-1200x2670.md`）

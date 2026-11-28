@@ -201,6 +201,10 @@ fun GradesScreen(
                 when (val current = state) {
                     is UiState.Failed -> messenger.error(current.message)
                     is UiState.Ready -> messenger.success("成绩已刷新")
+                    // 空态也要有反馈：未登录说清楚原因，已登录说明这门课还没出分。
+                    is UiState.Empty -> messenger.info(
+                        if (jw.isBound()) "已刷新，当前学期暂无成绩" else "登录教务后才能同步成绩",
+                    )
                     else -> Unit
                 }
             } finally {

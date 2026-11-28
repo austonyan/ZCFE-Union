@@ -1,13 +1,16 @@
 package com.union.campus.work
 
 import android.Manifest
+import android.app.Activity
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import com.union.campus.MainActivity
@@ -52,6 +55,39 @@ object UnionNotifications {
             return false
         }
         return true
+    }
+
+    /**
+     * 直接向系统申请通知权限。
+     *
+     * 不用 rememberLauncherForActivityResult：它由 ActivityResultRegistry 自动生成 requestCode，
+     * 在当前依赖组合下可能超出 FragmentActivity 限制的低 16 位，点击即崩
+     * （`IllegalArgumentException: Can only use lower 16 bits for requestCode`）。
+     * 结果不需要回调——调用方在 ON_RESUME 里重读 [canPost] 即可。
+     *
+     * @return 是否真的弹出了系统授权框
+     */
+    fun requestPostNotificationPermission(context: Context, requestCode: Int = POST_PERMISSION_REQUEST_CODE): Boolean {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return false
+        if (canPost(context)) return false
+        val activity = context.findActivity() ?: return false
+        return runCatching {
+            ActivityCompat.requestPermissions(
+                activity,
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
+                requestCode,
+            )
+            true
+        }.getOrDefault(false)
+    }
+
+    /** 系统权限框的固定请求码；必须 < 0x10000。 */
+    const val POST_PERMISSION_REQUEST_CODE = 0x6e01
+
+    private tailrec fun Context.findActivity(): Activity? = when (this) {
+        is Activity -> this
+        is ContextWrapper -> baseContext.findActivity()
+        else -> null
     }
 
     fun notify(
