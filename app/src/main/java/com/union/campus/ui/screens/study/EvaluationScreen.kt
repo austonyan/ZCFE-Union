@@ -40,6 +40,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.data.repo.decodeEvaluationMultiAnswer
 import com.union.campus.data.repo.EvaluationSubmissionRejected
 import com.union.campus.data.repo.encodeEvaluationMultiAnswer
@@ -112,7 +113,7 @@ fun EvaluationScreen(
             } catch (e: AppError) {
                 listError = e.userMessage
             } catch (e: Exception) {
-                listError = "评教列表加载失败：${e.message ?: "请重试"}"
+                listError = "评教列表加载失败：${e.userFacingMessage()}"
             } finally {
                 loading = false
             }
@@ -138,7 +139,7 @@ fun EvaluationScreen(
         } catch (e: AppError) {
             formError = e.userMessage
         } catch (e: Exception) {
-            formError = "问卷加载失败：${e.message ?: "请重试"}"
+            formError = "问卷加载失败：${e.userFacingMessage()}"
         } finally {
             formLoading = false
         }

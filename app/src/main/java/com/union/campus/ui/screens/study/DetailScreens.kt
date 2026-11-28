@@ -24,6 +24,7 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.MeetingRoom
 import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -54,6 +55,7 @@ import com.union.campus.ui.prism.PrismCorner
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismLoadingIndicator
 import com.union.campus.ui.prism.PrismLoadingBlock
 import com.union.campus.ui.prism.PrismNoticeBanner
 import com.union.campus.ui.prism.PrismNoticeTone
@@ -303,11 +305,30 @@ fun ExamsScreen(
     onOpenExam: (Exam) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    refreshing: Boolean = false,
 ) {
     UnionScreenScaffold(
         title = "考试",
         onBack = onBack,
         modifier = modifier,
+        actions = {
+            if (exams.isNotEmpty()) {
+                Box {
+                    PrismIconButton(
+                        icon = Icons.Rounded.Refresh,
+                        contentDescription = "刷新考试安排",
+                        enabled = !refreshing && !loading,
+                        onClick = onRetry,
+                    )
+                    if (refreshing) {
+                        PrismLoadingIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            size = 18.dp,
+                        )
+                    }
+                }
+            }
+        },
     ) { padding ->
         Column(
             Modifier
@@ -328,7 +349,8 @@ fun ExamsScreen(
 
             when {
                 loading -> PrismLoadingBlock(label = "考试安排加载中")
-                error != null -> PrismErrorState(
+                // 只有真的没有数据时才整页报错；刷新失败保留上次结果并说明。
+                error != null && exams.isEmpty() -> PrismErrorState(
                     message = error,
                     hint = if (isAuth) "请在「我的 → 凭证中心」重新登录" else null,
                     onRetry = onRetry,
@@ -339,6 +361,15 @@ fun ExamsScreen(
                     subtitle = "考试安排通常在考前 2–4 周发布",
                 )
                 else -> {
+                    if (error != null) {
+                        PrismNoticeBanner(
+                            title = "刷新失败，显示的是上次结果",
+                            message = error,
+                            tone = PrismNoticeTone.Warning,
+                            actionLabel = "重试",
+                            onAction = onRetry,
+                        )
+                    }
                     val first = exams.first()
                     PrismCard(
                         modifier = Modifier.fillMaxWidth(),

@@ -11,6 +11,9 @@ object ExternalLinks {
     const val ElectricTopUp = "https://ur.alipay.com/_7pzqnfDTdCJERAdDgLmAPP"
     const val RetrievePassword = "https://authserver.zzife.edu.cn/retrieve-password/retrievePassword/index.html"
 
+    /** 应用内「帮助与常见问题」的反馈入口。 */
+    const val Feedback = "https://github.com/austonyan/ZCFE-Union/issues"
+
     /** 洗浴与电费充值共用的提示文案。 */
     const val TopUpTip = "充值将跳转至支付宝官方小程序充值页面完成"
 }

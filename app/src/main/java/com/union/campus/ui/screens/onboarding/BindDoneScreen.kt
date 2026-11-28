@@ -1,9 +1,6 @@
 package com.union.campus.ui.screens.onboarding
 
-import android.Manifest
 import android.os.Build
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -96,15 +93,7 @@ fun BindDoneScreen(
         }
     }
 
-    // 首次引导结束前顺手把系统通知权限问一遍；拒绝也不拦进入应用。
-    val enterPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { enter() }
-    // 打开提醒开关时只申请权限，不直接进入应用。
-    val togglePermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { }
-
+    // 权限结果不需要回调：进入应用后，「提醒中心」与系统设置都能看到真实状态。
     fun needsNotificationPermission(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
             !UnionNotifications.canPost(context)
@@ -187,7 +176,7 @@ fun BindDoneScreen(
                             remindOn = on
                             launchUi { settings.setRemindEnabled(on) }
                             if (on && needsNotificationPermission()) {
-                                togglePermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                UnionNotifications.requestPostNotificationPermission(context)
                             }
                         },
                         leading = { Icon(Icons.Rounded.Notifications, null) },
@@ -198,10 +187,10 @@ fun BindDoneScreen(
             PrismButton(
                 onClick = {
                     if (remindOn && needsNotificationPermission()) {
-                        enterPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                    } else {
-                        enter()
+                        // 先叫出系统授权框，再进入应用；拒绝也不拦进入。
+                        UnionNotifications.requestPostNotificationPermission(context)
                     }
+                    enter()
                 },
                 modifier = Modifier.fillMaxWidth(),
             ) {

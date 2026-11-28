@@ -27,8 +27,19 @@ sealed class AppError(val userMessage: String, val debugDetail: String? = null) 
     }
 }
 
-/** suspend 帮助：把异常映射为 AppError。 */
+/** suspend 帮助：把异常映射为 AppError。原始 message 只留在 debugDetail，不直接展示。 */
 fun Throwable.toAppError(): AppError = when (this) {
     is AppError -> this
+    is java.io.IOException -> AppError.Network(message)
     else -> AppError.Unknown(message)
+}
+
+/**
+ * 屏幕提示用的文案：AppError 用既定说法，其它异常不把类名/堆栈甩给用户。
+ * （容错原则：出错时给用户能看懂的原因，而不是 `java.net.UnknownHostException`。）
+ */
+fun Throwable.userFacingMessage(): String = when (this) {
+    is AppError -> userMessage
+    is java.io.IOException -> AppError.Network().userMessage
+    else -> AppError.Unknown().userMessage
 }

@@ -40,6 +40,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.BindWizardNode
 import com.union.campus.domain.ElectricRoom
@@ -123,7 +124,7 @@ fun BindElectricScreen(
             error = "已绑定房间查询失败：${e.userMessage}"
         } catch (e: Exception) {
             boundRooms = emptyList()
-            error = "已绑定房间查询失败：${e.message}"
+            error = "已绑定房间查询失败：${e.userFacingMessage()}"
         } finally {
             boundLoading = false
         }
@@ -136,7 +137,7 @@ fun BindElectricScreen(
             } catch (e: AppError) {
                 error = "园区加载失败：${e.userMessage}"
             } catch (e: Exception) {
-                error = "园区加载失败：${e.message}"
+                error = "园区加载失败：${e.userFacingMessage()}"
             }
         }
     }
@@ -186,7 +187,7 @@ fun BindElectricScreen(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                error = "选择房间失败：${e.message}"
+                error = "选择房间失败：${e.userFacingMessage()}"
             } finally {
                 loading = false
             }
@@ -228,7 +229,7 @@ fun BindElectricScreen(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "绑定失败：${e.message}"
+                error = "绑定失败：${e.userFacingMessage()}"
             } finally {
                 loading = false
             }

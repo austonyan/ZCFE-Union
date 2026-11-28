@@ -43,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ElectricBalance
 import com.union.campus.domain.ElectricLowState
@@ -66,6 +67,7 @@ import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismErrorState
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismIconButton
+import com.union.campus.ui.prism.PrismMessageTone
 import com.union.campus.ui.prism.PrismStatus
 import com.union.campus.ui.prism.PrismNoticeBanner
 import com.union.campus.ui.prism.PrismNoticeTone
@@ -110,7 +112,7 @@ fun WalletScreen(
         } catch (e: AppError) {
             error = e.userMessage
         } catch (e: Exception) {
-            error = "钱包加载失败：${e.message}"
+            error = "钱包加载失败：${e.userFacingMessage()}"
         }
         loading = false
     }
@@ -225,7 +227,7 @@ fun ShowerOrdersScreen(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "订单加载失败：${e.message}"
+                error = "订单加载失败：${e.userFacingMessage()}"
             } finally {
                 loading = false
             }
@@ -333,7 +335,7 @@ fun ElectricScreen(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "电费加载失败：${e.message}"
+                error = "电费加载失败：${e.userFacingMessage()}"
             }
             loading = false
         }
@@ -350,9 +352,26 @@ fun ElectricScreen(
                 launchUi {
                     try {
                         currentRoom?.let { electric.unbindRooms(listOf(it.roomVerify)) }
-                        messenger.success("已解绑")
-                        balance = null; currentRoom = null
-                    } catch (e: AppError) { result = e.userMessage }
+                        // 解绑后按服务端重建房间列表：切换菜单里不再残留已解绑房间，
+                        // 还剩其他房间时直接落到下一间，避免页面停在“未选择房间”。
+                        rooms = electric.rooms(true)
+                        val lastRoomVerify = settings.lastElectricRoom.first()
+                        currentRoom = rooms.firstOrNull { it.roomVerify == lastRoomVerify }
+                            ?: rooms.firstOrNull()
+                        balance = runCatching {
+                            currentRoom?.let { electric.balance(it.roomVerify, true) }
+                        }.getOrNull()
+                        messenger.show(
+                            text = "已解绑房间",
+                            tone = PrismMessageTone.Success,
+                            actionLabel = "重新绑定",
+                            onAction = onOpenBind,
+                        )
+                    } catch (e: AppError) {
+                        result = e.userMessage
+                    } catch (e: Exception) {
+                        result = "解绑失败：${e.userFacingMessage()}"
+                    }
                 }
             },
             onDismiss = { unbindConfirm = false },
@@ -436,7 +455,7 @@ fun ElectricScreen(
                                     } catch (e: AppError) {
                                         error = e.userMessage
                                     } catch (e: Exception) {
-                                        error = "电量加载失败：${e.message}"
+                                        error = "电量加载失败：${e.userFacingMessage()}"
                                     } finally {
                                         loading = false
                                     }
@@ -708,7 +727,7 @@ fun UsageDetailScreen(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "用量获取失败：${e.message}"
+                error = "用量获取失败：${e.userFacingMessage()}"
             }
             loading = false
         }

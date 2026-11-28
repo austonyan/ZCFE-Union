@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UiState
 import com.union.campus.ui.common.UnionScreenScaffold
@@ -99,7 +100,7 @@ fun CourseSelectScreen(
         } catch (e: AppError) {
             UiState.Failed(e.userMessage)
         } catch (e: Exception) {
-            UiState.Failed("选课加载失败：${e.message}")
+            UiState.Failed("选课加载失败：${e.userFacingMessage()}")
         }
     }
 

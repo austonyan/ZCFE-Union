@@ -14,6 +14,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.outlined.HelpOutline
 import androidx.compose.material.icons.outlined.Bolt
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -92,6 +93,7 @@ fun ProfileScreen(
     onOpenSettings: () -> Unit,
     onOpenAbout: () -> Unit,
     modifier: Modifier = Modifier,
+    onOpenHelp: () -> Unit = {},
 ) {
     val messenger = LocalPrismMessenger.current
     var checking by remember { mutableStateOf(false) }
@@ -226,6 +228,7 @@ fun ProfileScreen(
         PrismGroupedList {
             PrismRow(title = "提醒中心", subtitle = "上课、考试、低电费", leading = { IconBadge(Icons.Outlined.Notifications) }, onClick = onOpenReminders)
             PrismRow(title = "设置", subtitle = "课表、通知、隐私与数据", leading = { IconBadge(Icons.Outlined.Settings) }, onClick = onOpenSettings)
+            PrismRow(title = "帮助与常见问题", subtitle = "账号、课表、洗浴、电费与提醒", leading = { IconBadge(Icons.AutoMirrored.Outlined.HelpOutline) }, onClick = onOpenHelp)
             PrismRow(title = "关于", subtitle = "版本、作者与版权", leading = { IconBadge(Icons.Outlined.Info) }, onClick = onOpenAbout)
         }
         Spacer(Modifier.height(24.dp))

@@ -1,11 +1,8 @@
 package com.union.campus.ui.screens.me
 
-import android.Manifest
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
@@ -52,6 +49,7 @@ import com.union.campus.ui.prism.IconBadge
 import com.union.campus.ui.prism.LocalPrismMessenger
 import com.union.campus.ui.prism.PrismButton
 import com.union.campus.ui.prism.PrismCard
+import com.union.campus.ui.prism.PrismMessageTone
 import com.union.campus.ui.prism.PrismChip
 import com.union.campus.ui.prism.PrismGroupedList
 import com.union.campus.ui.prism.PrismRow
@@ -81,13 +79,6 @@ fun RemindersCenterScreen(
     var notificationsOn by remember { mutableStateOf(UnionNotifications.canPost(context)) }
     var askedNotificationPermission by rememberSaveable { mutableStateOf(false) }
 
-    val notificationPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) { granted ->
-        notificationsOn = granted || UnionNotifications.canPost(context)
-        if (!granted) messenger.warning("未开启系统通知，提醒只在应用内显示")
-    }
-
     // 从系统设置回来时重新读一次，避免开关状态过期。
     LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
         notificationsOn = UnionNotifications.canPost(context)
@@ -100,16 +91,16 @@ fun RemindersCenterScreen(
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU && !askedNotificationPermission) {
             askedNotificationPermission = true
-            notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-        } else {
-            // 已问过仍被拒（或系统里被关掉）：直接带到应用通知设置。
-            val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
-                putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            runCatching { context.startActivity(intent) }
-                .onFailure { messenger.warning("无法打开系统设置，请手动允许通知") }
+            // 结果不需要回调：ON_RESUME 会重读 canPost；这里只负责把系统授权框叫出来。
+            if (UnionNotifications.requestPostNotificationPermission(context)) return
         }
+        // 已问过仍被拒（或系统里被关掉）：直接带到应用通知设置。
+        val intent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        runCatching { context.startActivity(intent) }
+            .onFailure { messenger.warning("无法打开系统设置，请手动允许通知") }
     }
 
     val remindEnabled by settings.remindEnabled.collectAsState(initial = true)
@@ -175,7 +166,13 @@ fun RemindersCenterScreen(
                             requestNotifications()
                             messenger.success("提醒已开启")
                         } else {
-                            messenger.info("已暂停全部提醒")
+                            // 用户可控：暂停是误触时可直接撤销，不用回到开关再点一次。
+                            messenger.show(
+                                text = "已暂停全部提醒",
+                                tone = PrismMessageTone.Info,
+                                actionLabel = "撤销",
+                                onAction = { set { settings.setRemindEnabled(true) } },
+                            )
                         }
                     },
                 )

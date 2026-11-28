@@ -44,6 +44,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.ui.common.UnionScreenScaffold
 import com.union.campus.ui.prism.PrismButton
@@ -121,7 +122,7 @@ fun LoginShowerScreen(
             } catch (e: AppError) {
                 error = e.userMessage
             } catch (e: Exception) {
-                error = "验证码发送失败：${e.message ?: "请稍后重试"}"
+                error = "验证码发送失败：${e.userFacingMessage()}"
             } finally {
                 sendingSms = false
             }
@@ -154,7 +155,7 @@ fun LoginShowerScreen(
                 error = e.userMessage
             } catch (e: Exception) {
                 haptics.error()
-                error = "登录失败：${e.message}"
+                error = "登录失败：${e.userFacingMessage()}"
             } finally {
                 loading = false
             }

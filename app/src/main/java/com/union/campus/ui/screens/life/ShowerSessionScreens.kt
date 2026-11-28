@@ -34,6 +34,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import com.union.campus.core.AppError
+import com.union.campus.core.userFacingMessage
 import com.union.campus.di.ServiceLocator
 import com.union.campus.domain.ShowerSessionState
 import com.union.campus.ui.common.UnionScreenScaffold
@@ -111,7 +112,7 @@ fun ShowerSessionScreen(
                         result = "结束失败：${e.userMessage}。洗浴可能已结束，请刷新订单确认，勿重复操作。"
                     } catch (e: Exception) {
                         ending = false
-                        result = "结束失败：${e.message}。洗浴可能已结束，请查看账单确认，勿重复操作。"
+                        result = "结束失败：${e.userFacingMessage()}。洗浴可能已结束，请查看账单确认，勿重复操作。"
                     }
                 }
             },
